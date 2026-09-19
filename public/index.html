@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>VARIS AI - Your Intelligent AI Workspace</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
     
     <!-- Premium Fonts: Plus Jakarta Sans & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,15 +27,17 @@
         <header class="landing-header">
             <div class="landing-nav-container">
                 <a href="#home" class="brand-link" id="landing-brand-link">
-                    <img src="/assets/varis-logo.jpg" alt="VARIS Logo" class="brand-logo-icon">
-                    <span class="brand-name-text">VARIS</span>
+                    <div class="brand-badge-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <span class="brand-name-text">VARIS AI</span>
                 </a>
 
                 <nav class="landing-nav-links">
-                    <a href="#features" class="nav-item" id="nav-landing-features">Features</a>
-                    <a href="#models" class="nav-item" id="nav-landing-models">Models</a>
-                    <a href="#pricing" class="nav-item" id="nav-landing-pricing">Pricing</a>
-                    <a href="#about" class="nav-item" id="nav-landing-about">About</a>
+                    <a href="#features" class="nav-item">Features</a>
+                    <a href="#models" class="nav-item">Models</a>
+                    <a href="#pricing" class="nav-item">Pricing</a>
+                    <a href="#about" class="nav-item">About</a>
                 </nav>
 
                 <div class="landing-nav-actions">
@@ -51,7 +53,7 @@
                 <!-- Left Column: Copy & CTAs -->
                 <div class="hero-content">
                     <div class="hero-badge">
-                        <img src="/assets/varis-logo.jpg" alt="VARIS" class="hero-badge-icon">
+                        <span class="hero-badge-dot"></span>
                         <span>VARIS WORKSPACE</span>
                     </div>
 
@@ -75,32 +77,32 @@
 
                     <!-- 4 Core Feature Cards at Hero Bottom -->
                     <div class="hero-features-row">
-                        <div class="feature-micro-card" id="f-card-models">
-                            <div class="feature-icon-box">✨</div>
+                        <div class="feature-micro-card">
+                            <div class="feature-icon-box bg-purple">✨</div>
                             <div class="feature-text">
                                 <strong>AI Models</strong>
                                 <span>Access best AI models from leading providers.</span>
                             </div>
                         </div>
 
-                        <div class="feature-micro-card" id="f-card-tools">
-                            <div class="feature-icon-box">⚡</div>
+                        <div class="feature-micro-card">
+                            <div class="feature-icon-box bg-blue">⚡</div>
                             <div class="feature-text">
                                 <strong>Powerful Tools</strong>
                                 <span>Boost productivity with advanced tools.</span>
                             </div>
                         </div>
 
-                        <div class="feature-micro-card" id="f-card-workspace">
-                            <div class="feature-icon-box">📁</div>
+                        <div class="feature-micro-card">
+                            <div class="feature-icon-box bg-indigo">📁</div>
                             <div class="feature-text">
                                 <strong>Smart Workspace</strong>
                                 <span>Organize ideas, projects and files.</span>
                             </div>
                         </div>
 
-                        <div class="feature-micro-card" id="f-card-privacy">
-                            <div class="feature-icon-box">🔒</div>
+                        <div class="feature-micro-card">
+                            <div class="feature-icon-box bg-slate">🔒</div>
                             <div class="feature-text">
                                 <strong>Secure & Private</strong>
                                 <span>Your data is always protected and private.</span>
@@ -109,22 +111,15 @@
                     </div>
                 </div>
 
-                <!-- Right Column: 3D High-Fidelity Glass Orb Art -->
-                <div class="hero-artwork-col">
-                    <div class="glass-artwork-stage">
-                        <!-- Iridescent Glass Sphere with Orbital Rings -->
-                        <div class="glass-orb-outer-ring ring-1"></div>
-                        <div class="glass-orb-outer-ring ring-2"></div>
-                        
-                        <div class="glass-orb-core">
-                            <div class="glass-reflection-highlight"></div>
-                            <div class="glass-inner-swirl"></div>
-                            <div class="glass-specular-dot"></div>
+                <!-- Right Column: 3D Orb Visual Representation -->
+                <div class="hero-visual">
+                    <div class="hero-orb-wrapper">
+                        <div class="hero-orb-glow"></div>
+                        <div class="hero-orb-ring ring-1"></div>
+                        <div class="hero-orb-ring ring-2"></div>
+                        <div class="hero-orb-sphere">
+                            <div class="orb-inner-light"></div>
                         </div>
-
-                        <div class="glass-floating-satellite sat-1"></div>
-                        <div class="glass-floating-satellite sat-2"></div>
-                        <div class="glass-ambient-light"></div>
                     </div>
                 </div>
             </div>
@@ -132,29 +127,33 @@
     </section>
 
     <!-- ========================================================
-         VIEW 1: SPLIT-SCREEN AUTH (#view-auth)
+         VIEW 1: AUTHENTICATION SCREEN (#view-auth)
          ======================================================== -->
     <section class="view-screen" id="view-auth">
-        <div class="auth-split-layout">
-            <!-- Left Side: Login Form -->
-            <div class="auth-left-col">
-                <div class="auth-form-wrapper">
-                    <!-- Brand Header -->
-                    <div class="auth-header-brand" id="auth-back-to-landing" title="Kembali ke Landing Page">
-                        <img src="/assets/varis-logo.jpg" alt="VARIS Logo" class="brand-logo-icon">
-                        <span class="brand-name-text">VARIS</span>
+        <div class="auth-split-wrapper">
+            <!-- Left Panel / Mobile Card -->
+            <div class="auth-panel-main">
+                <div class="auth-header-bar">
+                    <button class="btn-icon-back" id="auth-back-to-landing" title="Back">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div class="auth-brand-badge">
+                        <div class="brand-badge-icon sm">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                        </div>
+                        <span class="auth-brand-name">VARIS</span>
                     </div>
+                </div>
 
-                    <div class="auth-headings">
-                        <h2 id="auth-main-title">Welcome back</h2>
-                        <p id="auth-main-desc">Continue your intelligent workspace.</p>
-                    </div>
+                <div class="auth-box-inner">
+                    <h2 class="auth-heading" id="auth-main-title">Welcome back</h2>
+                    <p class="auth-subheading" id="auth-main-desc">Continue your intelligent workspace.</p>
 
-                    <!-- Auth Status / Error Alert Box -->
-                    <div id="auth-alert-box" class="auth-alert hidden"></div>
+                    <!-- Alert message box -->
+                    <div class="auth-alert-box hidden" id="auth-alert-box"></div>
 
-                    <!-- Continue with Google Button (1-Tap Google OAuth) -->
-                    <button class="btn-google-primary" id="btn-continue-google" type="button">
+                    <!-- Official Google OAuth Button -->
+                    <button class="btn-google-official" id="btn-continue-google">
                         <svg class="google-g-icon" viewBox="0 0 24 24" width="20" height="20">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -164,761 +163,934 @@
                         <span>Continue with Google</span>
                     </button>
 
-                    <!-- OR Divider -->
-                    <div class="auth-divider-line">
+                    <div class="auth-divider">
                         <span>OR</span>
                     </div>
 
                     <!-- Email & Password Form -->
-                    <form id="auth-email-form">
-                        <div class="input-field-group" id="group-auth-name" style="display:none;">
-                            <label class="input-field-label">Full Name</label>
-                            <input type="text" id="auth-name-input" class="input-field" placeholder="Your name">
+                    <form class="auth-email-form" id="auth-email-form" autocomplete="on">
+                        <div class="form-group hidden" id="group-auth-name">
+                            <label for="auth-name-input">Full Name</label>
+                            <input type="text" id="auth-name-input" placeholder="Your name" autocomplete="name">
                         </div>
 
-                        <div class="input-field-group">
-                            <label class="input-field-label">Email address</label>
-                            <input type="email" id="auth-email-input" class="input-field" placeholder="you@example.com" value="alpalis@gmail.com" required>
+                        <div class="form-group">
+                            <label for="auth-email-input">Email address</label>
+                            <input type="email" id="auth-email-input" placeholder="name@example.com" required autocomplete="email">
                         </div>
 
-                        <div class="input-field-group">
-                            <div class="label-with-link">
-                                <label class="input-field-label">Password</label>
-                                <a href="#" class="field-aux-link" id="auth-forgot-link">Forgot password?</a>
+                        <div class="form-group">
+                            <div class="label-row">
+                                <label for="auth-pass-input">Password</label>
+                                <a href="#" class="link-forgot-pass" id="btn-forgot-password">Forgot password?</a>
                             </div>
-                            <input type="password" id="auth-pass-input" class="input-field" placeholder="Enter your password" value="Password123!" required>
+                            <input type="password" id="auth-pass-input" placeholder="••••••••" required autocomplete="current-password">
                         </div>
 
-                        <button type="submit" class="btn-primary-block" id="auth-submit-btn">Sign In</button>
+                        <button type="submit" class="btn-auth-submit" id="auth-submit-btn">
+                            Sign In
+                        </button>
                     </form>
 
-                    <!-- Footer Switcher -->
-                    <div class="auth-footer-prompt">
+                    <div class="auth-footer-switch">
                         <span id="auth-switch-text">Don't have an account?</span>
                         <button type="button" class="btn-text-link" id="auth-switch-btn">Create account</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side: 3D Architectural Glass Artwork -->
-            <div class="auth-right-col">
-                <div class="auth-art-container">
-                    <div class="arch-sculpture">
-                        <div class="arch-glass-slab slab-1"></div>
-                        <div class="arch-glass-slab slab-2"></div>
-                        <div class="arch-glass-slab slab-3"></div>
-                        <div class="arch-metallic-sphere"></div>
-                        <div class="arch-ambient-glow"></div>
-                    </div>
-                    <div class="auth-art-caption">
-                        <h3>Better Ideas<br>Bigger Possibilities</h3>
-                        <div class="art-brand-tag">
-                            <img src="/assets/varis-logo.jpg" alt="Logo" class="caption-logo">
-                            <span>VARIS</span>
-                        </div>
-                    </div>
+            <!-- Right Showcase Panel (Desktop) -->
+            <div class="auth-panel-showcase">
+                <div class="showcase-content-box">
+                    <div class="showcase-orb-mini"></div>
+                    <h3 class="showcase-title">Your Intelligent Workspace</h3>
+                    <p class="showcase-text">Access frontier AI models, smart agent automation, file intelligence, and voice conversation all in one seamless place.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- ========================================================
-         VIEW 2: MAIN DASHBOARD WORKSPACE (#view-app)
+         VIEW 2: APP SHELL & MOBILE WORKSPACE (#view-app)
          ======================================================== -->
-    <div class="workspace-layout" id="view-app">
+    <div class="view-screen" id="view-app">
         
-        <!-- ================= Minimal Left Sidebar ================= -->
-        <aside class="app-sidebar" id="app-sidebar">
-            <div class="sidebar-top">
-                <!-- Brand Badge -->
-                <div class="sidebar-brand" id="sidebar-home-btn" title="Dashboard Home">
-                    <img src="/assets/varis-logo.jpg" alt="VARIS" class="sidebar-brand-img">
-                    <span class="sidebar-brand-title">VARIS</span>
-                </div>
-
-                <!-- + New Chat Button -->
-                <button class="btn-sidebar-newchat" id="sidebar-newchat-btn">
-                    <span class="btn-icon">＋</span>
-                    <span>New Chat</span>
-                </button>
-
-                <!-- Navigation List -->
-                <nav class="sidebar-nav">
-                    <button class="nav-btn active" data-subview="chat" id="nav-chat">
-                        <span class="nav-icon">💬</span>
-                        <span class="nav-label">Chats</span>
-                    </button>
-                    <button class="nav-btn" data-subview="projects" id="nav-projects">
-                        <span class="nav-icon">📁</span>
-                        <span class="nav-label">Projects</span>
-                    </button>
-                    <button class="nav-btn" data-subview="files" id="nav-files">
-                        <span class="nav-icon">📄</span>
-                        <span class="nav-label">Files</span>
-                    </button>
-                    <button class="nav-btn" data-subview="models" id="nav-models">
-                        <span class="nav-icon">✨</span>
-                        <span class="nav-label">Models</span>
-                    </button>
-                    <button class="nav-btn" data-subview="usage" id="nav-usage">
-                        <span class="nav-icon">📊</span>
-                        <span class="nav-label">Usage</span>
-                    </button>
-                    <button class="nav-btn" data-subview="subscription" id="nav-subscription">
-                        <span class="nav-icon">💳</span>
-                        <span class="nav-label">Subscription</span>
-                    </button>
-                    <button class="nav-btn" data-subview="settings" id="nav-settings">
-                        <span class="nav-icon">⚙️</span>
-                        <span class="nav-label">Settings</span>
-                    </button>
-                </nav>
+        <!-- Desktop / Tablet Left Sidebar (Hidden on Mobile) -->
+        <aside class="desktop-sidebar" id="desktop-sidebar">
+            <div class="sidebar-header">
+                <a href="#home" class="sidebar-brand-link">
+                    <div class="brand-badge-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <span class="brand-name-text">VARIS AI</span>
+                </a>
             </div>
 
-            <!-- Bottom Sidebar User Profile Pill -->
-            <div class="sidebar-bottom">
-                <button class="sidebar-user-pill" id="sidebar-user-btn" title="Akun & Profil">
-                    <img src="/assets/varis-logo.jpg" alt="User Avatar" class="sidebar-user-avatar" id="sidebar-user-avatar">
-                    <div class="sidebar-user-meta">
-                        <span class="sidebar-user-name" id="sidebar-user-name">Al Palis</span>
-                        <span class="sidebar-user-plan" id="sidebar-user-plan">Pro Plan</span>
-                    </div>
-                    <span class="sidebar-user-chevron">▾</span>
+            <button class="sidebar-btn-newchat" id="sidebar-newchat-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                <span>New Chat</span>
+            </button>
+
+            <nav class="sidebar-nav-menu">
+                <button class="sidebar-nav-item active" data-tab="home">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    <span>Home</span>
                 </button>
+                <button class="sidebar-nav-item" data-tab="chat">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span>Chat</span>
+                </button>
+                <button class="sidebar-nav-item" data-tab="voice">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                    <span>Voice Mode</span>
+                </button>
+                <button class="sidebar-nav-item" data-tab="projects">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+                    <span>Workspaces</span>
+                </button>
+                <button class="sidebar-nav-item" data-tab="profile">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>Profile & Settings</span>
+                </button>
+            </nav>
+
+            <!-- Sidebar User Profile Footer -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-card" id="sidebar-user-btn">
+                    <div class="user-avatar-circle" id="sidebar-user-avatar">AL</div>
+                    <div class="user-info-text">
+                        <strong class="user-name" id="sidebar-user-name">Alex Rivera</strong>
+                        <span class="user-plan-badge" id="sidebar-user-plan">Pro Tier</span>
+                    </div>
+                </div>
             </div>
         </aside>
 
-        <!-- ================= Main Content Container ================= -->
-        <div class="workspace-main-panel">
-            
-            <!-- Minimal World-Class Top Bar -->
+        <!-- Main Workspace Area -->
+        <main class="app-main-viewport">
+
+            <!-- Top Header Bar (Mobile & Desktop) -->
             <header class="app-topbar">
                 <div class="topbar-left">
-                    <button class="mobile-menu-toggle" id="mobile-sidebar-toggle" title="Menu Sidebar">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                    </button>
-
-                    <!-- Global Search Bar -->
-                    <div class="topbar-search-box">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" class="topbar-search-input" id="global-search-input" placeholder="Search anything...">
+                    <div class="topbar-brand">
+                        <span class="brand-title-bold">VARIS AI</span>
                     </div>
                 </div>
 
                 <div class="topbar-right">
-                    <!-- Current Model Pill -->
-                    <button class="topbar-model-pill" id="topbar-model-btn" title="Klik untuk ganti model AI">
-                        <span class="model-sparkle">✨</span>
-                        <span class="model-name-label" id="topbar-model-name">Gemini Pro</span>
-                        <span class="model-status-indicator available" id="topbar-model-status"></span>
-                        <span class="chevron-arrow">▼</span>
-                    </button>
-
-                    <!-- Credits Balance Widget -->
-                    <button class="topbar-credits-pill" id="topbar-credits-btn" title="VARIS Credits Balance">
-                        <span class="credit-bolt">⚡</span>
-                        <span class="credit-count" id="topbar-credits-text">2,840</span>
-                    </button>
-
-                    <!-- User Avatar Pill -->
-                    <button class="topbar-avatar-btn" id="topbar-avatar-btn" title="Profile & Account">
-                        <img src="/assets/varis-logo.jpg" alt="Avatar" class="topbar-avatar-img" id="topbar-avatar-img">
+                    <button class="topbar-avatar-btn" id="topbar-avatar-btn" title="Profile">
+                        <div class="topbar-avatar-circle" id="topbar-avatar-badge">AL</div>
                     </button>
                 </div>
             </header>
 
-            <!-- ================= SUBVIEW 1: CHAT WORKSPACE (#subview-chat) ================= -->
-            <section class="subview-container active" id="subview-chat">
-                <div class="chat-workspace-inner">
-                    
-                    <!-- Empty State Greeting Banner -->
-                    <div class="chat-empty-state" id="chat-empty-state">
-                        <div class="empty-sparkle-box">
-                            <span class="sparkle-symbol">✦</span>
+            <!-- Tab Content Views Container -->
+            <div class="tab-viewport-container">
+
+                <!-- ========================================================
+                     TAB 1: HOME / DASHBOARD (#tab-home) - MATCHES IMAGE 1
+                     ======================================================== -->
+                <div class="tab-page active" id="tab-home">
+                    <div class="page-content-wrapper">
+                        <!-- Greeting Row -->
+                        <div class="home-greeting-row">
+                            <div class="greeting-texts">
+                                <h1 class="greeting-title">Good evening, <span id="home-user-name">Alex</span></h1>
+                                <p class="greeting-subtitle">How can I help you today?</p>
+                            </div>
+                            <div class="plan-pill-badge" id="home-plan-badge">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
+                                <span>Pro Tier</span>
+                            </div>
                         </div>
-                        <h2 class="empty-greeting-title" id="empty-greeting-name">Good evening, Al Palis.</h2>
-                        <p class="empty-greeting-subtitle">What are we building today?</p>
-                    </div>
 
-                    <!-- Conversational Messages Feed -->
-                    <div class="chat-messages-feed" id="chat-messages-feed">
-                        <!-- Dynamic professional document-like AI responses are rendered here -->
-                    </div>
+                        <!-- Royal Blue Available Balance Hero Card -->
+                        <div class="balance-hero-card">
+                            <div class="balance-card-top">
+                                <div class="balance-title-group">
+                                    <div class="lightning-icon-circle">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                    </div>
+                                    <div class="balance-texts">
+                                        <span class="balance-label">AVAILABLE BALANCE</span>
+                                        <strong class="balance-amount" id="home-balance-display">2,450 Credits</strong>
+                                    </div>
+                                </div>
+                                <button class="btn-card-usage" id="home-usage-btn">
+                                    <span>Usage</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                </button>
+                            </div>
 
-                    <!-- Conversational Prompt Bar at Bottom -->
-                    <div class="chat-input-container">
-                        <div class="chat-input-card">
-                            <textarea class="chat-textarea" id="main-chat-input" placeholder="Ask VARIS anything..." rows="1"></textarea>
-                            
-                            <div class="chat-input-toolbar">
-                                <div class="toolbar-left-actions">
-                                    <button class="tool-btn" id="btn-attach-action" title="Attach file or project context">
-                                        <span>＋</span>
+                            <div class="balance-card-bottom">
+                                <div class="balance-progress-labels">
+                                    <span>Monthly allocation</span>
+                                    <span id="home-allocation-pct">78% remaining</span>
+                                </div>
+                                <div class="balance-progress-bar">
+                                    <div class="balance-progress-fill" id="home-balance-progress-fill" style="width: 78%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions Section -->
+                        <section class="section-quick-actions">
+                            <h2 class="section-heading-sm">Quick Actions</h2>
+                            <div class="quick-actions-scroll">
+                                <button class="quick-action-item" id="qa-newchat">
+                                    <div class="qa-icon-circle bg-purple">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                    </div>
+                                    <span>New Chat</span>
+                                </button>
+
+                                <button class="quick-action-item" id="qa-voicemode">
+                                    <div class="qa-icon-circle bg-blue">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                                    </div>
+                                    <span>Voice Mode</span>
+                                </button>
+
+                                <button class="quick-action-item" id="qa-analyze">
+                                    <div class="qa-icon-circle bg-lavender">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>
+                                    </div>
+                                    <span>Analyze</span>
+                                </button>
+
+                                <button class="quick-action-item" id="qa-research">
+                                    <div class="qa-icon-circle bg-cyan">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                    </div>
+                                    <span>Research</span>
+                                </button>
+
+                                <button class="quick-action-item" id="qa-coding">
+                                    <div class="qa-icon-circle bg-emerald">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                                    </div>
+                                    <span>Coding</span>
+                                </button>
+                            </div>
+                        </section>
+
+                        <!-- Recent Chats Section -->
+                        <section class="section-home-block">
+                            <div class="section-header-row">
+                                <h2 class="section-heading-sm">Recent Chats</h2>
+                                <button class="btn-link-viewall" id="btn-viewall-chats">View all</button>
+                            </div>
+
+                            <div class="recent-chats-list" id="home-recent-chats-list">
+                                <!-- Item 1 -->
+                                <div class="recent-chat-card" data-chat-id="chat-1">
+                                    <div class="recent-chat-icon-box bg-slate-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    </div>
+                                    <div class="recent-chat-info">
+                                        <strong class="recent-chat-title">React Native Architecture R...</strong>
+                                        <span class="recent-chat-sub">2 hours ago • 14 messages</span>
+                                    </div>
+                                    <div class="recent-chat-arrow">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                    </div>
+                                </div>
+
+                                <!-- Item 2 -->
+                                <div class="recent-chat-card" data-chat-id="chat-2">
+                                    <div class="recent-chat-icon-box bg-slate-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2v1"/><path d="M12 8a5 5 0 0 0-5 5c0 1.5.8 2.8 2 3.5v1.5h6V16.5c1.2-.7 2-2 2-3.5a5 5 0 0 0-5-5Z"/></svg>
+                                    </div>
+                                    <div class="recent-chat-info">
+                                        <strong class="recent-chat-title">Q3 Marketing Strategy Brai...</strong>
+                                        <span class="recent-chat-sub">Yesterday • 28 messages</span>
+                                    </div>
+                                    <div class="recent-chat-arrow">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                    </div>
+                                </div>
+
+                                <!-- Item 3 -->
+                                <div class="recent-chat-card" data-chat-id="chat-3">
+                                    <div class="recent-chat-icon-box bg-slate-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                                    </div>
+                                    <div class="recent-chat-info">
+                                        <strong class="recent-chat-title">TypeScript Utility Types Op...</strong>
+                                        <span class="recent-chat-sub">3 days ago • 8 messages</span>
+                                    </div>
+                                    <div class="recent-chat-arrow">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Projects Section -->
+                        <section class="section-home-block">
+                            <div class="section-header-row">
+                                <h2 class="section-heading-sm">Projects</h2>
+                                <button class="btn-link-viewall" id="btn-viewall-projects">View all</button>
+                            </div>
+
+                            <div class="home-projects-list" id="home-projects-list">
+                                <!-- Project 1 -->
+                                <div class="home-project-card">
+                                    <div class="project-badge-avatar bg-indigo-light">VA</div>
+                                    <div class="home-project-info">
+                                        <strong class="project-name">VARIS Mobile v2</strong>
+                                        <span class="project-meta">Updated 4h ago • 12 files</span>
+                                    </div>
+                                    <button class="btn-icon-more" title="More options">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                                     </button>
-                                    <button class="tool-btn" id="btn-file-select" title="Pilih File dari Workspace">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                </div>
+
+                                <!-- Project 2 -->
+                                <div class="home-project-card">
+                                    <div class="project-badge-avatar bg-blue-light">DS</div>
+                                    <div class="home-project-info">
+                                        <strong class="project-name">Design System Tokens</strong>
+                                        <span class="project-meta">Updated 2d ago • 45 files</span>
+                                    </div>
+                                    <button class="btn-icon-more" title="More options">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                                     </button>
-                                    <button class="tool-btn" id="btn-voice-chat-start" title="Aktifkan Mode Suara">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- ========================================================
+                     TAB 2: CHAT WORKSPACE (#tab-chat) - MATCHES IMAGE 2
+                     ======================================================== -->
+                <div class="tab-page" id="tab-chat">
+                    <div class="chat-subview-wrapper">
+                        <!-- Chat Subtoolbar -->
+                        <div class="chat-subtoolbar">
+                            <button class="pill-model-selector" id="chat-model-selector-btn">
+                                <span class="model-status-dot"></span>
+                                <span class="model-name-text" id="chat-active-model-name">VARIS Auto</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+
+                            <button class="pill-credits-indicator" id="chat-credits-pill-btn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B3BE5" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                <span id="chat-credits-display">2,450 / 3,000 credits</span>
+                            </button>
+                        </div>
+
+                        <!-- Chat Messages Feed -->
+                        <div class="chat-messages-container" id="chat-messages-feed">
+                            <!-- Initial Welcome AI Message Card -->
+                            <div class="chat-message-row ai-row">
+                                <div class="chat-ai-header">
+                                    <div class="ai-avatar-badge">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                    </div>
+                                    <strong class="ai-sender-name">VARIS AI</strong>
+                                    <span class="ai-message-time">Just now</span>
+                                </div>
+
+                                <div class="ai-message-card">
+                                    <p class="ai-text-para">
+                                        Hello! I'm your VARIS AI assistant. I'm ready to help you write code, analyze data, or brainstorm ideas. Here's a quick example of my Markdown & code generation capabilities:
+                                    </p>
+
+                                    <!-- Code Block Preview -->
+                                    <div class="code-block-wrapper">
+                                        <div class="code-block-header">
+                                            <span class="code-lang-tag">PYTHON</span>
+                                            <button class="btn-code-copy" onclick="navigator.clipboard.writeText(this.closest('.code-block-wrapper').querySelector('code').innerText); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy', 1500)">Copy</button>
+                                        </div>
+                                        <pre class="code-pre-box"><code>def calculate_delight_score(interactions):
+    """
+    Computes the user delight index for VARIS AI Workspace.
+    """
+    base_score = 100.0
+    delight_factor = sum(interactions) * 1.25
+    friction_penalty = len(friction_points) * 2.5
+    
+    final_score = max(0.0, base_score + delight_factor - friction_penalty)
+    return round(final_score, 2)
+
+print(f"Workspace Delight Index: {calculate_delight_score([4.5, 5.0, 4.8])}")</code></pre>
+                                    </div>
+
+                                    <p class="ai-text-para">
+                                        Feel free to type a prompt below, attach files, or use voice input to get started!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sticky Chat Composer Container -->
+                        <div class="chat-composer-outer">
+                            <div class="chat-composer-box">
+                                <textarea class="chat-input-field" id="main-chat-input" placeholder="Ask VARIS anything or type '/' for..." rows="1"></textarea>
+                                
+                                <div class="composer-toolbar-row">
+                                    <div class="composer-tools-left">
+                                        <button class="btn-composer-tool" id="btn-composer-attach" title="Attach file">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                        </button>
+                                        <button class="btn-composer-tool" id="btn-composer-mic" title="Voice Input">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                                        </button>
+                                        <button class="btn-composer-tool" id="btn-composer-web" title="Web Search">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                                        </button>
+                                    </div>
+
+                                    <button class="btn-composer-send" id="main-send-btn" title="Send message">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================================
+                     TAB 3: VOICE MODE (#tab-voice) - MATCHES IMAGE 3
+                     ======================================================== -->
+                <div class="tab-page" id="tab-voice">
+                    <div class="voice-page-wrapper">
+                        <!-- Top Voice Status -->
+                        <div class="voice-status-header">
+                            <div class="voice-status-pill" id="voice-status-pill">
+                                <span class="status-live-dot"></span>
+                                <span class="status-live-text" id="voice-status-text">LISTENING...</span>
+                            </div>
+                            <span class="voice-engine-version">VARIS Neural Voice v2.4</span>
+                        </div>
+
+                        <!-- Central 3D Concentric Voice Orb -->
+                        <div class="voice-visual-center">
+                            <div class="voice-orb-glow-layer"></div>
+                            <div class="voice-concentric-ring ring-outer"></div>
+                            <div class="voice-concentric-ring ring-mid"></div>
+                            <div class="voice-core-sphere" id="voice-core-sphere">
+                                <div class="sphere-inner-shimmer"></div>
+                                <div class="voice-mic-icon-box">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Waveform Equalizer Bars -->
+                        <div class="voice-waveform-equalizer" id="voice-equalizer-bars">
+                            <span class="eq-bar bar-1"></span>
+                            <span class="eq-bar bar-2"></span>
+                            <span class="eq-bar bar-3"></span>
+                            <span class="eq-bar bar-4"></span>
+                            <span class="eq-bar bar-5"></span>
+                            <span class="eq-bar bar-6"></span>
+                            <span class="eq-bar bar-7"></span>
+                            <span class="eq-bar bar-8"></span>
+                            <span class="eq-bar bar-9"></span>
+                        </div>
+
+                        <!-- Bottom Audio Action Controls -->
+                        <div class="voice-controls-row">
+                            <button class="btn-voice-round btn-voice-mute" id="btn-voice-mute" title="Mute Microphone">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                            </button>
+
+                            <button class="btn-voice-round btn-voice-hangup" id="btn-voice-end" title="End Voice Session">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="22" y1="2" x2="2" y2="22"/></svg>
+                            </button>
+
+                            <button class="btn-voice-round btn-voice-speaker" id="btn-voice-speaker" title="Speaker Output">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================================
+                     TAB 4: WORKSPACES / FILES & PROJECTS (#tab-projects) - MATCHES IMAGE 4
+                     ======================================================== -->
+                <div class="tab-page" id="tab-projects">
+                    <div class="page-content-wrapper">
+                        <!-- Top Workspaces Header -->
+                        <div class="workspaces-header-row">
+                            <div class="ws-header-texts">
+                                <h1 class="ws-main-title">Workspaces</h1>
+                                <p class="ws-main-sub">Manage your AI context and project files</p>
+                            </div>
+                            <button class="btn-new-file" id="btn-open-new-file-sheet">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                                <span>New File</span>
+                            </button>
+                        </div>
+
+                        <!-- Search Bar -->
+                        <div class="ws-search-bar">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                            <input type="text" id="ws-search-input" placeholder="Search projects, documents, or code...">
+                        </div>
+
+                        <!-- Filter Category Tabs -->
+                        <div class="ws-filter-tabs-row" id="ws-filter-tabs">
+                            <button class="filter-pill-btn active" data-filter="all">All Files</button>
+                            <button class="filter-pill-btn" data-filter="pdf">PDF Docs</button>
+                            <button class="filter-pill-btn" data-filter="word">Word</button>
+                            <button class="filter-pill-btn" data-filter="code">Code</button>
+                            <button class="filter-pill-btn" data-filter="images">Images</button>
+                        </div>
+
+                        <!-- Active Projects Horizontal Carousel -->
+                        <section class="section-active-projects">
+                            <div class="section-header-row">
+                                <h2 class="section-heading-sm">Active Projects</h2>
+                                <button class="btn-link-viewall" id="btn-projects-viewall">View All</button>
+                            </div>
+
+                            <div class="projects-carousel-row" id="ws-projects-carousel">
+                                <!-- Project Card 1 -->
+                                <div class="project-carousel-card">
+                                    <div class="card-icon-badge-row">
+                                        <div class="project-app-icon bg-blue-vibrant">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                                        </div>
+                                        <span class="pill-file-count">12 files</span>
+                                    </div>
+                                    <strong class="project-card-title">VARIS Mobile v2</strong>
+                                    <p class="project-card-desc">Design system migration & SwiftUI component...</p>
+                                    <div class="project-card-footer">
+                                        <span>Updated 2h ago</span>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                    </div>
+                                </div>
+
+                                <!-- Project Card 2 -->
+                                <div class="project-carousel-card">
+                                    <div class="card-icon-badge-row">
+                                        <div class="project-app-icon bg-blue-deep">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                                        </div>
+                                        <span class="pill-file-count">45 files</span>
+                                    </div>
+                                    <strong class="project-card-title">Design System Tokens</strong>
+                                    <p class="project-card-desc">Color palette scales, typography tokens, icons...</p>
+                                    <div class="project-card-footer">
+                                        <span>Updated 1d ago</span>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Workspace Files List -->
+                        <section class="section-workspace-files">
+                            <div class="section-header-row">
+                                <h2 class="section-heading-sm">Workspace Files</h2>
+                                <span class="files-counter-sub" id="ws-files-counter">Showing 6 files</span>
+                            </div>
+
+                            <div class="workspace-files-list" id="ws-files-list">
+                                <!-- File 1: PDF -->
+                                <div class="ws-file-item-card">
+                                    <div class="file-type-badge bg-rose-light">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E11D48" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    </div>
+                                    <div class="file-item-meta">
+                                        <strong class="file-item-name">iOS_Human_Interface_Guid...</strong>
+                                        <span class="file-item-sub">VARIS Mobile v2 • 4.2 MB • Updated 10m ago</span>
+                                    </div>
+                                    <button class="btn-icon-file-more" title="File options">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                                     </button>
                                 </div>
 
-                                <div class="toolbar-right-actions">
-                                    <button class="send-circle-btn" id="main-send-btn" disabled title="Send Prompt">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                <!-- File 2: Code -->
+                                <div class="ws-file-item-card">
+                                    <div class="file-type-badge bg-purple-light">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                                    </div>
+                                    <div class="file-item-meta">
+                                        <strong class="file-item-name">tailwind.config.tokens.js</strong>
+                                        <span class="file-item-sub">Design System Tokens • 14 KB • Updated 2h ago</span>
+                                    </div>
+                                    <button class="btn-icon-file-more" title="File options">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                    </button>
+                                </div>
+
+                                <!-- File 3: Doc -->
+                                <div class="ws-file-item-card">
+                                    <div class="file-type-badge bg-blue-soft">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>
+                                    </div>
+                                    <div class="file-item-meta">
+                                        <strong class="file-item-name">Q3_User_Research_Synthes...</strong>
+                                        <span class="file-item-sub">Research Archive • 1.8 MB • Updated yesterday</span>
+                                    </div>
+                                    <button class="btn-icon-file-more" title="File options">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                    </button>
+                                </div>
+
+                                <!-- File 4: GraphQL / Code -->
+                                <div class="ws-file-item-card">
+                                    <div class="file-type-badge bg-indigo-soft">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                                    </div>
+                                    <div class="file-item-meta">
+                                        <strong class="file-item-name">api_spec_v2_graphql.ts</strong>
+                                        <span class="file-item-sub">VARIS Mobile v2 • 32 KB • Updated 2d ago</span>
+                                    </div>
+                                    <button class="btn-icon-file-more" title="File options">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                    </button>
+                                </div>
+
+                                <!-- File 5: Folder / Assets -->
+                                <div class="ws-file-item-card">
+                                    <div class="file-type-badge bg-sky-light">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0284C7" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+                                    </div>
+                                    <div class="file-item-meta">
+                                        <strong class="file-item-name">Brand_System_Hero_Assets...</strong>
+                                        <span class="file-item-sub">Design System Tokens • 45.1 MB • Updated 3d ago</span>
+                                    </div>
+                                    <button class="btn-icon-file-more" title="File options">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                    </button>
+                                </div>
+
+                                <!-- File 6: PDF -->
+                                <div class="ws-file-item-card">
+                                    <div class="file-type-badge bg-rose-light">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E11D48" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    </div>
+                                    <div class="file-item-meta">
+                                        <strong class="file-item-name">Generative_AI_Safety_White...</strong>
+                                        <span class="file-item-sub">Research Archive • 8.4 MB • Updated 5d ago</span>
+                                    </div>
+                                    <button class="btn-icon-file-more" title="File options">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                                     </button>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- 5 Quick Action Chips -->
-                        <div class="quick-prompt-chips" id="quick-prompt-chips">
-                            <button class="prompt-chip" data-prompt="Buatkan proposal atau rancangan arsitektur untuk ide baru saya: ">
-                                <span class="chip-icon">✏️</span>
-                                <span>Create</span>
-                            </button>
-                            <button class="prompt-chip" data-prompt="Tolong analisa dan berikan evaluasi mendalam mengenai: ">
-                                <span class="chip-icon">📊</span>
-                                <span>Analyze</span>
-                            </button>
-                            <button class="prompt-chip" data-prompt="Tuliskan kode pemrograman yang bersih, modular, dan efisien untuk: ">
-                                <span class="chip-icon">💻</span>
-                                <span>Code</span>
-                            </button>
-                            <button class="prompt-chip" data-prompt="Lakukan riset komprehensif dan ringkas poin penting tentang: ">
-                                <span class="chip-icon">🔬</span>
-                                <span>Research</span>
-                            </button>
-                            <button class="prompt-chip" data-prompt="Tuliskan artikel atau konten profesional mengenai: ">
-                                <span class="chip-icon">📝</span>
-                                <span>Write</span>
-                            </button>
-                        </div>
-                    </div>
-
-                </div>
-            </section>
-
-            <!-- ================= SUBVIEW 2: PROJECTS WORKSPACE (#subview-projects) ================= -->
-            <section class="subview-container" id="subview-projects">
-                <div class="page-content-wrapper">
-                    <div class="page-header-row">
-                        <div>
-                            <h2 class="page-title">Projects</h2>
-                            <p class="page-subtitle">Kelola workspace proyek, dokumen, dan riwayat obrolan khusus.</p>
-                        </div>
-                        <button class="btn-primary-pill" id="btn-create-project">＋ New Project</button>
-                    </div>
-
-                    <!-- Projects Grid -->
-                    <div class="projects-grid" id="projects-grid">
-                        <!-- Rendered dynamically -->
+                        </section>
                     </div>
                 </div>
-            </section>
 
-            <!-- ================= SUBVIEW 3: FILES WORKSPACE (#subview-files) ================= -->
-            <section class="subview-container" id="subview-files">
-                <div class="page-content-wrapper files-two-column-layout">
-                    <!-- Files List Column -->
-                    <div class="files-main-col">
-                        <div class="page-header-row">
-                            <div>
-                                <h2 class="page-title">Files</h2>
-                                <p class="page-subtitle">Penyimpanan dokumen, aset desain, dan kode sumber proyek Anda.</p>
-                            </div>
-                            <div class="header-action-group">
-                                <label class="btn-primary-pill file-upload-trigger" title="Upload File">
-                                    <span>📁 Upload File</span>
-                                    <input type="file" id="real-file-upload-input" style="display:none;">
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Files Search and Filter Tabs -->
-                        <div class="files-filter-bar">
-                            <div class="files-search-box">
-                                <span>🔍</span>
-                                <input type="text" id="files-search-input" placeholder="Search files...">
-                            </div>
-                            <div class="filter-tab-pills" id="files-filter-tabs">
-                                <button class="f-tab-pill active" data-filter="all">All</button>
-                                <button class="f-tab-pill" data-filter="documents">Documents</button>
-                                <button class="f-tab-pill" data-filter="images">Images</button>
-                                <button class="f-tab-pill" data-filter="code">Code</button>
-                                <button class="f-tab-pill" data-filter="others">Others</button>
-                            </div>
-                        </div>
-
-                        <!-- Files Data Table -->
-                        <div class="table-card-container">
-                            <table class="modern-data-table" id="files-data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Project</th>
-                                        <th>Last modified</th>
-                                        <th>Type</th>
-                                        <th>Size</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="files-table-body">
-                                    <!-- Populated dynamically -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- File Live Preview Sidebar -->
-                    <aside class="file-preview-panel" id="file-preview-panel">
-                        <div class="preview-empty" id="preview-empty-state">
-                            <span class="empty-icon">📄</span>
-                            <p>Pilih file dari tabel untuk melihat preview dan detail</p>
-                        </div>
-                        <div class="preview-content hidden" id="preview-active-state">
-                            <div class="preview-thumbnail-box">
-                                <div class="preview-doc-icon" id="preview-icon">📄</div>
-                            </div>
-                            <h4 class="preview-file-title" id="preview-name">Project Proposal.pdf</h4>
-                            <span class="preview-file-size" id="preview-size">2.4 MB • PDF</span>
-                            <div class="preview-divider"></div>
-                            
-                            <div class="preview-meta-row">
-                                <span class="meta-label">Project:</span>
-                                <strong id="preview-project">Project A</strong>
-                            </div>
-                            <div class="preview-meta-row">
-                                <span class="meta-label">Last modified:</span>
-                                <span id="preview-date">2 hours ago</span>
-                            </div>
-
-                            <div class="preview-snippet-box" id="preview-snippet">
-                                <!-- File snippet / excerpt -->
-                            </div>
-
-                            <div class="preview-actions-row">
-                                <button class="btn-primary-sm" id="btn-preview-modal">Preview</button>
-                                <button class="btn-outline-sm" id="btn-download-file">Download</button>
-                                <button class="btn-danger-icon" id="btn-delete-file" title="Hapus File">🗑️</button>
-                            </div>
-                        </div>
-                    </aside>
-                </div>
-            </section>
-
-            <!-- ================= SUBVIEW 4: MODELS WORKSPACE (#subview-models) ================= -->
-            <section class="subview-container" id="subview-models">
-                <div class="page-content-wrapper">
-                    <div class="page-header-row">
-                        <div>
-                            <h2 class="page-title">AI Models</h2>
-                            <p class="page-subtitle">Akses model AI tercanggih dengan transparansi credit dan kemampuan reasoning.</p>
-                        </div>
-                    </div>
-
-                    <!-- Model Filter Tabs -->
-                    <div class="model-tabs-row" id="view-model-filter-tabs">
-                        <button class="m-tab-btn active" data-filter="all">All</button>
-                        <button class="m-tab-btn" data-filter="google">Google Gemini</button>
-                        <button class="m-tab-btn" data-filter="openai">OpenAI</button>
-                        <button class="m-tab-btn" data-filter="groq">Groq</button>
-                    </div>
-
-                    <!-- Models Group Grid -->
-                    <div class="models-catalog-grid" id="models-catalog-grid">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- ================= SUBVIEW 5: USAGE & CREDITS (#subview-usage) ================= -->
-            <section class="subview-container" id="subview-usage">
-                <div class="page-content-wrapper">
-                    <div class="page-header-row">
-                        <div>
-                            <h2 class="page-title">Usage & Analytics</h2>
-                            <p class="page-subtitle">Pantau pemakaian kuota credit, volume request, dan statistik model AI Anda.</p>
-                        </div>
-                    </div>
-
-                    <!-- 4 KPI Cards -->
-                    <div class="usage-kpi-grid">
-                        <div class="kpi-metric-card highlight">
-                            <span class="kpi-label">Credits remaining</span>
-                            <div class="kpi-number" id="usage-credits-remain">2,840</div>
-                            <div class="kpi-bar-track">
-                                <div class="kpi-bar-fill" id="usage-credits-progress" style="width: 56%;"></div>
-                            </div>
-                            <span class="kpi-subtext" id="usage-plan-label">Pro Plan (5,000 monthly)</span>
-                        </div>
-
-                        <div class="kpi-metric-card">
-                            <span class="kpi-label">Monthly credits</span>
-                            <div class="kpi-number" id="usage-credits-total">5,000</div>
-                            <span class="kpi-subtext">Reset otomatis setiap 30 hari</span>
-                        </div>
-
-                        <div class="kpi-metric-card">
-                            <span class="kpi-label">Today's requests</span>
-                            <div class="kpi-number" id="usage-today-req">34</div>
-                            <span class="kpi-subtext">Permintaan diproses hari ini</span>
-                        </div>
-
-                        <div class="kpi-metric-card">
-                            <span class="kpi-label">This month</span>
-                            <div class="kpi-number" id="usage-month-req">1,284</div>
-                            <span class="kpi-subtext">Total request periode berjalan</span>
-                        </div>
-                    </div>
-
-                    <!-- Charts & Recent Activity Row -->
-                    <div class="usage-visual-grid">
-                        <!-- Model Usage Breakdown Donut -->
-                        <div class="chart-card">
-                            <h3 class="card-section-title">Model Usage</h3>
-                            <div class="donut-chart-wrapper">
-                                <div class="donut-chart-graphic">
-                                    <div class="donut-ring-gemini"></div>
-                                    <div class="donut-ring-openai"></div>
-                                    <div class="donut-ring-groq"></div>
-                                    <div class="donut-hole">
-                                        <strong id="donut-center-total">1,284</strong>
-                                        <span>Total Reqs</span>
+                <!-- ========================================================
+                     TAB 5: PROFILE & SETTINGS (#tab-profile) - MATCHES IMAGE 5
+                     ======================================================== -->
+                <div class="tab-page" id="tab-profile">
+                    <div class="page-content-wrapper">
+                        <!-- Profile Header Card -->
+                        <div class="profile-header-card">
+                            <div class="profile-user-top">
+                                <div class="profile-avatar-wrapper">
+                                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80" alt="Alex Rivera" class="profile-avatar-photo" id="profile-user-photo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                                    <div class="profile-avatar-fallback" style="display:none;" id="profile-avatar-fallback">AR</div>
+                                </div>
+                                <div class="profile-name-group">
+                                    <div class="name-badge-row">
+                                        <strong class="profile-full-name" id="profile-display-name">Alex Rivera</strong>
+                                        <div class="plan-pill-badge blue-solid" id="profile-tier-badge">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                                            <span>Pro Tier</span>
+                                        </div>
                                     </div>
+                                    <span class="profile-email-text" id="profile-display-email">alex.rivera@workspace.ai</span>
                                 </div>
-                                <div class="donut-legend-list">
-                                    <div class="legend-row">
-                                        <span class="legend-dot gemini"></span>
-                                        <span class="legend-name">Google Gemini</span>
-                                        <strong class="legend-pct">48%</strong>
-                                    </div>
-                                    <div class="legend-row">
-                                        <span class="legend-dot openai"></span>
-                                        <span class="legend-name">OpenAI GPT</span>
-                                        <strong class="legend-pct">30%</strong>
-                                    </div>
-                                    <div class="legend-row">
-                                        <span class="legend-dot groq"></span>
-                                        <span class="legend-name">Groq & Others</span>
-                                        <strong class="legend-pct">22%</strong>
-                                    </div>
+                            </div>
+
+                            <!-- Credits Remaining Progress Box -->
+                            <div class="profile-credits-box">
+                                <div class="credits-box-top">
+                                    <span class="credits-box-label">Credits Remaining</span>
+                                    <strong class="credits-box-numbers" id="profile-credits-numbers">8,450 / 10,000</strong>
+                                </div>
+                                <div class="profile-progress-track">
+                                    <div class="profile-progress-fill" id="profile-progress-fill" style="width: 84.5%;"></div>
+                                </div>
+                                <div class="credits-box-bottom">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
+                                    <span>Resets in 12 days • Unlimited standard models</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Recent Activity Transactions -->
-                        <div class="chart-card">
-                            <h3 class="card-section-title">Recent Activity</h3>
-                            <div class="recent-activity-list" id="recent-activity-list">
-                                <!-- Populated dynamically -->
+                        <!-- Menu Group 1: AI & INTELLIGENCE -->
+                        <div class="settings-group-block">
+                            <span class="settings-group-title">AI & INTELLIGENCE</span>
+                            <div class="settings-list-card">
+                                <button class="settings-nav-row" id="menu-ai-models">
+                                    <div class="settings-icon-box bg-purple-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.5 2.2-1.3 2.9l-.7.6c-.6.6-1 1.4-1 2.5v1h-2v-1c0-1.1-.4-1.9-1-2.5l-.7-.6C8.5 8.2 8 7.1 8 6a4 4 0 0 1 4-4Z"/><path d="M10 18h4"/><path d="M11 21h2"/></svg>
+                                    </div>
+                                    <div class="settings-row-info">
+                                        <strong class="settings-item-name">AI & Models</strong>
+                                        <span class="settings-item-sub">Default to VARIS 4.5 Ultra</span>
+                                    </div>
+                                    <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                </button>
+
+                                <button class="settings-nav-row" id="menu-voice-audio">
+                                    <div class="settings-icon-box bg-blue-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                                    </div>
+                                    <div class="settings-row-info">
+                                        <strong class="settings-item-name">Voice & Audio</strong>
+                                        <span class="settings-item-sub">Nova (Warm & Professional)</span>
+                                    </div>
+                                    <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                </button>
+
+                                <button class="settings-nav-row" id="menu-appearance">
+                                    <div class="settings-icon-box bg-slate-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                                    </div>
+                                    <div class="settings-row-info">
+                                        <strong class="settings-item-name">Appearance</strong>
+                                        <span class="settings-item-sub">Light Luxury (System Default)</span>
+                                    </div>
+                                    <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                </button>
                             </div>
                         </div>
+
+                        <!-- Menu Group 2: ACCOUNT & PREFERENCES -->
+                        <div class="settings-group-block">
+                            <span class="settings-group-title">ACCOUNT & PREFERENCES</span>
+                            <div class="settings-list-card">
+                                <button class="settings-nav-row" id="menu-account-info">
+                                    <div class="settings-icon-box bg-slate-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    </div>
+                                    <div class="settings-row-info">
+                                        <strong class="settings-item-name">Account</strong>
+                                        <span class="settings-item-sub">Personal info, linked credentials</span>
+                                    </div>
+                                    <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                </button>
+
+                                <div class="settings-nav-row">
+                                    <div class="settings-icon-box bg-slate-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                                    </div>
+                                    <div class="settings-row-info">
+                                        <strong class="settings-item-name">Notifications</strong>
+                                        <span class="settings-item-sub">Activity alerts and digests</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" checked id="toggle-notifications">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <button class="settings-nav-row" id="menu-subscription">
+                                    <div class="settings-icon-box bg-indigo-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+                                    </div>
+                                    <div class="settings-row-info">
+                                        <strong class="settings-item-name">Subscription</strong>
+                                        <span class="settings-item-sub">Pro Plan Active • Renews Oct 24</span>
+                                    </div>
+                                    <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                </button>
+
+                                <button class="settings-nav-row" id="menu-privacy">
+                                    <div class="settings-icon-box bg-slate-soft">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                    </div>
+                                    <div class="settings-row-info">
+                                        <strong class="settings-item-name">Privacy & Security</strong>
+                                        <span class="settings-item-sub">Data retention, 2FA enabled</span>
+                                    </div>
+                                    <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sign Out Button -->
+                        <button class="btn-signout-card" id="btn-app-signout">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                            <span>Sign Out of VARIS AI</span>
+                        </button>
                     </div>
                 </div>
-            </section>
 
-            <!-- ================= SUBVIEW 6: SUBSCRIPTION (#subview-subscription) ================= -->
-            <section class="subview-container" id="subview-subscription">
-                <div class="page-content-wrapper text-center">
-                    <div class="pricing-header-block">
-                        <span class="pricing-badge">Subscription Plans</span>
-                        <h2 class="page-title">Choose Your Plan</h2>
-                        <p class="page-subtitle">Upgrade untuk mendapatkan kuota credit lebih besar, akses model canggih, dan prioritas tinggi.</p>
-                    </div>
+            </div>
+        </main>
 
-                    <!-- 3 Pricing Cards: Free, Pro, Ultra -->
-                    <div class="pricing-cards-grid">
-                        <!-- 1. Free Plan -->
-                        <div class="pricing-card" id="plan-card-free">
-                            <div class="plan-header">
-                                <h3 class="plan-name">Free</h3>
-                                <p class="plan-desc">Untuk mencoba dan eksplorasi VARIS.</p>
-                                <div class="plan-price">
-                                    <span class="price-val">$0</span>
-                                    <span class="price-period">/ month</span>
-                                </div>
-                            </div>
-                            <ul class="plan-features-list">
-                                <li>✓ 100 credits / month</li>
-                                <li>✓ Gemini Flash & GPT-4o mini</li>
-                                <li>✓ Basic smart workspace</li>
-                                <li>✓ Community support</li>
-                            </ul>
-                            <button class="btn-plan-action current" id="btn-plan-free" disabled>Current Plan</button>
-                        </div>
-
-                        <!-- 2. Pro Plan (Most Popular) -->
-                        <div class="pricing-card popular" id="plan-card-pro">
-                            <div class="popular-ribbon">Most Popular</div>
-                            <div class="plan-header">
-                                <h3 class="plan-name">Pro</h3>
-                                <p class="plan-desc">Untuk developer, kreator, dan tim aktif.</p>
-                                <div class="plan-price">
-                                    <span class="price-val">$9</span>
-                                    <span class="price-period">/ month</span>
-                                </div>
-                            </div>
-                            <ul class="plan-features-list">
-                                <li>✓ <strong>5,000 credits / month</strong></li>
-                                <li>✓ <strong>All AI Models</strong> (Gemini Pro, GPT-4o)</li>
-                                <li>✓ Side-by-side Model Comparison</li>
-                                <li>✓ File & Project Analysis Tools</li>
-                                <li>✓ Priority model queue</li>
-                            </ul>
-                            <button class="btn-plan-action primary" id="btn-plan-pro">Upgrade to Pro ⚡</button>
-                        </div>
-
-                        <!-- 3. Ultra Plan -->
-                        <div class="pricing-card" id="plan-card-ultra">
-                            <div class="plan-header">
-                                <h3 class="plan-name">Ultra</h3>
-                                <p class="plan-desc">Untuk power users dan beban kerja berat.</p>
-                                <div class="plan-price">
-                                    <span class="price-val">$29</span>
-                                    <span class="price-period">/ month</span>
-                                </div>
-                            </div>
-                            <ul class="plan-features-list">
-                                <li>✓ <strong>20,000 credits / month</strong></li>
-                                <li>✓ <strong>All AI Models + Advanced Reasoning</strong></li>
-                                <li>✓ Highest Priority Access (No Rate Limit)</li>
-                                <li>✓ Voice Cloning & High-Speed Audio</li>
-                                <li>✓ Dedicated 24/7 Support</li>
-                            </ul>
-                            <button class="btn-plan-action outline" id="btn-plan-ultra">Upgrade to Ultra</button>
-                        </div>
-                    </div>
+        <!-- ========================================================
+             FIXED MOBILE BOTTOM NAVIGATION BAR (#bottom-nav-bar)
+             ======================================================== -->
+        <nav class="bottom-nav-bar" id="bottom-nav-bar">
+            <button class="bottom-nav-tab active" data-tab="home" id="bnav-home">
+                <div class="nav-tab-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 </div>
-            </section>
-
-            <!-- ================= SUBVIEW 7: SETTINGS (#subview-settings) ================= -->
-            <section class="subview-container" id="subview-settings">
-                <div class="page-content-wrapper settings-layout-wrapper">
-                    <!-- Settings Subnav Sidebar -->
-                    <aside class="settings-subnav">
-                        <h3 class="settings-nav-title">Settings</h3>
-                        <button class="set-tab-btn active" data-tab="account">Account</button>
-                        <button class="set-tab-btn" data-tab="appearance">Appearance</button>
-                        <button class="set-tab-btn" data-tab="models">AI Models</button>
-                        <button class="set-tab-btn" data-tab="voice">Voice & Speech</button>
-                        <button class="set-tab-btn" data-tab="security">Security & Sessions</button>
-                    </aside>
-
-                    <!-- Settings Body Panel -->
-                    <div class="settings-content-panel">
-                        <!-- Account Settings Tab -->
-                        <div class="settings-tab-pane active" id="pane-set-account">
-                            <h3 class="pane-title">Account Profile</h3>
-                            
-                            <div class="settings-user-card">
-                                <img src="/assets/varis-logo.jpg" alt="Avatar" class="set-avatar-img" id="set-avatar-img">
-                                <div class="set-user-info">
-                                    <h4 id="set-user-name">Al Palis</h4>
-                                    <p id="set-user-email">alpalis@gmail.com</p>
-                                    <div class="set-badges-row">
-                                        <span class="badge-tag-plan" id="set-badge-plan">Pro Plan</span>
-                                        <span class="badge-tag-auth" id="set-badge-auth">Google Auth</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-row-group">
-                                <label class="input-field-label">Display Name</label>
-                                <input type="text" class="input-field" id="set-input-name" value="Al Palis">
-                            </div>
-
-                            <div class="form-row-group">
-                                <label class="input-field-label">Email Address</label>
-                                <input type="email" class="input-field" id="set-input-email" value="alpalis@gmail.com" readonly>
-                            </div>
-
-                            <button class="btn-primary-sm" id="btn-save-account-set">Simpan Perubahan</button>
-                        </div>
-
-                        <!-- Voice Settings Tab -->
-                        <div class="settings-tab-pane" id="pane-set-voice">
-                            <h3 class="pane-title">Voice & Speech Settings</h3>
-                            <div class="form-row-group">
-                                <label class="input-field-label">Voice Model</label>
-                                <select class="input-field" id="set-voice-select">
-                                    <option value="nova">Nova (Natural & Calm)</option>
-                                    <option value="alloy">Alloy (Balanced)</option>
-                                    <option value="echo">Echo (Warm)</option>
-                                    <option value="fable">Fable (Expressive)</option>
-                                </select>
-                            </div>
-
-                            <div class="form-row-group">
-                                <label class="input-field-label">Speed: <span id="set-speed-label">0.95x</span></label>
-                                <input type="range" class="input-range" id="set-speed-slider" min="0.5" max="2.0" step="0.05" value="0.95">
-                            </div>
-
-                            <button class="btn-primary-sm" id="btn-save-voice-set">Simpan Preferensi Suara</button>
-                        </div>
-
-                        <!-- Security Tab -->
-                        <div class="settings-tab-pane" id="pane-set-security">
-                            <h3 class="pane-title">Security & Connected Accounts</h3>
-                            <div class="security-card">
-                                <div>
-                                    <strong>Google Account</strong>
-                                    <p class="subtext" id="set-google-status">Connected as alpalis@gmail.com</p>
-                                </div>
-                                <span class="badge-tag-auth">Connected</span>
-                            </div>
-
-                            <div class="security-card danger-zone">
-                                <div>
-                                    <strong style="color: #ef4444;">Log Out</strong>
-                                    <p class="subtext">Keluar dari sesi VARIS AI pada perangkat ini.</p>
-                                </div>
-                                <button class="btn-danger-outline" id="btn-settings-logout">Log Out</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-        </div>
-
-        <!-- ================= Mobile Bottom Navigation Bar ================= -->
-        <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
-            <button class="m-nav-item active" data-subview="chat" id="mb-nav-chat">
-                <span class="m-nav-icon">💬</span>
-                <span class="m-nav-label">Chat</span>
+                <span class="nav-tab-label">Home</span>
             </button>
-            <button class="m-nav-item" data-subview="models" id="mb-nav-models">
-                <span class="m-nav-icon">✨</span>
-                <span class="m-nav-label">Models</span>
+
+            <button class="bottom-nav-tab" data-tab="chat" id="bnav-chat">
+                <div class="nav-tab-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <span class="nav-tab-label">Chat</span>
             </button>
-            <button class="m-nav-item" data-subview="projects" id="mb-nav-projects">
-                <span class="m-nav-icon">📁</span>
-                <span class="m-nav-label">Projects</span>
+
+            <button class="bottom-nav-tab" data-tab="voice" id="bnav-voice">
+                <div class="nav-tab-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                </div>
+                <span class="nav-tab-label">Voice</span>
             </button>
-            <button class="m-nav-item" data-subview="files" id="mb-nav-files">
-                <span class="m-nav-icon">📄</span>
-                <span class="m-nav-label">Files</span>
+
+            <button class="bottom-nav-tab" data-tab="projects" id="bnav-projects">
+                <div class="nav-tab-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+                </div>
+                <span class="nav-tab-label">Projects</span>
             </button>
-            <button class="m-nav-item" data-subview="settings" id="mb-nav-profile">
-                <span class="m-nav-icon">👤</span>
-                <span class="m-nav-label">Profile</span>
+
+            <button class="bottom-nav-tab" data-tab="profile" id="bnav-profile">
+                <div class="nav-tab-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <span class="nav-tab-label">Profile</span>
             </button>
         </nav>
-
     </div>
 
     <!-- ========================================================
-         VIEW 3: IMMERSIVE VOICE MODE OVERLAY (#view-voice)
-         ======================================================== -->
-    <div class="voice-immersive-overlay" id="view-voice">
-        <div class="voice-top-header">
-            <div class="voice-status-pill" id="voice-state-badge">
-                <span class="pulse-live-dot"></span>
-                <span id="voice-state-label">LISTENING</span>
-            </div>
-            <button class="voice-close-btn" id="btn-close-voice" title="Tutup Mode Suara">✕</button>
-        </div>
-
-        <div class="voice-center-stage">
-            <div class="voice-brand-title">VARIS</div>
-            <div class="voice-status-phrase" id="voice-phrase">Listening...</div>
-
-            <!-- 3D Living Audio-Reactive Glass Orb -->
-            <div class="voice-living-orb-wrapper">
-                <div class="voice-orb-glow-halo" id="voice-orb-halo"></div>
-                <div class="voice-orb-sphere" id="voice-orb-sphere">
-                    <div class="sphere-refraction"></div>
-                    <div class="sphere-highlight"></div>
-                </div>
-            </div>
-
-            <!-- Transcript Caption -->
-            <div class="voice-caption-box" id="voice-caption-box">
-                <p id="voice-caption-text">Mulai berbicara, VARIS siap membantu...</p>
-            </div>
-        </div>
-
-        <div class="voice-bottom-controls">
-            <button class="voice-round-btn mute" id="btn-voice-mute" title="Mute/Unmute Mic">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            </button>
-            <button class="voice-interrupt-pill" id="btn-voice-interrupt" title="Sela AI">
-                <span>Sela Bicara ⏸</span>
-            </button>
-            <button class="voice-round-btn settings" id="btn-voice-settings-toggle" title="Settings">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            </button>
-        </div>
-    </div>
-
-    <!-- ========================================================
-         MODALS & POPUPS
+         MODALS & BOTTOM SHEETS
          ======================================================== -->
 
-    <!-- 1. Model Selector Modal (Triggered by Topbar Pill) -->
-    <div class="modal-backdrop" id="model-selector-modal">
-        <div class="modal-card modal-md">
-            <div class="modal-card-header">
-                <div>
-                    <h4 class="modal-card-title">Select Model</h4>
-                    <p class="modal-card-desc">Choose the AI model best suited for your task</p>
+    <!-- Model Selector Bottom Sheet -->
+    <div class="modal-backdrop hidden" id="modal-model-sheet">
+        <div class="bottom-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <h3 class="sheet-title">Select AI Model</h3>
+                <button class="btn-sheet-close" id="btn-close-model-sheet">✕</button>
+            </div>
+
+            <div class="sheet-body-scroll" id="models-sheet-list">
+                <span class="sheet-section-tag">RECOMMENDED</span>
+                
+                <div class="model-option-card selected" data-model="auto">
+                    <div class="model-icon-square bg-purple">⚡</div>
+                    <div class="model-option-info">
+                        <div class="model-name-badge-row">
+                            <strong>VARIS Auto</strong>
+                            <span class="badge-tag">Smart Router</span>
+                        </div>
+                        <p class="model-desc-text">Automatically selects fastest & most capable model for your task.</p>
+                    </div>
+                    <span class="model-credit-badge">3 Credits</span>
                 </div>
-                <button class="modal-close-cross" id="close-model-modal">✕</button>
-            </div>
 
-            <!-- Tabs -->
-            <div class="modal-tabs-row" id="modal-model-tabs">
-                <button class="m-tab-btn active" data-filter="all">All</button>
-                <button class="m-tab-btn" data-filter="google">Gemini</button>
-                <button class="m-tab-btn" data-filter="openai">OpenAI</button>
-            </div>
+                <span class="sheet-section-tag">FRONTIER MODELS</span>
 
-            <div class="modal-models-list" id="modal-models-list">
-                <!-- Dynamically populated model items -->
+                <div class="model-option-card" data-model="gemini-2.0-flash">
+                    <div class="model-icon-square bg-blue">✨</div>
+                    <div class="model-option-info">
+                        <div class="model-name-badge-row">
+                            <strong>Gemini 2.0 Flash</strong>
+                            <span class="badge-tag">Fast Reasoning</span>
+                        </div>
+                        <p class="model-desc-text">Next-gen multimodal reasoning with ultra-low latency.</p>
+                    </div>
+                    <span class="model-credit-badge">3 Credits</span>
+                </div>
+
+                <div class="model-option-card" data-model="gpt-4o-mini">
+                    <div class="model-icon-square bg-emerald">🟢</div>
+                    <div class="model-option-info">
+                        <div class="model-name-badge-row">
+                            <strong>GPT-4o Mini</strong>
+                            <span class="badge-tag">Efficient</span>
+                        </div>
+                        <p class="model-desc-text">High-accuracy coding, mathematics, and logic reasoning.</p>
+                    </div>
+                    <span class="model-credit-badge">5 Credits</span>
+                </div>
+
+                <div class="model-option-card" data-model="claude-3-5-sonnet">
+                    <div class="model-icon-square bg-orange">⭐</div>
+                    <div class="model-option-info">
+                        <div class="model-name-badge-row">
+                            <strong>Claude 3.5 Sonnet</strong>
+                            <span class="badge-tag">Expert</span>
+                        </div>
+                        <p class="model-desc-text">Exceptional nuance, code architecture, and analytical depth.</p>
+                    </div>
+                    <span class="model-credit-badge">12 Credits</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 3. Profile Dropdown Menu (Triggered by Topbar/Sidebar Avatar) -->
-    <div class="profile-dropdown-popup" id="profile-dropdown-menu">
-        <div class="popup-user-header">
-            <img src="/assets/varis-logo.jpg" alt="Avatar" class="popup-avatar-img" id="dropdown-user-avatar">
-            <div class="popup-user-meta">
-                <strong id="dropdown-user-name">Al Palis</strong>
-                <span id="dropdown-user-email">alpalis@gmail.com</span>
-                <div class="popup-badges">
-                    <span class="badge-plan-chip" id="dropdown-user-plan">Pro Plan</span>
-                    <span class="badge-credit-chip" id="dropdown-user-credits">2,840 Credits</span>
+    <!-- Usage & Credits Bottom Sheet -->
+    <div class="modal-backdrop hidden" id="modal-usage-sheet">
+        <div class="bottom-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <h3 class="sheet-title">Credit & Usage Breakdown</h3>
+                <button class="btn-sheet-close" id="btn-close-usage-sheet">✕</button>
+            </div>
+
+            <div class="sheet-body-scroll">
+                <div class="usage-summary-card">
+                    <span class="usage-summary-label">TOTAL REMAINING</span>
+                    <strong class="usage-summary-num" id="sheet-credits-balance">2,450 Credits</strong>
+                    <span class="usage-summary-sub">Monthly reset on Oct 24, 2026</span>
+                </div>
+
+                <div class="usage-stats-grid">
+                    <div class="stat-mini-card">
+                        <span>Used This Month</span>
+                        <strong id="sheet-credits-used">550</strong>
+                    </div>
+                    <div class="stat-mini-card">
+                        <span>Allocated Total</span>
+                        <strong>3,000</strong>
+                    </div>
+                </div>
+
+                <button class="btn-upgrade-banner" id="btn-open-upgrade-from-sheet">
+                    <span>⚡ Upgrade Plan for 10,000 Credits</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New File Upload Sheet -->
+    <div class="modal-backdrop hidden" id="modal-newfile-sheet">
+        <div class="bottom-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <h3 class="sheet-title">Add Workspace File</h3>
+                <button class="btn-sheet-close" id="btn-close-newfile-sheet">✕</button>
+            </div>
+
+            <div class="sheet-body-scroll">
+                <div class="upload-dropzone" id="upload-dropzone-box">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2B3BE5" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                    <strong>Choose a file to upload</strong>
+                    <span>PDF, DOCX, TXT, Images, or Code up to 10MB</span>
+                    <input type="file" id="real-file-upload-input" style="display:none">
+                    <button class="btn-browse-file" onclick="document.getElementById('real-file-upload-input').click()">Browse Files</button>
                 </div>
             </div>
         </div>
-        <div class="popup-divider"></div>
-        <button class="popup-menu-item" id="menu-switch-account">
-            <span class="menu-icon">🔄</span>
-            <span>Ganti Akun (Switch Account)</span>
-        </button>
-        <button class="popup-menu-item" id="menu-open-subscription">
-            <span class="menu-icon">💳</span>
-            <span>Subscription & Plans</span>
-        </button>
-        <button class="popup-menu-item" id="menu-open-usage-page">
-            <span class="menu-icon">📊</span>
-            <span>Usage Dashboard</span>
-        </button>
-        <button class="popup-menu-item" id="menu-open-settings-page">
-            <span class="menu-icon">⚙️</span>
-            <span>Settings</span>
-        </button>
-        <div class="popup-divider"></div>
-        <button class="popup-menu-item danger" id="menu-logout-action">
-            <span class="menu-icon">🚪</span>
-            <span>Keluar (Log Out)</span>
-        </button>
     </div>
 
-    <!-- Hidden audio element for TTS playback -->
-    <audio id="audio-playback" style="display:none;"></audio>
+    <!-- Toast Notification Popup -->
+    <div class="toast-popup hidden" id="global-toast">
+        <span class="toast-message" id="toast-text">Notification</span>
+    </div>
 
     <script src="/app.js"></script>
 </body>

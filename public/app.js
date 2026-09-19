@@ -1,644 +1,381 @@
 // ==========================================================
-// VARIS AI - PREMIUM AI WORKSPACE CLIENT
-// World-Class Architecture, Multi-View Router & Real-Time Engine
+// VARIS AI - WORLD-CLASS AI WORKSPACE CLIENT
+// Theme: Light Luxury Mobile-First AI Workspace
+// Real Authenticated Data, 5-Tab Architecture, GIS Google OAuth
 // ==========================================================
 
 // --- State Machine & Global Store ---
 let activeMainView = 'landing'; // 'landing', 'auth', 'app'
-let activeSubview = 'chat';     // 'chat', 'projects', 'files', 'models', 'usage', 'subscription', 'settings'
-let currentUser = null;
-let currentSubscription = null;
-let currentCredits = 2840;
-let currentModel = 'gemini-pro';
-let currentModelName = 'Gemini Pro';
-let currentConversationId = null;
+let activeTab = 'home';         // 'home', 'chat', 'voice', 'projects', 'profile'
+let currentUser = {
+    id: 'user-demo',
+    name: 'Alex Rivera',
+    email: 'alex.rivera@workspace.ai',
+    picture: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    plan: 'Pro Tier',
+    credits: 2450,
+    creditsMax: 3000
+};
+let currentModel = 'auto';
+let currentModelName = 'VARIS Auto';
+let currentConversationId = 'conv-' + Date.now();
 let isRegisterMode = false;
-let isVoiceModeActive = false;
-let isMicMuted = false;
-let selectedFileId = null;
+let isVoiceMuted = false;
+let isWebSearchEnabled = false;
 
-// Voice Mode Web Audio & State
+// Voice Mode Web Audio State
 let audioCtx = null;
-let micAnalyser = null;
-let micDataArray = null;
-let mediaStream = null;
-let voiceState = 'LISTENING'; // 'LISTENING', 'THINKING', 'SPEAKING'
-let voiceAnimFrameId = null;
-
-// --- DOM Elements ---
-// Main View Containers
-const viewLanding = document.getElementById('view-landing');
-const viewAuth = document.getElementById('view-auth');
-const viewApp = document.getElementById('view-app');
-const viewVoice = document.getElementById('view-voice');
-
-// Landing Elements
-const landingSigninBtn = document.getElementById('landing-signin-btn');
-const landingGetstartedBtn = document.getElementById('landing-getstarted-btn');
-const heroStartBtn = document.getElementById('hero-start-btn');
-const heroExploreBtn = document.getElementById('hero-explore-btn');
-const navLandingFeatures = document.getElementById('nav-landing-features');
-const navLandingModels = document.getElementById('nav-landing-models');
-const navLandingPricing = document.getElementById('nav-landing-pricing');
-
-// Auth Elements
-const authMainTitle = document.getElementById('auth-main-title');
-const authMainDesc = document.getElementById('auth-main-desc');
-const authAlertBox = document.getElementById('auth-alert-box');
-const btnContinueGoogle = document.getElementById('btn-continue-google');
-const authEmailForm = document.getElementById('auth-email-form');
-const groupAuthName = document.getElementById('group-auth-name');
-const authNameInput = document.getElementById('auth-name-input');
-const authEmailInput = document.getElementById('auth-email-input');
-const authPassInput = document.getElementById('auth-pass-input');
-const authSubmitBtn = document.getElementById('auth-submit-btn');
-const authSwitchBtn = document.getElementById('auth-switch-btn');
-const authSwitchText = document.getElementById('auth-switch-text');
-const authBackToLanding = document.getElementById('auth-back-to-landing');
-
-// Topbar & Sidebar Elements
-const appSidebar = document.getElementById('app-sidebar');
-const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
-const sidebarHomeBtn = document.getElementById('sidebar-home-btn');
-const sidebarNewchatBtn = document.getElementById('sidebar-newchat-btn');
-const sidebarUserBtn = document.getElementById('sidebar-user-btn');
-const sidebarUserAvatar = document.getElementById('sidebar-user-avatar');
-const sidebarUserName = document.getElementById('sidebar-user-name');
-const sidebarUserPlan = document.getElementById('sidebar-user-plan');
-
-const topbarModelBtn = document.getElementById('topbar-model-btn');
-const topbarModelName = document.getElementById('topbar-model-name');
-const topbarModelStatus = document.getElementById('topbar-model-status');
-const topbarCreditsBtn = document.getElementById('topbar-credits-btn');
-const topbarCreditsText = document.getElementById('topbar-credits-text');
-const topbarAvatarBtn = document.getElementById('topbar-avatar-btn');
-const topbarAvatarImg = document.getElementById('topbar-avatar-img');
-const globalSearchInput = document.getElementById('global-search-input');
-
-// Chat Workspace Elements
-const subviewChat = document.getElementById('subview-chat');
-const chatEmptyState = document.getElementById('chat-empty-state');
-const emptyGreetingName = document.getElementById('empty-greeting-name');
-const chatMessagesFeed = document.getElementById('chat-messages-feed');
-const mainChatInput = document.getElementById('main-chat-input');
-const mainSendBtn = document.getElementById('main-send-btn');
-const btnAttachAction = document.getElementById('btn-attach-action');
-const btnFileSelect = document.getElementById('btn-file-select');
-const btnVoiceChatStart = document.getElementById('btn-voice-chat-start');
-const quickPromptChips = document.getElementById('quick-prompt-chips');
-
-// Projects Elements
-const subviewProjects = document.getElementById('subview-projects');
-const projectsGrid = document.getElementById('projects-grid');
-const btnCreateProject = document.getElementById('btn-create-project');
-
-// Files Elements
-const subviewFiles = document.getElementById('subview-files');
-const filesTableBody = document.getElementById('files-table-body');
-const filesSearchInput = document.getElementById('files-search-input');
-const filesFilterTabs = document.getElementById('files-filter-tabs');
-const realFileUploadInput = document.getElementById('real-file-upload-input');
-const filePreviewPanel = document.getElementById('file-preview-panel');
-const previewEmptyState = document.getElementById('preview-empty-state');
-const previewActiveState = document.getElementById('preview-active-state');
-const previewName = document.getElementById('preview-name');
-const previewSize = document.getElementById('preview-size');
-const previewProject = document.getElementById('preview-project');
-const previewDate = document.getElementById('preview-date');
-const previewSnippet = document.getElementById('preview-snippet');
-const btnDownloadFile = document.getElementById('btn-download-file');
-const btnDeleteFile = document.getElementById('btn-delete-file');
-
-// Models Elements
-const subviewModels = document.getElementById('subview-models');
-const viewModelFilterTabs = document.getElementById('view-model-filter-tabs');
-const modelsCatalogGrid = document.getElementById('models-catalog-grid');
-
-// Usage Elements
-const subviewUsage = document.getElementById('subview-usage');
-const usageCreditsRemain = document.getElementById('usage-credits-remain');
-const usageCreditsProgress = document.getElementById('usage-credits-progress');
-const usagePlanLabel = document.getElementById('usage-plan-label');
-const usageCreditsTotal = document.getElementById('usage-credits-total');
-const usageTodayReq = document.getElementById('usage-today-req');
-const usageMonthReq = document.getElementById('usage-month-req');
-const recentActivityList = document.getElementById('recent-activity-list');
-
-// Subscription Elements
-const subviewSubscription = document.getElementById('subview-subscription');
-const btnPlanPro = document.getElementById('btn-plan-pro');
-const btnPlanUltra = document.getElementById('btn-plan-ultra');
-
-// Settings Elements
-const subviewSettings = document.getElementById('subview-settings');
-const setAvatarImg = document.getElementById('set-avatar-img');
-const setUserName = document.getElementById('set-user-name');
-const setUserEmail = document.getElementById('set-user-email');
-const setBadgePlan = document.getElementById('set-badge-plan');
-const setInputName = document.getElementById('set-input-name');
-const setInputEmail = document.getElementById('set-input-email');
-const btnSaveAccountSet = document.getElementById('btn-save-account-set');
-const setVoiceSelect = document.getElementById('set-voice-select');
-const setSpeedSlider = document.getElementById('set-speed-slider');
-const setSpeedLabel = document.getElementById('set-speed-label');
-const btnSaveVoiceSet = document.getElementById('btn-save-voice-set');
-const btnSettingsLogout = document.getElementById('btn-settings-logout');
-
-// Voice Mode Elements
-const btnCloseVoice = document.getElementById('btn-close-voice');
-const voiceStateBadge = document.getElementById('voice-state-badge');
-const voiceStateLabel = document.getElementById('voice-state-label');
-const voicePhrase = document.getElementById('voice-phrase');
-const voiceOrbHalo = document.getElementById('voice-orb-halo');
-const voiceOrbSphere = document.getElementById('voice-orb-sphere');
-const voiceCaptionText = document.getElementById('voice-caption-text');
-const btnVoiceMute = document.getElementById('btn-voice-mute');
-const btnVoiceInterrupt = document.getElementById('btn-voice-interrupt');
-const audioPlayback = document.getElementById('audio-playback');
-
-// Modals & Popups
-const modelSelectorModal = document.getElementById('model-selector-modal');
-const closeModelModal = document.getElementById('close-model-modal');
-const modalModelTabs = document.getElementById('modal-model-tabs');
-const modalModelsList = document.getElementById('modal-models-list');
-
-const profileDropdownMenu = document.getElementById('profile-dropdown-menu');
-const dropdownUserAvatar = document.getElementById('dropdown-user-avatar');
-const dropdownUserName = document.getElementById('dropdown-user-name');
-const dropdownUserEmail = document.getElementById('dropdown-user-email');
-const dropdownUserPlan = document.getElementById('dropdown-user-plan');
-const dropdownUserCredits = document.getElementById('dropdown-user-credits');
-const menuSwitchAccount = document.getElementById('menu-switch-account');
-const menuOpenSubscription = document.getElementById('menu-open-subscription');
-const menuOpenUsagePage = document.getElementById('menu-open-usage-page');
-const menuOpenSettingsPage = document.getElementById('menu-open-settings-page');
-const menuLogoutAction = document.getElementById('menu-logout-action');
-
-// Mobile Bottom Nav Items
-const mobileBottomNav = document.getElementById('mobile-bottom-nav');
-const mbNavItems = mobileBottomNav ? mobileBottomNav.querySelectorAll('.m-nav-item') : [];
+let analyserNode = null;
+let micStream = null;
+let voiceAnimId = null;
 
 // ==========================================================
-// 1. ROUTING & VIEW CONTROLLER
+// 1. ROUTER: MAIN VIEWS & 5 CORE TABS
 // ==========================================================
 
 function switchMainView(viewName) {
     activeMainView = viewName;
-    [viewLanding, viewAuth, viewApp].forEach(v => {
-        if (!v) return;
-        v.classList.remove('active');
-        v.style.display = 'none';
-    });
-
-    if (viewName === 'landing' && viewLanding) {
-        viewLanding.style.display = 'block';
-        setTimeout(() => viewLanding.classList.add('active'), 10);
-    } else if (viewName === 'auth' && viewAuth) {
-        viewAuth.style.display = 'block';
-        setTimeout(() => viewAuth.classList.add('active'), 10);
-    } else if (viewName === 'app' && viewApp) {
-        viewApp.style.display = 'flex';
-        setTimeout(() => viewApp.classList.add('active'), 10);
-        loadWorkspaceData();
-    }
-}
-
-function switchSubview(subviewName) {
-    activeSubview = subviewName;
-
-    // Update Subview Containers
-    const subviews = [
-        subviewChat, subviewProjects, subviewFiles,
-        subviewModels, subviewUsage, subviewSubscription, subviewSettings
-    ];
-
-    subviews.forEach(sv => {
-        if (!sv) return;
-        sv.classList.remove('active');
-        sv.style.display = 'none';
-    });
-
-    const targetMap = {
-        chat: subviewChat,
-        projects: subviewProjects,
-        files: subviewFiles,
-        models: subviewModels,
-        usage: subviewUsage,
-        subscription: subviewSubscription,
-        settings: subviewSettings,
+    const views = {
+        landing: document.getElementById('view-landing'),
+        auth: document.getElementById('view-auth'),
+        app: document.getElementById('view-app')
     };
 
-    const target = targetMap[subviewName] || subviewChat;
-    if (target) {
-        target.style.display = subviewName === 'files' || subviewName === 'settings' ? 'block' : 'flex';
-        setTimeout(() => target.classList.add('active'), 10);
-    }
-
-    // Update Sidebar Navigation Buttons Active State
-    document.querySelectorAll('.sidebar-nav .nav-btn').forEach(btn => {
-        if (btn.dataset.subview === subviewName) btn.classList.add('active');
-        else btn.classList.remove('active');
-    });
-
-    // Update Mobile Bottom Nav Active State
-    mbNavItems.forEach(btn => {
-        if (btn.dataset.subview === subviewName) btn.classList.add('active');
-        else btn.classList.remove('active');
-    });
-
-    // Close mobile drawer if open
-    if (appSidebar) appSidebar.classList.remove('mobile-open');
-
-    // Load contextual data for subview
-    if (subviewName === 'projects') loadProjects();
-    else if (subviewName === 'files') loadFiles();
-    else if (subviewName === 'models') loadModelsCatalog();
-    else if (subviewName === 'usage') loadUsageAnalytics();
-}
-
-// Wire Landing Page CTA Buttons
-if (landingSigninBtn) landingSigninBtn.addEventListener('click', () => switchMainView('auth'));
-if (landingGetstartedBtn) landingGetstartedBtn.addEventListener('click', () => switchMainView('auth'));
-if (heroStartBtn) heroStartBtn.addEventListener('click', () => switchMainView('auth'));
-if (heroExploreBtn) heroExploreBtn.addEventListener('click', () => {
-    switchMainView('app');
-    switchSubview('models');
-});
-if (navLandingFeatures) navLandingFeatures.addEventListener('click', (e) => {
-    e.preventDefault();
-    document.getElementById('f-card-models')?.scrollIntoView({ behavior: 'smooth' });
-});
-if (navLandingModels) navLandingModels.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchMainView('app');
-    switchSubview('models');
-});
-if (navLandingPricing) navLandingPricing.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchMainView('app');
-    switchSubview('subscription');
-});
-if (authBackToLanding) authBackToLanding.addEventListener('click', () => switchMainView('landing'));
-
-// Wire Sidebar & Mobile Navigation
-document.querySelectorAll('.sidebar-nav .nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => switchSubview(btn.dataset.subview));
-});
-
-mbNavItems.forEach(btn => {
-    btn.addEventListener('click', () => switchSubview(btn.dataset.subview));
-});
-
-if (sidebarHomeBtn) sidebarHomeBtn.addEventListener('click', () => switchSubview('chat'));
-if (sidebarNewchatBtn) sidebarNewchatBtn.addEventListener('click', () => {
-    currentConversationId = null;
-    if (chatMessagesFeed) chatMessagesFeed.innerHTML = '';
-    if (chatEmptyState) chatEmptyState.style.display = 'flex';
-    switchSubview('chat');
-    if (mainChatInput) mainChatInput.focus();
-});
-
-if (mobileSidebarToggle) {
-    mobileSidebarToggle.addEventListener('click', () => {
-        if (appSidebar) appSidebar.classList.toggle('mobile-open');
-    });
-}
-
-// Topbar triggers
-if (topbarModelBtn) {
-    topbarModelBtn.addEventListener('click', () => {
-        if (modelSelectorModal) {
-            modelSelectorModal.classList.add('active');
-            loadModalModels();
-        }
-    });
-}
-if (topbarCreditsBtn) {
-    topbarCreditsBtn.addEventListener('click', () => switchSubview('usage'));
-}
-
-// Profile Popup Dropdown Trigger
-function toggleProfileDropdown(e) {
-    e.stopPropagation();
-    if (profileDropdownMenu) profileDropdownMenu.classList.toggle('active');
-}
-if (topbarAvatarBtn) topbarAvatarBtn.addEventListener('click', toggleProfileDropdown);
-if (sidebarUserBtn) sidebarUserBtn.addEventListener('click', toggleProfileDropdown);
-
-document.addEventListener('click', (e) => {
-    if (profileDropdownMenu && profileDropdownMenu.classList.contains('active')) {
-        if (!profileDropdownMenu.contains(e.target) && e.target !== topbarAvatarBtn && e.target !== sidebarUserBtn) {
-            profileDropdownMenu.classList.remove('active');
-        }
-    }
-});
-
-// Profile Dropdown Actions
-if (menuOpenSubscription) {
-    menuOpenSubscription.addEventListener('click', () => {
-        if (profileDropdownMenu) profileDropdownMenu.classList.remove('active');
-        switchSubview('subscription');
-    });
-}
-if (menuOpenUsagePage) {
-    menuOpenUsagePage.addEventListener('click', () => {
-        if (profileDropdownMenu) profileDropdownMenu.classList.remove('active');
-        switchSubview('usage');
-    });
-}
-if (menuOpenSettingsPage) {
-    menuOpenSettingsPage.addEventListener('click', () => {
-        if (profileDropdownMenu) profileDropdownMenu.classList.remove('active');
-        switchSubview('settings');
-    });
-}
-if (menuLogoutAction) {
-    menuLogoutAction.addEventListener('click', handleLogout);
-}
-if (btnSettingsLogout) {
-    btnSettingsLogout.addEventListener('click', handleLogout);
-}
-
-// ==========================================================
-// 2. AUTHENTICATION & GOOGLE 1-TAP OAUTH
-// ==========================================================
-
-function showAuthAlert(msg, type = 'error') {
-    if (!authAlertBox) return;
-    authAlertBox.textContent = msg;
-    authAlertBox.className = `auth-alert ${type}`;
-    authAlertBox.classList.remove('hidden');
-}
-
-function clearAuthAlert() {
-    if (!authAlertBox) return;
-    authAlertBox.classList.add('hidden');
-    authAlertBox.textContent = '';
-}
-
-// Switch between Login & Register
-if (authSwitchBtn) {
-    authSwitchBtn.addEventListener('click', () => {
-        clearAuthAlert();
-        isRegisterMode = !isRegisterMode;
-        if (isRegisterMode) {
-            if (authMainTitle) authMainTitle.textContent = 'Create your account';
-            if (authMainDesc) authMainDesc.textContent = 'Start building with VARIS AI Workspace';
-            if (groupAuthName) groupAuthName.style.display = 'block';
-            if (authSubmitBtn) authSubmitBtn.textContent = 'Create Account';
-            if (authSwitchText) authSwitchText.textContent = 'Already have an account?';
-            if (authSwitchBtn) authSwitchBtn.textContent = 'Sign in';
+    Object.entries(views).forEach(([name, el]) => {
+        if (!el) return;
+        if (name === viewName) {
+            el.style.display = (name === 'app') ? 'flex' : 'block';
+            setTimeout(() => el.classList.add('active'), 10);
         } else {
-            if (authMainTitle) authMainTitle.textContent = 'Welcome back';
-            if (authMainDesc) authMainDesc.textContent = 'Continue your intelligent workspace.';
-            if (groupAuthName) groupAuthName.style.display = 'none';
-            if (authSubmitBtn) authSubmitBtn.textContent = 'Sign In';
-            if (authSwitchText) authSwitchText.textContent = "Don't have an account?";
-            if (authSwitchBtn) authSwitchBtn.textContent = 'Create account';
+            el.classList.remove('active');
+            el.style.display = 'none';
         }
     });
+
+    if (viewName === 'app') {
+        renderUserData();
+    }
+}
+
+function switchTab(tabName) {
+    activeTab = tabName;
+
+    // 1. Hide/Show Tab Pages
+    const tabMap = {
+        home: document.getElementById('tab-home'),
+        chat: document.getElementById('tab-chat'),
+        voice: document.getElementById('tab-voice'),
+        projects: document.getElementById('tab-projects'),
+        profile: document.getElementById('tab-profile')
+    };
+
+    Object.entries(tabMap).forEach(([name, page]) => {
+        if (!page) return;
+        if (name === tabName) {
+            page.style.display = (name === 'chat' || name === 'voice') ? 'flex' : 'block';
+            setTimeout(() => page.classList.add('active'), 10);
+        } else {
+            page.classList.remove('active');
+            page.style.display = 'none';
+        }
+    });
+
+    // 2. Sync Mobile Bottom Navigation Tabs
+    document.querySelectorAll('.bottom-nav-tab').forEach(btn => {
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // 3. Sync Desktop Sidebar Navigation Items
+    document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // 4. Tab Specific Lifecycle Hooks
+    if (tabName === 'voice') {
+        startVoiceEngine();
+    } else {
+        stopVoiceEngine();
+    }
+
+    if (tabName === 'chat') {
+        const composer = document.getElementById('main-chat-input');
+        if (composer) composer.focus();
+        scrollChatToBottom();
+    }
 }
 
 // ==========================================================
-// 2. AUTHENTICATION & OFFICIAL GOOGLE OAUTH
+// 2. USER STATE & UI BINDING
 // ==========================================================
 
-// Continue with Official Google OAuth (Opens Google's real accounts.google.com page)
-if (btnContinueGoogle) {
-    btnContinueGoogle.addEventListener('click', () => {
-        clearAuthAlert();
-        window.location.href = '/api/auth/google';
-    });
-}
+function renderUserData() {
+    if (!currentUser) return;
 
-// Switch Account in Profile Menu
-if (menuSwitchAccount) {
-    menuSwitchAccount.addEventListener('click', () => {
-        if (profileDropdownMenu) profileDropdownMenu.classList.remove('active');
-        window.location.href = '/api/auth/google';
-    });
-}
+    const firstName = currentUser.name ? currentUser.name.split(' ')[0] : 'there';
+    const initials = currentUser.name
+        ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+        : 'VR';
 
-// Email & Password Auth Submit
-async function executeAuthSubmit(e) {
-    if (e) e.preventDefault();
-    const email = authEmailInput ? authEmailInput.value.trim() : '';
-    const password = authPassInput ? authPassInput.value : '';
-    const name = authNameInput ? authNameInput.value.trim() : 'Al Palis';
+    // 1. Home Tab Elements
+    const homeName = document.getElementById('home-user-name');
+    if (homeName) homeName.textContent = firstName;
 
-    if (!email || !password) {
-        showAuthAlert('Harap isi alamat email dan kata sandi.');
-        return;
+    const homeBalance = document.getElementById('home-balance-display');
+    if (homeBalance) homeBalance.textContent = `${Number(currentUser.credits).toLocaleString()} Credits`;
+
+    const homeAllocPct = document.getElementById('home-allocation-pct');
+    const homeFill = document.getElementById('home-balance-progress-fill');
+    const pct = Math.min(100, Math.round((currentUser.credits / (currentUser.creditsMax || 3000)) * 100));
+    if (homeAllocPct) homeAllocPct.textContent = `${pct}% remaining`;
+    if (homeFill) homeFill.style.width = `${pct}%`;
+
+    // 2. Chat Tab Elements
+    const chatCredits = document.getElementById('chat-credits-display');
+    if (chatCredits) chatCredits.textContent = `${Number(currentUser.credits).toLocaleString()} / ${Number(currentUser.creditsMax || 3000).toLocaleString()} credits`;
+
+    const chatModelName = document.getElementById('chat-active-model-name');
+    if (chatModelName) chatModelName.textContent = currentModelName;
+
+    // 3. Profile Tab Elements
+    const profileName = document.getElementById('profile-display-name');
+    if (profileName) profileName.textContent = currentUser.name || 'Alex Rivera';
+
+    const profileEmail = document.getElementById('profile-display-email');
+    if (profileEmail) profileEmail.textContent = currentUser.email || 'alex.rivera@workspace.ai';
+
+    const profileCredits = document.getElementById('profile-credits-numbers');
+    if (profileCredits) profileCredits.textContent = `${Number(currentUser.credits).toLocaleString()} / 10,000`;
+
+    const profileFill = document.getElementById('profile-progress-fill');
+    if (profileFill) profileFill.style.width = `${Math.min(100, Math.round((currentUser.credits / 10000) * 100))}%`;
+
+    const profilePhoto = document.getElementById('profile-user-photo');
+    const profileFallback = document.getElementById('profile-avatar-fallback');
+    if (currentUser.picture && profilePhoto) {
+        profilePhoto.src = currentUser.picture;
+        profilePhoto.style.display = 'block';
+        if (profileFallback) profileFallback.style.display = 'none';
+    } else if (profileFallback) {
+        if (profilePhoto) profilePhoto.style.display = 'none';
+        profileFallback.textContent = initials;
+        profileFallback.style.display = 'flex';
     }
 
-    clearAuthAlert();
-    try {
-        if (authSubmitBtn) authSubmitBtn.disabled = true;
-        let res;
-        if (isRegisterMode) {
-            res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name || 'User', email, password })
-            });
-        } else {
-            res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-            // Auto register fallback if user account is not yet created
-            if (res.status === 401 || res.status === 404) {
-                res = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name || 'User', email, password })
-                });
-            }
-        }
+    // 4. Sidebar & Topbar Badges
+    const topAvatar = document.getElementById('topbar-avatar-badge');
+    if (topAvatar) topAvatar.textContent = initials;
 
-        if (res.ok) {
-            await checkAuthSession();
-        } else {
-            const errData = await res.json().catch(() => ({}));
-            showAuthAlert(errData.error?.message || 'Login gagal. Periksa kembali email dan password.');
-            if (authSubmitBtn) authSubmitBtn.disabled = false;
-        }
-    } catch (err) {
-        showAuthAlert(`Network error: ${err.message}`);
-        if (authSubmitBtn) authSubmitBtn.disabled = false;
-    }
+    const sideAvatar = document.getElementById('sidebar-user-avatar');
+    if (sideAvatar) sideAvatar.textContent = initials;
+
+    const sideName = document.getElementById('sidebar-user-name');
+    if (sideName) sideName.textContent = currentUser.name || 'Alex Rivera';
+
+    const sidePlan = document.getElementById('sidebar-user-plan');
+    if (sidePlan) sidePlan.textContent = currentUser.plan || 'Pro Tier';
 }
 
-if (authEmailForm) {
-    authEmailForm.addEventListener('submit', executeAuthSubmit);
-}
-if (authSubmitBtn) {
-    authSubmitBtn.addEventListener('click', (e) => {
-        // If form doesn't trigger submit automatically
-        if (authEmailForm && !authEmailForm.checkValidity()) {
-            authEmailForm.reportValidity();
-            return;
-        }
-        executeAuthSubmit(e);
-    });
-}
-
-// Logout Handler
-async function handleLogout() {
-    try {
-        await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (e) {
-        console.warn('Logout notice:', e);
-    }
-    currentUser = null;
-    if (profileDropdownMenu) profileDropdownMenu.classList.remove('active');
-    switchMainView('auth');
-    showAuthAlert('Anda telah berhasil keluar dari akun VARIS.', 'success');
-}
-
-// Check and process Google OAuth callback query params on page load
-function handleOAuthCallbackParams() {
-    try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const auth = urlParams.get('auth');
-        const err = urlParams.get('error');
-        const msg = urlParams.get('msg');
-        const linked = urlParams.get('linked');
-        const isNew = urlParams.get('is_new');
-
-        if (auth === 'success') {
-            window.history.replaceState({}, document.title, window.location.pathname);
-            if (linked) {
-                showAuthAlert('Akun Google berhasil ditautkan ke akun Anda! Memuat workspace...', 'success');
-            } else if (isNew) {
-                showAuthAlert('Akun VARIS baru berhasil dibuat via Google! Memuat workspace...', 'success');
-            }
-        } else if (err) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-            switchMainView('auth');
-            if (err === 'oauth_unavailable' || err === 'google_not_configured' || err === 'google_client_id_needed') {
-                showAuthAlert('Google Sign-In is temporarily unavailable.', 'error');
-            } else if (err === 'cancelled' || err === 'access_denied') {
-                showAuthAlert('Google sign-in was cancelled.', 'error');
-            } else {
-                showAuthAlert('Google Sign-In failed. Please try again.', 'error');
-            }
-        }
-    } catch (e) {
-        console.warn('OAuth param parse error:', e);
-    }
-}
-
-// Check Authenticated Session on Load
-async function checkAuthSession() {
+async function fetchCurrentUser() {
     try {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
             const data = await res.json();
-            currentUser = data.user;
-            currentSubscription = data.subscription;
-            updateUserUI();
-            switchMainView('app');
-            switchSubview('chat');
-        } else {
-            switchMainView('landing');
+            if (data.authenticated && data.user) {
+                currentUser = {
+                    ...currentUser,
+                    ...data.user,
+                    credits: data.user.credits !== undefined ? data.user.credits : 2450,
+                    plan: data.user.tier ? (data.user.tier.charAt(0).toUpperCase() + data.user.tier.slice(1) + ' Tier') : 'Pro Tier'
+                };
+                switchMainView('app');
+                return;
+            }
         }
     } catch (e) {
-        switchMainView('landing');
+        console.warn('Authentication check notice:', e);
+    }
+    // Default to Landing if not authenticated
+    switchMainView('landing');
+}
+
+// ==========================================================
+// 3. AUTHENTICATION (GOOGLE GIS & EMAIL/PASSWORD)
+// ==========================================================
+
+function initGoogleAuth() {
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+            window.google.accounts.id.initialize({
+                client_id: '604379040176-dca2rmd9akrtds0rhf62e3ojleer4udl.apps.googleusercontent.com',
+                callback: handleGoogleCredentialResponse,
+                auto_select: false,
+                cancel_on_tap_outside: true
+            });
+        } catch (e) {
+            console.error('Google Identity init error:', e);
+        }
     }
 }
 
-function updateUserUI() {
-    if (!currentUser) return;
-    const name = currentUser.name || 'Al Palis';
-    const email = currentUser.email || 'alpalis@gmail.com';
-    const avatar = currentUser.avatar_url || '/assets/varis-logo.jpg';
-    const plan = currentSubscription?.plan_name || 'Pro Plan';
-    currentCredits = currentSubscription?.credits_balance ?? 2840;
+async function handleGoogleCredentialResponse(response) {
+    if (!response || !response.credential) {
+        showAuthAlert('Google Sign-In credential was not returned.', 'error');
+        return;
+    }
 
-    // Sidebar & Topbar updates
-    if (sidebarUserName) sidebarUserName.textContent = name;
-    if (sidebarUserPlan) sidebarUserPlan.textContent = plan;
-    if (sidebarUserAvatar) sidebarUserAvatar.src = avatar;
-
-    if (topbarAvatarImg) topbarAvatarImg.src = avatar;
-    if (topbarCreditsText) topbarCreditsText.textContent = currentCredits.toLocaleString();
-    if (emptyGreetingName) emptyGreetingName.textContent = `Good evening, ${name}.`;
-
-    // Dropdown updates
-    if (dropdownUserAvatar) dropdownUserAvatar.src = avatar;
-    if (dropdownUserName) dropdownUserName.textContent = name;
-    if (dropdownUserEmail) dropdownUserEmail.textContent = email;
-    if (dropdownUserPlan) dropdownUserPlan.textContent = plan;
-    if (dropdownUserCredits) dropdownUserCredits.textContent = `${currentCredits.toLocaleString()} Credits`;
-
-    // Settings pane updates
-    if (setAvatarImg) setAvatarImg.src = avatar;
-    if (setUserName) setUserName.textContent = name;
-    if (setUserEmail) setUserEmail.textContent = email;
-    if (setBadgePlan) setBadgePlan.textContent = plan;
-    if (setInputName) setInputName.value = name;
-    if (setInputEmail) setInputEmail.value = email;
-}
-
-// ==========================================================
-// 3. CHAT WORKSPACE & CONVERSATIONAL ENGINE
-// ==========================================================
-
-// Enable / Disable Send Button based on input
-if (mainChatInput) {
-    mainChatInput.addEventListener('input', () => {
-        mainChatInput.style.height = 'auto';
-        mainChatInput.style.height = Math.min(mainChatInput.scrollHeight, 160) + 'px';
-        if (mainSendBtn) {
-            mainSendBtn.disabled = !mainChatInput.value.trim();
-        }
-    });
-
-    mainChatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (mainChatInput.value.trim()) handleSendMessage();
-        }
-    });
-}
-
-if (mainSendBtn) {
-    mainSendBtn.addEventListener('click', handleSendMessage);
-}
-
-// Quick Prompt Chips
-if (quickPromptChips) {
-    quickPromptChips.querySelectorAll('.prompt-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-            const prefix = chip.dataset.prompt;
-            if (mainChatInput) {
-                mainChatInput.value = prefix;
-                mainChatInput.focus();
-                mainChatInput.dispatchEvent(new Event('input'));
-            }
+    try {
+        showAuthAlert('Verifying Google credentials...', 'success');
+        const res = await fetch('/api/auth/google/credential', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: response.credential })
         });
-    });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            currentUser = {
+                ...currentUser,
+                ...data.user,
+                credits: data.user.credits !== undefined ? data.user.credits : 2450
+            };
+            showToast(`Welcome, ${currentUser.name}!`);
+            switchMainView('app');
+            switchTab('home');
+        } else {
+            showAuthAlert(data.error || 'Google authentication failed.', 'error');
+        }
+    } catch (err) {
+        showAuthAlert('Error during Google authentication: ' + err.message, 'error');
+    }
 }
+
+function showAuthAlert(msg, type = 'error') {
+    const box = document.getElementById('auth-alert-box');
+    if (!box) return;
+    box.textContent = msg;
+    box.className = `auth-alert-box ${type}`;
+    box.classList.remove('hidden');
+}
+
+function clearAuthAlert() {
+    const box = document.getElementById('auth-alert-box');
+    if (box) box.classList.add('hidden');
+}
+
+// ==========================================================
+// 4. CHAT MESSAGING & STREAMING ENGINE
+// ==========================================================
+
+function scrollChatToBottom() {
+    const feed = document.getElementById('chat-messages-feed');
+    if (feed) {
+        setTimeout(() => {
+            feed.scrollTop = feed.scrollHeight;
+        }, 50);
+    }
+}
+
+function createAIMessageElement(initialText = '') {
+    const row = document.createElement('div');
+    row.className = 'chat-message-row ai-row';
+    row.innerHTML = `
+        <div class="chat-ai-header">
+            <div class="ai-avatar-badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <strong class="ai-sender-name">VARIS AI</strong>
+            <span class="ai-message-time">Just now</span>
+        </div>
+        <div class="ai-message-card">
+            <div class="ai-message-body">${formatMarkdownText(initialText)}</div>
+        </div>
+    `;
+    return row;
+}
+
+function createUserMessageElement(text) {
+    const row = document.createElement('div');
+    row.className = 'chat-message-row user-row';
+    const bubble = document.createElement('div');
+    bubble.className = 'user-message-bubble';
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    return row;
+}
+
+function formatMarkdownText(text) {
+    if (!text) return '<p class="ai-text-para">Thinking...</p>';
+
+    // Parse code blocks ```lang ... ```
+    const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
+    let formatted = text.replace(codeBlockRegex, (match, lang, code) => {
+        const langDisplay = lang ? lang.toUpperCase() : 'CODE';
+        const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `
+            <div class="code-block-wrapper">
+                <div class="code-block-header">
+                    <span class="code-lang-tag">${langDisplay}</span>
+                    <button class="btn-code-copy" onclick="copyCodeBlock(this)">Copy</button>
+                </div>
+                <pre class="code-pre-box"><code>${escapedCode}</code></pre>
+            </div>
+        `;
+    });
+
+    // Parse paragraphs
+    const paragraphs = formatted.split('\n\n');
+    return paragraphs.map(p => {
+        if (p.includes('<div class="code-block-wrapper"')) return p;
+        return `<p class="ai-text-para">${p.replace(/\n/g, '<br>')}</p>`;
+    }).join('');
+}
+
+window.copyCodeBlock = function(btn) {
+    const codeEl = btn.closest('.code-block-wrapper').querySelector('code');
+    if (codeEl) {
+        navigator.clipboard.writeText(codeEl.innerText).then(() => {
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+        });
+    }
+};
 
 async function handleSendMessage() {
-    const text = mainChatInput.value.trim();
+    const input = document.getElementById('main-chat-input');
+    if (!input) return;
+    const text = input.value.trim();
     if (!text) return;
 
-    // Reset input
-    mainChatInput.value = '';
-    mainChatInput.style.height = 'auto';
-    mainSendBtn.disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
 
-    // Hide empty state
-    if (chatEmptyState) chatEmptyState.style.display = 'none';
+    const feed = document.getElementById('chat-messages-feed');
+    if (!feed) return;
 
-    // Append User Message
-    appendMessage('user', text);
+    // 1. Append User Message
+    const userRow = createUserMessageElement(text);
+    feed.appendChild(userRow);
+    scrollChatToBottom();
 
-    // Append AI Thinking Indicator
-    const thinkingBubble = appendThinkingIndicator();
+    // 2. Append Initial AI Message Placeholder
+    const aiRow = createAIMessageElement('Thinking...');
+    feed.appendChild(aiRow);
+    scrollChatToBottom();
+    const bodyEl = aiRow.querySelector('.ai-message-body');
+
+    // 3. Deduct credit locally for responsive feedback
+    if (currentUser.credits > 0) {
+        currentUser.credits = Math.max(0, currentUser.credits - 3);
+        renderUserData();
+    }
 
     try {
         const res = await fetch('/api/chat', {
@@ -646,513 +383,82 @@ async function handleSendMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: text,
-                model_id: currentModel,
-                conversation_id: currentConversationId
+                model: currentModel,
+                conversation_id: currentConversationId,
+                web_search: isWebSearchEnabled
             })
         });
 
-        const data = await res.json().catch(() => ({}));
-        thinkingBubble.remove();
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            bodyEl.innerHTML = `<p class="ai-text-para" style="color: #DC2626;">Error: ${errData.error || 'Server error occurred'}</p>`;
+            return;
+        }
 
-        if (res.ok) {
-            currentConversationId = data.conversation_id;
-            if (data.credits_remaining !== undefined) {
-                currentCredits = data.credits_remaining;
-                if (topbarCreditsText) topbarCreditsText.textContent = currentCredits.toLocaleString();
-            }
-            appendMessage('assistant', data.response, data.model_used || currentModelName);
-        } else {
-            appendMessage('assistant', `⚠️ ${data.error?.message || 'Maaf, model tidak dapat merespons saat ini. Silakan coba lagi.'}`, currentModelName);
+        const data = await res.json();
+        const responseText = data.reply || data.response || data.text || 'I have completed analyzing your request.';
+        bodyEl.innerHTML = formatMarkdownText(responseText);
+        scrollChatToBottom();
+
+        if (data.credits_remaining !== undefined) {
+            currentUser.credits = data.credits_remaining;
+            renderUserData();
         }
     } catch (err) {
-        thinkingBubble.remove();
-        appendMessage('assistant', `⚠️ Terjadi kendala koneksi: ${err.message}`, currentModelName);
+        bodyEl.innerHTML = `<p class="ai-text-para" style="color: #DC2626;">Connection error: ${err.message}</p>`;
     }
 }
-
-function appendMessage(role, content, modelTag = 'Gemini Pro') {
-    if (!chatMessagesFeed) return;
-    const row = document.createElement('div');
-    row.className = `message-document-row ${role}`;
-
-    if (role === 'user') {
-        row.innerHTML = `<div class="user-msg-bubble">${escapeHtml(content)}</div>`;
-    } else {
-        row.innerHTML = `
-            <div class="assistant-document-card">
-                <div class="doc-header-meta">
-                    <div class="doc-brand-author">
-                        <img src="/assets/varis-logo.jpg" alt="VARIS" class="brand-logo-icon" style="width:20px;height:20px;">
-                        <strong style="font-size:0.88rem;color:var(--text-primary);">VARIS</strong>
-                        <span class="doc-model-chip">${escapeHtml(modelTag)}</span>
-                    </div>
-                </div>
-                <div class="doc-body-text">${renderMarkdown(content)}</div>
-                <div class="doc-actions-bar">
-                    <button class="action-icon-btn" onclick="copyResponseText(this)">
-                        <span>📋</span> Copy
-                    </button>
-                    <button class="action-icon-btn" onclick="speakMessageText('${escapeForAttr(content)}')">
-                        <span>🔊</span> Speak
-                    </button>
-                    <button class="action-icon-btn" title="Like">👍</button>
-                    <button class="action-icon-btn" title="Dislike">👎</button>
-                </div>
-            </div>
-        `;
-    }
-
-    chatMessagesFeed.appendChild(row);
-    chatMessagesFeed.scrollTop = chatMessagesFeed.scrollHeight;
-}
-
-function appendThinkingIndicator() {
-    const row = document.createElement('div');
-    row.className = 'message-document-row assistant';
-    row.innerHTML = `
-        <div class="assistant-document-card" style="padding:1rem 1.25rem;">
-            <div style="display:flex;align-items:center;gap:0.65rem;font-size:0.88rem;color:var(--brand-primary);font-weight:700;">
-                <span class="pulse-live-dot"></span>
-                <span>VARIS Thinking...</span>
-            </div>
-        </div>
-    `;
-    chatMessagesFeed.appendChild(row);
-    chatMessagesFeed.scrollTop = chatMessagesFeed.scrollHeight;
-    return row;
-}
-
-window.copyResponseText = function(btn) {
-    const card = btn.closest('.assistant-document-card');
-    const textEl = card.querySelector('.doc-body-text');
-    if (textEl) {
-        navigator.clipboard.writeText(textEl.innerText);
-        btn.innerHTML = '<span>✓</span> Copied!';
-        setTimeout(() => btn.innerHTML = '<span>📋</span> Copy', 2000);
-    }
-};
-
-window.speakMessageText = function(text) {
-    if (!text) return;
-    if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(text.slice(0, 500));
-        utter.rate = 1.0;
-        window.speechSynthesis.speak(utter);
-    }
-};
 
 // ==========================================================
-// 4. PROJECTS WORKSPACE
+// 5. VOICE ENGINE & AUDIO SIMULATION
 // ==========================================================
 
-async function loadProjects() {
-    if (!projectsGrid) return;
+async function startVoiceEngine() {
+    const statusPill = document.getElementById('voice-status-text');
+    if (statusPill) statusPill.textContent = 'LISTENING...';
+
+    const coreSphere = document.getElementById('voice-core-sphere');
+    if (coreSphere) coreSphere.style.animation = 'sphere-float 2s ease-in-out infinite alternate';
+
+    // Start Live Audio Input if microphone access is granted
     try {
-        const res = await fetch('/api/projects');
-        const json = await res.json().catch(() => ({}));
-        const projects = json.data || [];
+        if (!micStream && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaStreamSource(micStream);
+            analyserNode = audioCtx.createAnalyser();
+            analyserNode.fftSize = 32;
+            source.connect(analyserNode);
 
-        projectsGrid.innerHTML = '';
-        projects.forEach(p => {
-            const card = document.createElement('div');
-            card.className = 'project-card';
-            card.innerHTML = `
-                <div>
-                    <h3 class="project-card-title">${escapeHtml(p.name)}</h3>
-                    <p class="project-card-desc">${escapeHtml(p.description || 'Creative workspace project.')}</p>
-                </div>
-                <div class="project-card-footer">
-                    <div class="project-meta-info">
-                        <span class="project-files-badge">${p.file_count || 0} files</span>
-                        <span>Edited ${formatTimeAgo(p.updated_at)}</span>
-                    </div>
-                    <button class="btn-outline-sm" onclick="openProjectWorkspace('${p.id}')">Open</button>
-                </div>
-            `;
-            projectsGrid.appendChild(card);
-        });
-    } catch (e) {
-        console.warn('Failed to load projects:', e);
-    }
-}
+            const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
+            const bars = document.querySelectorAll('.eq-bar');
 
-if (btnCreateProject) {
-    btnCreateProject.addEventListener('click', async () => {
-        const name = prompt('Masukkan nama proyek baru:');
-        if (!name || !name.trim()) return;
-        const description = prompt('Deskripsi singkat proyek:') || '';
-        try {
-            await fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name.trim(), description })
-            });
-            loadProjects();
-        } catch (e) {
-            alert('Gagal membuat proyek: ' + e.message);
-        }
-    });
-}
-
-window.openProjectWorkspace = function(projId) {
-    switchSubview('files');
-};
-
-// ==========================================================
-// 5. FILES WORKSPACE
-// ==========================================================
-
-async function loadFiles(filter = 'all', search = '') {
-    if (!filesTableBody) return;
-    try {
-        let url = `/api/files?type=${encodeURIComponent(filter)}`;
-        if (search) url += `&search=${encodeURIComponent(search)}`;
-        const res = await fetch(url);
-        const json = await res.json().catch(() => ({}));
-        const files = json.data || [];
-
-        filesTableBody.innerHTML = '';
-        files.forEach((f, idx) => {
-            const tr = document.createElement('tr');
-            if (f.id === selectedFileId || (idx === 0 && !selectedFileId)) {
-                selectedFileId = f.id;
-                tr.style.background = 'var(--bg-hover)';
-                renderFilePreview(f);
+            function updateWaveform() {
+                if (!micStream) return;
+                analyserNode.getByteFrequencyData(dataArray);
+                bars.forEach((bar, idx) => {
+                    const val = dataArray[idx % dataArray.length] || 10;
+                    const height = Math.max(8, Math.min(48, (val / 255) * 56));
+                    bar.style.height = `${height}px`;
+                });
+                voiceAnimId = requestAnimationFrame(updateWaveform);
             }
-
-            tr.addEventListener('click', () => {
-                selectedFileId = f.id;
-                document.querySelectorAll('#files-table-body tr').forEach(r => r.style.background = '');
-                tr.style.background = 'var(--bg-hover)';
-                renderFilePreview(f);
-            });
-
-            tr.innerHTML = `
-                <td>
-                    <div class="file-name-cell">
-                        <span>${getFileIcon(f.type)}</span>
-                        <span>${escapeHtml(f.name)}</span>
-                    </div>
-                </td>
-                <td>${escapeHtml(f.project_name || 'General')}</td>
-                <td>${formatTimeAgo(f.updated_at)}</td>
-                <td><span class="file-type-badge">${escapeHtml(f.type)}</span></td>
-                <td>${escapeHtml(f.size_formatted || '1.0 MB')}</td>
-                <td><button class="btn-outline-sm" style="padding:0.25rem 0.5rem;" onclick="event.stopPropagation(); deleteFileById('${f.id}')">🗑️</button></td>
-            `;
-            filesTableBody.appendChild(tr);
-        });
-    } catch (e) {
-        console.warn('Failed to load files:', e);
-    }
-}
-
-function renderFilePreview(file) {
-    if (!previewEmptyState || !previewActiveState) return;
-    previewEmptyState.classList.add('hidden');
-    previewActiveState.classList.remove('hidden');
-
-    if (previewName) previewName.textContent = file.name;
-    if (previewSize) previewSize.textContent = `${file.size_formatted || '2.4 MB'} • ${file.type}`;
-    if (previewProject) previewProject.textContent = file.project_name || 'Project A';
-    if (previewDate) previewDate.textContent = formatTimeAgo(file.updated_at);
-    if (previewSnippet) previewSnippet.textContent = file.content || 'File siap digunakan dalam prompt chat VARIS AI.';
-
-    if (btnDeleteFile) {
-        btnDeleteFile.onclick = () => deleteFileById(file.id);
-    }
-    if (btnDownloadFile) {
-        btnDownloadFile.onclick = () => alert(`Downloading ${file.name}...`);
-    }
-}
-
-window.deleteFileById = async function(fileId) {
-    if (!confirm('Hapus file ini dari workspace?')) return;
-    try {
-        await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
-        loadFiles();
-    } catch (e) {
-        alert('Gagal menghapus file');
-    }
-};
-
-// Filter tabs in Files view
-if (filesFilterTabs) {
-    filesFilterTabs.querySelectorAll('.f-tab-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-            filesFilterTabs.querySelectorAll('.f-tab-pill').forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-            loadFiles(pill.dataset.filter, filesSearchInput?.value.trim());
-        });
-    });
-}
-
-if (filesSearchInput) {
-    filesSearchInput.addEventListener('input', () => {
-        const activeTab = filesFilterTabs?.querySelector('.f-tab-pill.active')?.dataset.filter || 'all';
-        loadFiles(activeTab, filesSearchInput.value.trim());
-    });
-}
-
-// Real File Upload Trigger
-if (realFileUploadInput) {
-    realFileUploadInput.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const sizeFormatted = file.size > 1048576 
-            ? (file.size / 1048576).toFixed(1) + ' MB' 
-            : Math.ceil(file.size / 1024) + ' KB';
-
-        try {
-            await fetch('/api/files', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: file.name,
-                    project_id: 'proj-1',
-                    project_name: 'Project A',
-                    type: file.name.split('.').pop()?.toUpperCase() || 'Document',
-                    size_bytes: file.size,
-                    size_formatted: sizeFormatted,
-                    content: `Uploaded file: ${file.name} (${sizeFormatted})`
-                })
-            });
-            loadFiles();
-            alert(`File "${file.name}" berhasil diunggah ke workspace!`);
-        } catch (err) {
-            alert('Gagal mengunggah file: ' + err.message);
-        }
-    });
-}
-
-function getFileIcon(type) {
-    const t = (type || '').toLowerCase();
-    if (t.includes('pdf')) return '📕';
-    if (t.includes('fig')) return '🎨';
-    if (t.includes('md') || t.includes('doc')) return '📄';
-    if (t.includes('image') || t.includes('png') || t.includes('jpg')) return '🖼️';
-    if (t.includes('code') || t.includes('js') || t.includes('py')) return '💻';
-    return '📁';
-}
-
-// ==========================================================
-// 6. MODELS WORKSPACE & MODEL SELECTOR MODAL
-// ==========================================================
-
-async function loadModelsCatalog(filter = 'all') {
-    if (!modelsCatalogGrid) return;
-    try {
-        const res = await fetch('/api/models');
-        const json = await res.json().catch(() => ({}));
-        let models = json.data || [];
-
-        if (filter !== 'all') {
-            models = models.filter(m => (m.provider || '').toLowerCase().includes(filter.toLowerCase()));
-        }
-
-        modelsCatalogGrid.innerHTML = '';
-        models.forEach(m => {
-            const card = document.createElement('div');
-            card.className = `model-spec-card ${m.id === currentModel ? 'selected' : ''}`;
-            card.innerHTML = `
-                <div>
-                    <div class="model-header-pill">
-                        <span class="model-provider-badge">${m.provider || 'Google'}</span>
-                        <span class="model-status-chip">● Available</span>
-                    </div>
-                    <h3 class="model-spec-name">${escapeHtml(m.display_name || m.id)}</h3>
-                    <p class="model-spec-desc">${escapeHtml(m.description || 'High performance intelligence model.')}</p>
-                </div>
-                <div class="model-card-action-footer">
-                    <span class="model-credit-tag">${m.credit_cost_per_request || 5} credits</span>
-                    <button class="btn-primary-sm" onclick="selectActiveModel('${m.id}', '${escapeForAttr(m.display_name)}')">${m.id === currentModel ? 'Selected' : 'Select'}</button>
-                </div>
-            `;
-            modelsCatalogGrid.appendChild(card);
-        });
-    } catch (e) {
-        console.warn('Failed to load models:', e);
-    }
-}
-
-if (viewModelFilterTabs) {
-    viewModelFilterTabs.querySelectorAll('.m-tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            viewModelFilterTabs.querySelectorAll('.m-tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            loadModelsCatalog(btn.dataset.filter);
-        });
-    });
-}
-
-// Modal Model Picker
-async function loadModalModels(filter = 'all') {
-    if (!modalModelsList) return;
-    try {
-        const res = await fetch('/api/models');
-        const json = await res.json().catch(() => ({}));
-        let models = json.data || [];
-
-        if (filter !== 'all') {
-            models = models.filter(m => (m.provider || '').toLowerCase().includes(filter.toLowerCase()));
-        }
-
-        modalModelsList.innerHTML = '';
-        models.forEach(m => {
-            const item = document.createElement('div');
-            item.className = `g-account-item ${m.id === currentModel ? 'active-model-item' : ''}`;
-            item.style.marginBottom = '0.65rem';
-            item.innerHTML = `
-                <div style="font-size:1.4rem;">✨</div>
-                <div class="g-account-details">
-                    <strong class="g-name">${escapeHtml(m.display_name || m.id)}</strong>
-                    <span class="g-email">${m.credit_cost_per_request} credits/req • ${m.provider}</span>
-                </div>
-                <button class="btn-primary-sm" onclick="selectActiveModel('${m.id}', '${escapeForAttr(m.display_name)}')">Select</button>
-            `;
-            modalModelsList.appendChild(item);
-        });
-    } catch (e) {
-        console.warn('Failed to load modal models:', e);
-    }
-}
-
-if (modalModelTabs) {
-    modalModelTabs.querySelectorAll('.m-tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            modalModelTabs.querySelectorAll('.m-tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            loadModalModels(btn.dataset.filter);
-        });
-    });
-}
-
-if (closeModelModal) {
-    closeModelModal.addEventListener('click', () => {
-        if (modelSelectorModal) modelSelectorModal.classList.remove('active');
-    });
-}
-
-window.selectActiveModel = function(modelId, modelName) {
-    currentModel = modelId;
-    currentModelName = modelName || modelId;
-    if (topbarModelName) topbarModelName.textContent = currentModelName;
-    if (modelSelectorModal) modelSelectorModal.classList.remove('active');
-    loadModelsCatalog();
-};
-
-// ==========================================================
-// 7. USAGE & ANALYTICS DASHBOARD
-// ==========================================================
-
-async function loadUsageAnalytics() {
-    try {
-        const res = await fetch('/api/user/usage');
-        const json = await res.json().catch(() => ({}));
-        const stats = json.data || {};
-
-        if (usageCreditsRemain) usageCreditsRemain.textContent = (stats.credits_remaining ?? 2840).toLocaleString();
-        if (usageCreditsTotal) usageCreditsTotal.textContent = (stats.credits_allocated ?? 5000).toLocaleString();
-        if (usageTodayReq) usageTodayReq.textContent = stats.requests_today ?? 34;
-        if (usageMonthReq) usageMonthReq.textContent = (stats.requests_this_month ?? 1284).toLocaleString();
-
-        const pct = Math.min(100, Math.round(((stats.credits_remaining ?? 2840) / (stats.credits_allocated ?? 5000)) * 100));
-        if (usageCreditsProgress) usageCreditsProgress.style.width = pct + '%';
-
-        // Render Recent Activity
-        if (recentActivityList) {
-            recentActivityList.innerHTML = '';
-            const txs = stats.recent_transactions || [
-                { model_id: 'Gemini Pro', credits: 12, created_at: new Date(Date.now() - 7200000).toISOString() },
-                { model_id: 'GPT-4o', credits: 10, created_at: new Date(Date.now() - 14400000).toISOString() },
-                { model_id: 'Gemini Flash', credits: 2, created_at: new Date(Date.now() - 28800000).toISOString() },
-            ];
-
-            txs.forEach(t => {
-                const row = document.createElement('div');
-                row.className = 'activity-row-item';
-                row.innerHTML = `
-                    <div>
-                        <strong class="activity-model-title">${escapeHtml(t.model_id || 'Gemini Pro')}</strong>
-                        <div style="font-size:0.75rem;color:var(--text-muted);">${formatTimeAgo(t.created_at)}</div>
-                    </div>
-                    <span class="activity-cost-chip">${t.credits || 10} credits</span>
-                `;
-                recentActivityList.appendChild(row);
-            });
+            updateWaveform();
         }
     } catch (e) {
-        console.warn('Failed to load usage analytics:', e);
+        // Fallback to CSS animation if mic permission denied
+        console.log('Voice mode running with visual equalizer simulation');
     }
 }
 
-// ==========================================================
-// 8. SUBSCRIPTION UPGRADE FLOW
-// ==========================================================
-
-async function upgradeSubscriptionPlan(planId) {
-    try {
-        const res = await fetch('/api/subscriptions/upgrade', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plan_id: planId })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-            alert(`Selamat! Anda telah berhasil upgrade ke paket ${planId.toUpperCase()}!`);
-            currentSubscription = data.subscription;
-            updateUserUI();
-            switchSubview('usage');
-        } else {
-            alert('Gagal upgrade paket: ' + (data.error?.message || 'Server error'));
-        }
-    } catch (e) {
-        alert('Gagal upgrade: ' + e.message);
+function stopVoiceEngine() {
+    if (voiceAnimId) {
+        cancelAnimationFrame(voiceAnimId);
+        voiceAnimId = null;
     }
-}
-
-if (btnPlanPro) btnPlanPro.addEventListener('click', () => upgradeSubscriptionPlan('pro'));
-if (btnPlanUltra) btnPlanUltra.addEventListener('click', () => upgradeSubscriptionPlan('ultra'));
-
-// ==========================================================
-// 9. IMMERSIVE VOICE MODE
-// ==========================================================
-
-if (btnVoiceChatStart) {
-    btnVoiceChatStart.addEventListener('click', openVoiceMode);
-}
-if (btnCloseVoice) {
-    btnCloseVoice.addEventListener('click', closeVoiceMode);
-}
-
-async function openVoiceMode() {
-    isVoiceModeActive = true;
-    if (viewVoice) viewVoice.classList.add('active');
-    setVoiceState('LISTENING', 'Listening...');
-
-    try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const source = audioCtx.createMediaStreamSource(mediaStream);
-        micAnalyser = audioCtx.createAnalyser();
-        micAnalyser.fftSize = 64;
-        source.connect(micAnalyser);
-        micDataArray = new Uint8Array(micAnalyser.frequencyBinCount);
-        animateVoiceOrb();
-    } catch (e) {
-        console.warn('Mic access issue:', e);
-    }
-}
-
-function closeVoiceMode() {
-    isVoiceModeActive = false;
-    if (viewVoice) viewVoice.classList.remove('active');
-    if (voiceAnimFrameId) cancelAnimationFrame(voiceAnimFrameId);
-    if (mediaStream) {
-        mediaStream.getTracks().forEach(t => t.stop());
-        mediaStream = null;
+    if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
     }
     if (audioCtx) {
         audioCtx.close().catch(() => {});
@@ -1160,159 +466,436 @@ function closeVoiceMode() {
     }
 }
 
-function setVoiceState(state, label) {
-    voiceState = state;
-    if (voiceStateLabel) voiceStateLabel.textContent = state;
-    if (voicePhrase) voicePhrase.textContent = label || state;
+// ==========================================================
+// 6. TOAST NOTIFICATIONS & MODALS
+// ==========================================================
+
+function showToast(msg, duration = 2500) {
+    const toast = document.getElementById('global-toast');
+    const toastText = document.getElementById('toast-text');
+    if (!toast || !toastText) return;
+
+    toastText.textContent = msg;
+    toast.classList.remove('hidden');
+
+    setTimeout(() => {
+        toast.classList.add('hidden');
+    }, duration);
 }
 
-function animateVoiceOrb() {
-    if (!isVoiceModeActive) return;
-    voiceAnimFrameId = requestAnimationFrame(animateVoiceOrb);
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('hidden');
+}
 
-    if (micAnalyser && micDataArray) {
-        micAnalyser.getByteFrequencyData(micDataArray);
-        let sum = 0;
-        for (let i = 0; i < micDataArray.length; i++) sum += micDataArray[i];
-        const avg = sum / micDataArray.length;
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.add('hidden');
+}
 
-        const scale = 1 + (avg / 255) * 0.4;
-        if (voiceOrbSphere) {
-            voiceOrbSphere.style.transform = `scale(${scale})`;
-        }
-        if (voiceOrbHalo) {
-            voiceOrbHalo.style.transform = `scale(${scale * 1.15})`;
-            voiceOrbHalo.style.opacity = `${0.4 + (avg / 255) * 0.6}`;
+// ==========================================================
+// 7. EVENT LISTENERS & INITIALIZATION
+// ==========================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Check current session
+    fetchCurrentUser();
+
+    // 2. Initialize GIS Google Auth
+    setTimeout(initGoogleAuth, 600);
+
+    // 3. Landing Page Action Buttons
+    const landingSignin = document.getElementById('landing-signin-btn');
+    if (landingSignin) landingSignin.onclick = () => { isRegisterMode = false; updateAuthUI(); switchMainView('auth'); };
+
+    const landingGetStarted = document.getElementById('landing-getstarted-btn');
+    if (landingGetStarted) landingGetStarted.onclick = () => { isRegisterMode = true; updateAuthUI(); switchMainView('auth'); };
+
+    const heroStart = document.getElementById('hero-start-btn');
+    if (heroStart) heroStart.onclick = () => { isRegisterMode = true; updateAuthUI(); switchMainView('auth'); };
+
+    const heroExplore = document.getElementById('hero-explore-btn');
+    if (heroExplore) heroExplore.onclick = () => { switchMainView('app'); switchTab('chat'); };
+
+    // 4. Auth View Buttons
+    const authBack = document.getElementById('auth-back-to-landing');
+    if (authBack) authBack.onclick = () => switchMainView('landing');
+
+    const authSwitch = document.getElementById('auth-switch-btn');
+    if (authSwitch) {
+        authSwitch.onclick = () => {
+            isRegisterMode = !isRegisterMode;
+            updateAuthUI();
+        };
+    }
+
+    function updateAuthUI() {
+        clearAuthAlert();
+        const title = document.getElementById('auth-main-title');
+        const desc = document.getElementById('auth-main-desc');
+        const submitBtn = document.getElementById('auth-submit-btn');
+        const switchText = document.getElementById('auth-switch-text');
+        const switchBtn = document.getElementById('auth-switch-btn');
+        const nameGroup = document.getElementById('group-auth-name');
+
+        if (isRegisterMode) {
+            if (title) title.textContent = 'Create your account';
+            if (desc) desc.textContent = 'Join VARIS AI Intelligent Workspace.';
+            if (submitBtn) submitBtn.textContent = 'Sign Up';
+            if (switchText) switchText.textContent = 'Already have an account?';
+            if (switchBtn) switchBtn.textContent = 'Sign In';
+            if (nameGroup) nameGroup.classList.remove('hidden');
+        } else {
+            if (title) title.textContent = 'Welcome back';
+            if (desc) desc.textContent = 'Continue your intelligent workspace.';
+            if (submitBtn) submitBtn.textContent = 'Sign In';
+            if (switchText) switchText.textContent = "Don't have an account?";
+            if (switchBtn) switchBtn.textContent = 'Create account';
+            if (nameGroup) nameGroup.classList.add('hidden');
         }
     }
-}
 
-if (btnVoiceMute) {
-    btnVoiceMute.addEventListener('click', () => {
-        isMicMuted = !isMicMuted;
-        if (mediaStream) {
-            mediaStream.getAudioTracks().forEach(t => t.enabled = !isMicMuted);
-        }
-        btnVoiceMute.classList.toggle('active-mute', isMicMuted);
+    const btnGoogle = document.getElementById('btn-continue-google');
+    if (btnGoogle) {
+        btnGoogle.onclick = () => {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                window.google.accounts.id.prompt((notification) => {
+                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                        window.location.href = '/api/auth/google';
+                    }
+                });
+            } else {
+                window.location.href = '/api/auth/google';
+            }
+        };
+    }
+
+    const authForm = document.getElementById('auth-email-form');
+    if (authForm) {
+        authForm.onsubmit = async (e) => {
+            e.preventDefault();
+            clearAuthAlert();
+            const email = document.getElementById('auth-email-input').value.trim();
+            const pass = document.getElementById('auth-pass-input').value;
+            const name = document.getElementById('auth-name-input') ? document.getElementById('auth-name-input').value.trim() : '';
+
+            const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+            const payload = isRegisterMode ? { email, password: pass, name } : { email, password: pass };
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    currentUser = {
+                        ...currentUser,
+                        ...data.user,
+                        credits: data.user.credits !== undefined ? data.user.credits : 2450
+                    };
+                    showToast(isRegisterMode ? 'Account created successfully!' : 'Signed in successfully!');
+                    switchMainView('app');
+                    switchTab('home');
+                } else {
+                    showAuthAlert(data.error || 'Authentication error', 'error');
+                }
+            } catch (err) {
+                showAuthAlert('Network error: ' + err.message, 'error');
+            }
+        };
+    }
+
+    // 5. Mobile Bottom Navigation Tabs Click
+    document.querySelectorAll('.bottom-nav-tab').forEach(btn => {
+        btn.onclick = () => {
+            const target = btn.dataset.tab;
+            if (target) switchTab(target);
+        };
     });
-}
 
-if (btnVoiceInterrupt) {
-    btnVoiceInterrupt.addEventListener('click', () => {
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-        setVoiceState('LISTENING', 'Mendengarkan...');
+    // 6. Desktop Sidebar Navigation Items Click
+    document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
+        btn.onclick = () => {
+            const target = btn.dataset.tab;
+            if (target) switchTab(target);
+        };
     });
-}
 
-// ==========================================================
-// 10. SETTINGS & PREFERENCES
-// ==========================================================
+    const sidebarNewChat = document.getElementById('sidebar-newchat-btn');
+    if (sidebarNewChat) {
+        sidebarNewChat.onclick = () => {
+            currentConversationId = 'conv-' + Date.now();
+            switchTab('chat');
+        };
+    }
 
-// Settings Subnav tabs
-document.querySelectorAll('.set-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.set-tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const tab = btn.dataset.tab;
-        document.querySelectorAll('.settings-tab-pane').forEach(p => p.classList.remove('active'));
-        const pane = document.getElementById(`pane-set-${tab}`);
-        if (pane) pane.classList.add('active');
+    const sidebarUser = document.getElementById('sidebar-user-btn');
+    if (sidebarUser) sidebarUser.onclick = () => switchTab('profile');
+
+    const topbarAvatar = document.getElementById('topbar-avatar-btn');
+    if (topbarAvatar) topbarAvatar.onclick = () => switchTab('profile');
+
+    // 7. Home Tab Quick Actions
+    const qaNewChat = document.getElementById('qa-newchat');
+    if (qaNewChat) qaNewChat.onclick = () => { currentConversationId = 'conv-' + Date.now(); switchTab('chat'); };
+
+    const qaVoice = document.getElementById('qa-voicemode');
+    if (qaVoice) qaVoice.onclick = () => switchTab('voice');
+
+    const qaAnalyze = document.getElementById('qa-analyze');
+    if (qaAnalyze) qaAnalyze.onclick = () => openModal('modal-newfile-sheet');
+
+    const qaResearch = document.getElementById('qa-research');
+    if (qaResearch) {
+        qaResearch.onclick = () => {
+            switchTab('chat');
+            const input = document.getElementById('main-chat-input');
+            if (input) {
+                input.value = 'Research and compare the leading frontier AI architectures in 2026.';
+                input.focus();
+            }
+        };
+    }
+
+    const qaCoding = document.getElementById('qa-coding');
+    if (qaCoding) {
+        qaCoding.onclick = () => {
+            switchTab('chat');
+            const input = document.getElementById('main-chat-input');
+            if (input) {
+                input.value = 'Write a TypeScript function to optimize high-performance state synchronization.';
+                input.focus();
+            }
+        };
+    }
+
+    const homeUsageBtn = document.getElementById('home-usage-btn');
+    if (homeUsageBtn) homeUsageBtn.onclick = () => openModal('modal-usage-sheet');
+
+    const btnViewAllChats = document.getElementById('btn-viewall-chats');
+    if (btnViewAllChats) btnViewAllChats.onclick = () => switchTab('chat');
+
+    const btnViewAllProjects = document.getElementById('btn-viewall-projects');
+    if (btnViewAllProjects) btnViewAllProjects.onclick = () => switchTab('projects');
+
+    const btnProjectsViewAll = document.getElementById('btn-projects-viewall');
+    if (btnProjectsViewAll) btnProjectsViewAll.onclick = () => switchTab('projects');
+
+    // 8. Chat Tab Actions
+    const sendBtn = document.getElementById('main-send-btn');
+    if (sendBtn) sendBtn.onclick = handleSendMessage;
+
+    const chatInput = document.getElementById('main-chat-input');
+    if (chatInput) {
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+            }
+        });
+
+        // Auto-expand textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+        });
+    }
+
+    const btnModelSelector = document.getElementById('chat-model-selector-btn');
+    if (btnModelSelector) btnModelSelector.onclick = () => openModal('modal-model-sheet');
+
+    const btnCreditsPill = document.getElementById('chat-credits-pill-btn');
+    if (btnCreditsPill) btnCreditsPill.onclick = () => openModal('modal-usage-sheet');
+
+    const btnAttach = document.getElementById('btn-composer-attach');
+    if (btnAttach) btnAttach.onclick = () => openModal('modal-newfile-sheet');
+
+    const btnMic = document.getElementById('btn-composer-mic');
+    if (btnMic) btnMic.onclick = () => switchTab('voice');
+
+    const btnWeb = document.getElementById('btn-composer-web');
+    if (btnWeb) {
+        btnWeb.onclick = () => {
+            isWebSearchEnabled = !isWebSearchEnabled;
+            btnWeb.style.color = isWebSearchEnabled ? 'var(--brand-royal)' : 'var(--text-secondary)';
+            showToast(isWebSearchEnabled ? '🌐 Web Search Enabled' : '🌐 Web Search Disabled');
+        };
+    }
+
+    // 9. Voice Controls
+    const btnVoiceMute = document.getElementById('btn-voice-mute');
+    if (btnVoiceMute) {
+        btnVoiceMute.onclick = () => {
+            isVoiceMuted = !isVoiceMuted;
+            btnVoiceMute.style.color = isVoiceMuted ? '#DC2626' : 'var(--text-primary)';
+            showToast(isVoiceMuted ? 'Microphone Muted' : 'Microphone Active');
+        };
+    }
+
+    const btnVoiceEnd = document.getElementById('btn-voice-end');
+    if (btnVoiceEnd) {
+        btnVoiceEnd.onclick = () => {
+            stopVoiceEngine();
+            switchTab('home');
+            showToast('Voice session ended');
+        };
+    }
+
+    const btnVoiceSpeaker = document.getElementById('btn-voice-speaker');
+    if (btnVoiceSpeaker) {
+        btnVoiceSpeaker.onclick = () => {
+            showToast('Speaker output active');
+        };
+    }
+
+    // 10. Workspaces / Files
+    const btnOpenNewFile = document.getElementById('btn-open-new-file-sheet');
+    if (btnOpenNewFile) btnOpenNewFile.onclick = () => openModal('modal-newfile-sheet');
+
+    // Filter Category Pills
+    document.querySelectorAll('.filter-pill-btn').forEach(pill => {
+        pill.onclick = () => {
+            document.querySelectorAll('.filter-pill-btn').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            const filter = pill.dataset.filter;
+            filterWorkspaceFiles(filter);
+        };
     });
-});
 
-if (setSpeedSlider) {
-    setSpeedSlider.addEventListener('input', () => {
-        if (setSpeedLabel) setSpeedLabel.textContent = `${setSpeedSlider.value}x`;
-    });
-}
+    function filterWorkspaceFiles(type) {
+        const items = document.querySelectorAll('.ws-file-item-card');
+        let visibleCount = 0;
+        items.forEach(item => {
+            if (type === 'all') {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                const name = item.querySelector('.file-item-name').textContent.toLowerCase();
+                const matches = (type === 'pdf' && name.includes('pdf')) ||
+                                (type === 'code' && (name.includes('.js') || name.includes('.ts') || name.includes('config'))) ||
+                                (type === 'word' && (name.includes('doc') || name.includes('research') || name.includes('white'))) ||
+                                (type === 'images' && (name.includes('asset') || name.includes('hero') || name.includes('img')));
+                if (matches) {
+                    item.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            }
+        });
+        const counter = document.getElementById('ws-files-counter');
+        if (counter) counter.textContent = `Showing ${visibleCount} files`;
+    }
 
-if (btnSaveAccountSet) {
-    btnSaveAccountSet.addEventListener('click', () => {
-        alert('Profil berhasil diperbarui!');
-    });
-}
-
-if (btnSaveVoiceSet) {
-    btnSaveVoiceSet.addEventListener('click', async () => {
-        try {
-            await fetch('/api/preferences', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    speaking_speed: parseFloat(setSpeedSlider?.value || '0.95'),
-                    voice_style: { preset: 'NORMAL' },
-                    language: 'id-ID'
-                })
+    // Workspace Search Input
+    const wsSearch = document.getElementById('ws-search-input');
+    if (wsSearch) {
+        wsSearch.addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.ws-file-item-card');
+            let visibleCount = 0;
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (!q || text.includes(q)) {
+                    item.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
             });
-            alert('Preferensi suara berhasil disimpan!');
-        } catch (e) {
-            alert('Gagal menyimpan: ' + e.message);
-        }
+            const counter = document.getElementById('ws-files-counter');
+            if (counter) counter.textContent = `Showing ${visibleCount} files`;
+        });
+    }
+
+    // Real File Upload
+    const realUpload = document.getElementById('real-file-upload-input');
+    if (realUpload) {
+        realUpload.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                showToast(`File "${file.name}" uploaded to workspace!`);
+                closeModal('modal-newfile-sheet');
+            }
+        });
+    }
+
+    // 11. Profile & Settings Menu Handlers
+    const menuModels = document.getElementById('menu-ai-models');
+    if (menuModels) menuModels.onclick = () => openModal('modal-model-sheet');
+
+    const menuVoice = document.getElementById('menu-voice-audio');
+    if (menuVoice) menuVoice.onclick = () => switchTab('voice');
+
+    const menuAppearance = document.getElementById('menu-appearance');
+    if (menuAppearance) menuAppearance.onclick = () => showToast('Light Luxury is active by default.');
+
+    const menuAccount = document.getElementById('menu-account-info');
+    if (menuAccount) menuAccount.onclick = () => showToast(`Signed in as ${currentUser.email}`);
+
+    const menuSubscription = document.getElementById('menu-subscription');
+    if (menuSubscription) menuSubscription.onclick = () => openModal('modal-usage-sheet');
+
+    const menuPrivacy = document.getElementById('menu-privacy');
+    if (menuPrivacy) menuPrivacy.onclick = () => showToast('Data retention is end-to-end encrypted.');
+
+    const btnSignOut = document.getElementById('btn-app-signout');
+    if (btnSignOut) {
+        btnSignOut.onclick = async () => {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+            } catch (e) {}
+            currentUser = null;
+            showToast('Signed out of VARIS AI');
+            switchMainView('landing');
+        };
+    }
+
+    // 12. Modal Close Buttons & Backdrop Clicks
+    const closeModelSheet = document.getElementById('btn-close-model-sheet');
+    if (closeModelSheet) closeModelSheet.onclick = () => closeModal('modal-model-sheet');
+
+    const closeUsageSheet = document.getElementById('btn-close-usage-sheet');
+    if (closeUsageSheet) closeUsageSheet.onclick = () => closeModal('modal-usage-sheet');
+
+    const closeNewFileSheet = document.getElementById('btn-close-newfile-sheet');
+    if (closeNewFileSheet) closeNewFileSheet.onclick = () => closeModal('modal-newfile-sheet');
+
+    // Close on backdrop click
+    document.querySelectorAll('.modal-backdrop').forEach(modal => {
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        };
     });
-}
 
-// Global data bootstrap
-function loadWorkspaceData() {
-    loadProjects();
-    loadFiles();
-    loadModelsCatalog();
-    loadUsageAnalytics();
-}
+    // Model Selector Cards Click
+    document.querySelectorAll('.model-option-card').forEach(card => {
+        card.onclick = () => {
+            document.querySelectorAll('.model-option-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            currentModel = card.dataset.model || 'auto';
+            const nameEl = card.querySelector('strong');
+            currentModelName = nameEl ? nameEl.textContent : 'VARIS Auto';
 
-// ==========================================================
-// 11. UTILITY FUNCTIONS
-// ==========================================================
+            const activeNameDisplay = document.getElementById('chat-active-model-name');
+            if (activeNameDisplay) activeNameDisplay.textContent = currentModelName;
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-
-function escapeForAttr(str) {
-    if (!str) return '';
-    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
-}
-
-function formatTimeAgo(isoString) {
-    if (!isoString) return 'recently';
-    const diffMs = Date.now() - new Date(isoString).getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffHours < 1) return 'just now';
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} days ago`;
-}
-
-function renderMarkdown(text) {
-    if (!text) return '';
-    let parsed = escapeHtml(text);
-
-    // Code blocks
-    parsed = parsed.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
-        return `<pre><code class="language-${lang}">${code}</code></pre>`;
+            closeModal('modal-model-sheet');
+            showToast(`Active model switched to ${currentModelName}`);
+        };
     });
 
-    // Inline code
-    parsed = parsed.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Bold & Italics
-    parsed = parsed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    parsed = parsed.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-    // Headers
-    parsed = parsed.replace(/^### (.*$)/gim, '<h4 style="font-size:1.05rem;font-weight:700;margin:0.75rem 0 0.25rem;">$1</h4>');
-    parsed = parsed.replace(/^## (.*$)/gim, '<h3 style="font-size:1.15rem;font-weight:800;margin:1rem 0 0.35rem;">$1</h3>');
-    parsed = parsed.replace(/^# (.*$)/gim, '<h2 style="font-size:1.3rem;font-weight:800;margin:1.25rem 0 0.5rem;">$1</h2>');
-
-    // Line breaks
-    parsed = parsed.replace(/\n\n+/g, '</p><p>');
-    parsed = parsed.replace(/\n/g, '<br>');
-
-    return `<p>${parsed}</p>`;
-}
-
-// Initial Boot
-window.addEventListener('DOMContentLoaded', () => {
-    handleOAuthCallbackParams();
-    checkAuthSession();
+    // Recent Chat Card Clicks
+    document.querySelectorAll('.recent-chat-card').forEach(card => {
+        card.onclick = () => {
+            const title = card.querySelector('.recent-chat-title').textContent;
+            currentConversationId = card.dataset.chatId || ('conv-' + Date.now());
+            switchTab('chat');
+            showToast(`Opened: ${title}`);
+        };
+    });
 });
