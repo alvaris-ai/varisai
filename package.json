@@ -1,0 +1,26 @@
+{
+  "name": "varis-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/tools.test.mjs test/agent.test.mjs test/api.test.mjs test/voice-providers.test.mjs",
+    "test:tools": "node --test test/tools.test.mjs",
+    "test:agent": "node --test test/agent.test.mjs",
+    "test:api": "node --test test/api.test.mjs",
+    "test:voice": "node --test test/voice-providers.test.mjs",
+    "api:test": "node --test test/tools.test.mjs test/agent.test.mjs test/api.test.mjs test/voice-providers.test.mjs",
+    "db:smoke": "node scripts/db-smoke-test.mjs",
+    "db:hash-password": "node scripts/hash-password.mjs",
+    "api:dev": "node src/server.mjs"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/multipart": "^10.1.1",
+    "@fastify/rate-limit": "^10.2.2",
+    "@fastify/static": "^10.1.4",
+    "fastify": "^5.6.0",
+    "openai": "^5.19.1",
+    "pg": "^8.16.3"
+  }
+}
