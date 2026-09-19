@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { buildSync } from 'esbuild';
 
 // 1. Read static files
 const html = fs.readFileSync(path.join('public', 'index.html'), 'utf-8');
@@ -35,40 +36,19 @@ const vcConfig = {
 };
 fs.writeFileSync(path.join(funcDir, '.vc-config.json'), JSON.stringify(vcConfig, null, 2), 'utf-8');
 
-const apiHandlerCode = `
-import meHandler from '../../../../api/auth/me.js';
-import loginHandler from '../../../../api/auth/login.js';
-import registerHandler from '../../../../api/auth/register.js';
-import logoutHandler from '../../../../api/auth/logout.js';
-import googleHandler from '../../../../api/auth/google.js';
-import googleCallbackHandler from '../../../../api/auth/google/callback.js';
-import googleCredentialHandler from '../../../../api/auth/google/credential.js';
-import modelsHandler from '../../../../api/models.js';
-import chatHandler from '../../../../api/chat.js';
-import projectsHandler from '../../../../api/projects.js';
-import filesHandler from '../../../../api/files.js';
-
-export default async function handler(req, res) {
-  const url = new URL(req.url, 'http://localhost');
-  const p = url.pathname.replace(/\\/$/, '');
-
-  if (p === '/api/models') return modelsHandler(req, res);
-  if (p === '/api/chat') return chatHandler(req, res);
-  if (p === '/api/auth/me') return meHandler(req, res);
-  if (p === '/api/auth/login') return loginHandler(req, res);
-  if (p === '/api/auth/register') return registerHandler(req, res);
-  if (p === '/api/auth/logout') return logoutHandler(req, res);
-  if (p === '/api/auth/google') return googleHandler(req, res);
-  if (p === '/api/auth/google/callback') return googleCallbackHandler(req, res);
-  if (p === '/api/auth/google/credential') return googleCredentialHandler(req, res);
-  if (p === '/api/projects') return projectsHandler(req, res);
-  if (p === '/api/files') return filesHandler(req, res);
-
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'API Route not found' } }));
-}
-`;
-fs.writeFileSync(path.join(funcDir, 'index.js'), apiHandlerCode.trim(), 'utf-8');
+// Bundle all backend dependencies into single standalone bundle for lambda
+buildSync({
+  entryPoints: [path.resolve('api', 'router.js')],
+  bundle: true,
+  platform: 'node',
+  target: 'node20',
+  format: 'esm',
+  banner: {
+    js: "import { createRequire as __createRequire } from 'module'; const require = __createRequire(import.meta.url);"
+  },
+  outfile: path.join(funcDir, 'index.js'),
+  external: ['pg-native']
+});
 
 // 5. Assemble .vercel/output/config.json
 const config = {
@@ -81,4 +61,4 @@ const config = {
   ]
 };
 fs.writeFileSync(path.join(outDir, 'config.json'), JSON.stringify(config, null, 2), 'utf-8');
-console.log('Vercel Build Output API with static and /api functions generated successfully.');
+console.log('Build Output API with static and bundled /api functions generated successfully.');
