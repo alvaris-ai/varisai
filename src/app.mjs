@@ -172,8 +172,8 @@ export function buildApp({ config = loadConfig(), pool, repos, aiEngine, toolReg
 
     const getGoogleRedirectUri = () => {
       if (config.googleCallbackUrl) return config.googleCallbackUrl;
-      const host = request.headers.host || 'localhost:3000';
-      const proto = request.headers['x-forwarded-proto'] || (request.raw.socket?.encrypted ? 'https' : 'http');
+      const host = request.headers['x-forwarded-host'] || request.headers.host || 'localhost:3000';
+      const proto = request.headers['x-forwarded-proto'] || (host.includes('vercel.app') || host.includes('trycloudflare.com') || request.raw?.socket?.encrypted ? 'https' : 'http');
       if (host.startsWith('127.0.0.1:') || host === '127.0.0.1' || host.startsWith('localhost:') || host === 'localhost') {
         return `${proto}://localhost:3000/api/auth/google/callback`;
       }
@@ -185,7 +185,7 @@ export function buildApp({ config = loadConfig(), pool, repos, aiEngine, toolReg
     const state = generateOAuthState();
     reply.setCookie('varis_oauth_state', state, {
       httpOnly: true,
-      secure: config.cookieSecure === true,
+      secure: config.cookieSecure === true || redirectUri.startsWith('https:'),
       sameSite: 'lax',
       path: '/',
       maxAge: 600, // 10 minutes
@@ -209,8 +209,8 @@ export function buildApp({ config = loadConfig(), pool, repos, aiEngine, toolReg
     const expectedState = request.cookies.varis_oauth_state;
     reply.clearCookie('varis_oauth_state', { path: '/' });
 
-    const host = request.headers.host || 'localhost:3000';
-    const proto = request.headers['x-forwarded-proto'] || (request.raw.socket?.encrypted ? 'https' : 'http');
+    const host = request.headers['x-forwarded-host'] || request.headers.host || 'localhost:3000';
+    const proto = request.headers['x-forwarded-proto'] || (host.includes('vercel.app') || host.includes('trycloudflare.com') || request.raw?.socket?.encrypted ? 'https' : 'http');
     const redirectUri = config.googleCallbackUrl || (
       (host.startsWith('127.0.0.1:') || host === '127.0.0.1' || host.startsWith('localhost:') || host === 'localhost')
         ? `${proto}://localhost:3000/api/auth/google/callback`
