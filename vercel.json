@@ -2,12 +2,8 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/index.mjs"
-    },
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/public/$1"
+      "source": "/api/(.*)",
+      "destination": "/api"
     }
   ]
 }
