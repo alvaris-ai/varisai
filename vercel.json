@@ -1,4 +1,4 @@
 {
-  "buildCommand": "echo 'Static build ready'",
-  "outputDirectory": "public"
+  "buildCommand": "node scripts/build.mjs",
+  "outputDirectory": ".vercel/output"
 }
