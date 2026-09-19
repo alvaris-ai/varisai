@@ -1,4 +1,5 @@
 {
-  "buildCommand": "node scripts/build.mjs",
-  "outputDirectory": ".vercel/output"
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index.js" }
+  ]
 }
