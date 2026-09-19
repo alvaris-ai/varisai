@@ -394,6 +394,9 @@ export function createRepositories(pool) {
       const s = sessions.find(s => s.token_hash === tokenHash && !s.revoked_at && new Date(s.expires_at) > new Date());
       return s ?? null;
     },
+    async findSessionByTokenHash(tokenHash) {
+      return memRepo.findSession(tokenHash);
+    },
     async touchSession(id) {
       const s = sessions.find(s => s.id === id);
       if (s) s.last_seen_at = new Date().toISOString();
@@ -879,6 +882,9 @@ export function createRepositories(pool) {
     findSession: async (tokenHash) => {
       const r = await q('select s.*, u.name, u.email, u.avatar_url, u.auth_provider, u.google_id, u.last_login_at, u.created_at as user_created_at, u.updated_at as user_updated_at from public.auth_sessions s join public.users u on u.id = s.user_id where s.token_hash = $1 and s.revoked_at is null and s.expires_at > now()', [tokenHash]);
       return r.rows[0] ?? null;
+    },
+    findSessionByTokenHash: async (tokenHash) => {
+      return pgRepo.findSession(tokenHash);
     },
     touchSession: async (id) => { await q('update public.auth_sessions set last_seen_at = now() where id = $1', [id]); },
     revokeSession: async (tokenHash) => { await q('update public.auth_sessions set revoked_at = now() where token_hash = $1 and revoked_at is null', [tokenHash]); },
