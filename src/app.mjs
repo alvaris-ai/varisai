@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadConfig } from './config.mjs';
@@ -61,10 +62,13 @@ export function buildApp({ config = loadConfig(), pool, repos, aiEngine, toolReg
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  app.register(fastifyStatic, {
-    root: path.join(__dirname, '..', 'public'),
-    prefix: '/',
-  });
+  const publicDir = path.join(__dirname, '..', 'public');
+  if (fs.existsSync(publicDir)) {
+    app.register(fastifyStatic, {
+      root: publicDir,
+      prefix: '/',
+    });
+  }
   app.decorateRequest('user', null);
   app.decorateRequest('session', null);
 
