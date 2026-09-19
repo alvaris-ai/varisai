@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "echo 'Static build ready'",
     "test": "node --test test/tools.test.mjs test/agent.test.mjs test/api.test.mjs test/voice-providers.test.mjs",
     "test:tools": "node --test test/tools.test.mjs",
     "test:agent": "node --test test/agent.test.mjs",
