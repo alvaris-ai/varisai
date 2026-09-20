@@ -2,14 +2,15 @@ import { createRepositories } from '../src/repositories.mjs';
 import { hashSessionToken } from '../src/security.mjs';
 import { loadConfig } from '../src/config.mjs';
 import { createPool } from '../src/db.mjs';
-import { generateFreeSmartResponse } from '../src/free-ai-engine.mjs';
 import { createAIProviderFromConfig } from '../src/ai-providers.mjs';
-import { createDefaultContextManager } from '../src/context-manager.mjs';
 import { createDefaultToolRegistry } from '../src/tool-system.mjs';
 import { createAgentSystem } from '../src/agent-system.mjs';
+import { createCreditManager } from '../src/credit-system.mjs';
 
 let reposInstance = null;
 let agentInstance = null;
+let engineInstance = null;
+let creditManagerInstance = null;
 
 function getContext() {
   const config = loadConfig();
@@ -17,12 +18,17 @@ function getContext() {
     const pool = createPool(config);
     reposInstance = createRepositories(pool);
   }
-  if (!agentInstance) {
-    const engine = createAIProviderFromConfig(config);
-    const registry = createDefaultToolRegistry();
-    agentInstance = createAgentSystem({ engine, registry });
+  if (!engineInstance) {
+    engineInstance = createAIProviderFromConfig(config);
   }
-  return { repository: reposInstance, agent: agentInstance, config };
+  if (!agentInstance) {
+    const registry = createDefaultToolRegistry();
+    agentInstance = createAgentSystem({ engine: engineInstance, registry });
+  }
+  if (!creditManagerInstance) {
+    creditManagerInstance = createCreditManager(reposInstance);
+  }
+  return { repository: reposInstance, agent: agentInstance, engine: engineInstance, creditManager: creditManagerInstance, config };
 }
 
 async function parseBody(req) {
@@ -44,7 +50,7 @@ export default async function handler(req, res) {
     const match = cookieHeader.match(/varis_session=([^;]+)/);
     const rawToken = match ? match[1] : null;
 
-    const { repository, agent, config } = getContext();
+    const { repository, agent, engine, creditManager } = getContext();
     let user = null;
 
     if (rawToken) {
@@ -60,41 +66,170 @@ export default async function handler(req, res) {
     }
 
     const body = await parseBody(req);
-    const { message, model = 'auto', conversation_id = null } = body;
+    const { message, model = 'auto', conversation_id = null, stream = false } = body;
+    const isStreamRequested = stream === true || req.headers.accept?.includes('text/event-stream');
 
-    if (!message || typeof message !== 'string') {
+    if (!message || typeof message !== 'string' || !message.trim()) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: { code: 'INVALID_MESSAGE', message: 'Message is required' } }));
     }
 
-    let replyText = '';
-    let modelUsed = model;
+    const trimmedMessage = message.trim();
+
+    // 1. Check User Subscription & Rate Limit
+    const sub = repository.getUserSubscription
+      ? await repository.getUserSubscription(user.id)
+      : { plan_id: 'free', plan: { name: 'Free', allowed_tiers: ['free', 'pro', 'ultra'], rate_limit_rpm: 60 } };
+    
+    const rateCheck = creditManager.checkRateLimit(user.id, sub?.plan?.rate_limit_rpm || 60);
+    if (!rateCheck.allowed) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: { code: 'RATE_LIMIT_EXCEEDED', message: rateCheck.message } }));
+    }
+
+    // 2. Resolve Model and Tier
+    const selectedModel = (repository.getAIModel ? await repository.getAIModel(model) : null) || {
+      id: model,
+      display_name: model,
+      credit_cost_per_request: model.includes('pro') || model.includes('4o') ? 10 : 3,
+      tier_required: 'free',
+    };
+
+    if (!creditManager.checkTierAccess(sub?.plan, selectedModel.tier_required)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({
+        error: {
+          code: 'TIER_LOCKED',
+          message: `Model "${selectedModel.display_name || model}" memerlukan paket ${selectedModel.tier_required.toUpperCase()}. Silakan upgrade paket Anda untuk menggunakan model ini.`
+        }
+      }));
+    }
+
+    // 3. Credit Reservation (Phase 1)
+    const estimatedCredits = creditManager.estimateCredits(selectedModel, trimmedMessage);
+    const reservation = await creditManager.reserveCredit(user.id, estimatedCredits);
+    if (!reservation.ok) {
+      res.writeHead(402, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({
+        error: {
+          code: 'CREDIT_EXHAUSTED',
+          message: 'Credit VARIS Anda sudah habis untuk periode ini. Silakan upgrade paket atau tunggu tanggal reset bulanan.'
+        }
+      }));
+    }
+
+    // 4. Handle SSE Streaming Response
+    if (isStreamRequested) {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+
+      let fullGeneratedText = '';
+      try {
+        const streamResult = await engine.stream(
+          { userMessage: trimmedMessage, model, userPlan: sub?.plan },
+          (chunk) => {
+            fullGeneratedText += chunk;
+            res.write(`event: token\ndata: ${JSON.stringify({ text: chunk })}\n\n`);
+          }
+        );
+
+        const replyText = streamResult.text || fullGeneratedText;
+        const actualCredits = creditManager.calculateActualCredits({
+          model: selectedModel,
+          inputTokens: streamResult.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
+          outputTokens: streamResult.usage?.completion_tokens || Math.ceil(replyText.length / 4),
+        });
+
+        const settled = await creditManager.settleCredit({
+          userId: user.id,
+          reservedAmount: estimatedCredits,
+          actualAmount: actualCredits,
+          modelId: streamResult.modelUsed || model,
+          provider: selectedModel.provider_id || 'system',
+        });
+
+        res.write(`event: done\ndata: ${JSON.stringify({
+          status: 'success',
+          response: replyText,
+          reply: replyText,
+          model: streamResult.modelUsed || model,
+          credits_used: settled.deducted,
+          credits_remaining: settled.balance,
+        })}\n\n`);
+        return res.end();
+      } catch (streamErr) {
+        await creditManager.refundCredit({ userId: user.id, reservedAmount: estimatedCredits, reason: streamErr.message });
+        res.write(`event: error\ndata: ${JSON.stringify({
+          code: streamErr.code || 'AI_PROVIDER_ERROR',
+          message: streamErr.message || 'AI service is temporarily unavailable'
+        })}\n\n`);
+        return res.end();
+      }
+    }
+
+    // 5. Handle Non-Streaming JSON Response
     try {
       const agentRes = await agent.run({
-        userMessage: message,
+        userMessage: trimmedMessage,
         userId: user.id,
-        model: model,
+        conversationId: conversation_id,
+        repository,
+        model,
+        allowFallback: model === 'auto',
+        userPlan: sub?.plan,
       });
-      replyText = agentRes.text || agentRes.answer || agentRes.response || '';
-      modelUsed = agentRes.modelUsed || agentRes.model || model;
+
+      const replyText = agentRes.text || agentRes.response || '';
+      const modelUsed = agentRes.modelUsed || agentRes.model || model;
+
+      const actualCredits = creditManager.calculateActualCredits({
+        model: selectedModel,
+        inputTokens: agentRes.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
+        outputTokens: agentRes.usage?.completion_tokens || Math.ceil(replyText.length / 4),
+        toolCalls: agentRes.toolCalls || [],
+      });
+
+      const settled = await creditManager.settleCredit({
+        userId: user.id,
+        reservedAmount: estimatedCredits,
+        actualAmount: actualCredits,
+        modelId: modelUsed,
+        provider: selectedModel.provider_id || 'system',
+        conversationId: conversation_id,
+        inputTokens: agentRes.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
+        outputTokens: agentRes.usage?.completion_tokens || Math.ceil(replyText.length / 4),
+        details: { tools: agentRes.toolCalls?.map(t => t.name) || [] },
+      });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'success',
+        reply: replyText,
+        response: replyText,
+        model: modelUsed,
+        fallback_used: agentRes.fallbackUsed || undefined,
+        credits_used: settled.deducted,
+        credits_remaining: settled.balance,
+      }));
     } catch (err) {
-      replyText = generateFreeSmartResponse(message);
-    }
+      await creditManager.refundCredit({ userId: user.id, reservedAmount: estimatedCredits, reason: err.message });
+      console.error('AI Execution Error in /api/chat:', err);
 
-    if (!replyText || typeof replyText !== 'string' || !replyText.trim()) {
-      replyText = generateFreeSmartResponse(message);
+      const statusCode = err.code === 'TIER_LOCKED' ? 403 : err.code === 'CREDIT_EXHAUSTED' ? 402 : err.code === 'AI_NOT_CONFIGURED' ? 503 : 502;
+      res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: {
+          code: err.code || 'AI_PROVIDER_ERROR',
+          message: err.message || 'AI service is temporarily unavailable. Please select another available model.',
+        }
+      }));
     }
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: 'success',
-      reply: replyText.trim(),
-      response: replyText.trim(),
-      model: modelUsed,
-      credits_used: 3,
-      credits_remaining: 97,
-    }));
   } catch (err) {
+    console.error('Chat endpoint error:', err);
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { code: 'SERVER_ERROR', message: err.message } }));
   }

@@ -2589,6 +2589,97 @@ html, body {
   color: var(--brand-royal);
 }
 
+.provider-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 2px;
+}
+
+.provider-status-dot.available {
+  background-color: #10B981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+.provider-status-dot.not-configured {
+  background-color: #94A3B8;
+}
+
+.model-option-card.not-configured {
+  opacity: 0.65;
+}
+
+.model-option-card.not-configured:hover {
+  opacity: 0.9;
+}
+
+/* Real-time Streaming Cursor */
+.streaming-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  background-color: var(--brand-royal);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  border-radius: 1px;
+  animation: blink-cursor 0.75s infinite ease-in-out;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Chat Error Banner */
+.chat-error-card {
+  background: #FEF2F2;
+  border: 1.5px solid #FCA5A5;
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.chat-error-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #991B1B;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-error-msg {
+  font-size: 0.82rem;
+  color: #B91C1C;
+  line-height: 1.4;
+}
+
+.chat-error-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.btn-error-switch {
+  background: #DC2626;
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+
+.btn-error-switch:hover {
+  background: #B91C1C;
+}
+
 /* Usage Breakdown Card in Sheet */
 .usage-summary-card {
   background: var(--gradient-royal-card);

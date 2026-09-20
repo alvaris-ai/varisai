@@ -299,6 +299,102 @@ function clearAuthAlert() {
 // 4. CHAT MESSAGING & STREAMING ENGINE
 // ==========================================================
 
+let availableModelsList = [];
+
+async function loadAIModels() {
+    try {
+        const res = await fetch('/api/models');
+        if (res.ok) {
+            const data = await res.json();
+            availableModelsList = data.models || data.data || [];
+            renderModelsSheet(availableModelsList);
+        }
+    } catch (e) {
+        console.warn('Failed to load AI models:', e);
+    }
+}
+
+function renderModelsSheet(models) {
+    const listEl = document.getElementById('models-sheet-list');
+    if (!listEl || !models?.length) return;
+
+    listEl.innerHTML = '';
+
+    const autoModel = models.find(m => m.id === 'auto');
+    const otherModels = models.filter(m => m.id !== 'auto');
+
+    if (autoModel) {
+        const tag = document.createElement('span');
+        tag.className = 'sheet-section-tag';
+        tag.textContent = 'RECOMMENDED';
+        listEl.appendChild(tag);
+
+        const card = createModelOptionCard(autoModel);
+        listEl.appendChild(card);
+    }
+
+    if (otherModels.length > 0) {
+        const tag = document.createElement('span');
+        tag.className = 'sheet-section-tag';
+        tag.textContent = 'FRONTIER AI MODELS';
+        listEl.appendChild(tag);
+
+        otherModels.forEach(m => {
+            const card = createModelOptionCard(m);
+            listEl.appendChild(card);
+        });
+    }
+}
+
+function createModelOptionCard(model) {
+    const isSelected = model.id === currentModel;
+    const isAvailable = model.status === 'available' || model.is_available !== false;
+    const card = document.createElement('div');
+    card.className = `model-option-card ${isSelected ? 'selected' : ''} ${!isAvailable ? 'not-configured' : ''}`;
+    card.dataset.model = model.id;
+
+    let iconBg = 'bg-purple';
+    let iconEmoji = '⚡';
+    if (model.id.includes('gemini')) { iconBg = 'bg-blue'; iconEmoji = '✨'; }
+    else if (model.id.includes('gpt')) { iconBg = 'bg-emerald'; iconEmoji = '🟢'; }
+    else if (model.id.includes('llama')) { iconBg = 'bg-orange'; iconEmoji = '🦙'; }
+    else if (model.id.includes('o3') || model.id.includes('o1')) { iconBg = 'bg-indigo'; iconEmoji = '🧠'; }
+
+    const statusDotHtml = `<span class="provider-status-dot ${isAvailable ? 'available' : 'not-configured'}" title="${isAvailable ? 'Available' : 'API Key Belum Diset'}"></span>`;
+
+    card.innerHTML = `
+        <div class="model-icon-square ${iconBg}">${iconEmoji}</div>
+        <div class="model-option-info">
+            <div class="model-name-badge-row">
+                ${statusDotHtml}
+                <strong>${model.display_name || model.id}</strong>
+                <span class="badge-tag">${model.badge || model.speed || 'AI'}</span>
+            </div>
+            <p class="model-desc-text">${model.description || ''}</p>
+        </div>
+        <span class="model-credit-badge">${model.credit_cost_per_request || 3} Credits</span>
+    `;
+
+    card.onclick = () => {
+        document.querySelectorAll('.model-option-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        currentModel = model.id;
+        currentModelName = model.display_name || model.id;
+
+        const activeNameDisplay = document.getElementById('chat-active-model-name');
+        if (activeNameDisplay) activeNameDisplay.textContent = currentModelName;
+
+        closeModal('modal-model-sheet');
+        if (!isAvailable) {
+            showToast(`⚠️ Perhatian: API Key untuk ${currentModelName} belum diset di server.`);
+        } else {
+            showToast(`Active model switched to ${currentModelName}`);
+        }
+    };
+
+    return card;
+}
+
 function scrollChatToBottom() {
     const feed = document.getElementById('chat-messages-feed');
     if (feed) {
@@ -355,6 +451,12 @@ function formatMarkdownText(text) {
         `;
     });
 
+    // Parse inline code `code`
+    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Parse bold **text**
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
     // Parse paragraphs
     const paragraphs = formatted.split('\n\n');
     return paragraphs.map(p => {
@@ -390,55 +492,149 @@ async function handleSendMessage() {
     feed.appendChild(userRow);
     scrollChatToBottom();
 
-    // 2. Append Initial AI Message Placeholder
-    const aiRow = createAIMessageElement('Thinking...');
+    // 2. Append AI Message Placeholder with streaming cursor
+    const aiRow = createAIMessageElement('');
     feed.appendChild(aiRow);
     scrollChatToBottom();
     const bodyEl = aiRow.querySelector('.ai-message-body');
-
-    // 3. Deduct credit locally for responsive feedback
-    if (currentUser.credits > 0) {
-        currentUser.credits = Math.max(0, currentUser.credits - 3);
-        renderUserData();
-    }
+    bodyEl.innerHTML = '<span class="streaming-cursor"></span>';
 
     try {
         const res = await fetch('/api/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'text/event-stream, application/json'
+            },
             body: JSON.stringify({
                 message: text,
                 model: currentModel,
                 conversation_id: currentConversationId,
+                stream: true,
                 web_search: isWebSearchEnabled
             })
         });
 
-        if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+
+        // Error handling for non-stream error responses
+        if (!res.ok && !contentType.includes('text/event-stream')) {
             const errData = await res.json().catch(() => ({}));
-            let errorMsg = 'Server error occurred';
+            let errorMsg = 'AI service is temporarily unavailable.';
+            let errorCode = 'SERVER_ERROR';
             if (typeof errData.error === 'object' && errData.error !== null) {
-                errorMsg = errData.error.message || errData.error.code || JSON.stringify(errData.error);
+                errorMsg = errData.error.message || errorMsg;
+                errorCode = errData.error.code || errorCode;
             } else if (typeof errData.error === 'string') {
                 errorMsg = errData.error;
             } else if (errData.message) {
                 errorMsg = errData.message;
             }
-            bodyEl.innerHTML = `<p class="ai-text-para" style="color: #DC2626;">Error: ${errorMsg}</p>`;
+
+            bodyEl.innerHTML = `
+                <div class="chat-error-card">
+                    <div class="chat-error-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>${errorCode === 'AI_NOT_CONFIGURED' ? 'Model Belum Dikonfigurasi' : 'AI Service Unavailable'}</span>
+                    </div>
+                    <p class="chat-error-msg">${errorMsg}</p>
+                    <div class="chat-error-actions">
+                        <button class="btn-error-switch" onclick="openModal('modal-model-sheet')">Ganti Model AI</button>
+                    </div>
+                </div>
+            `;
+            scrollChatToBottom();
             return;
         }
 
-        const data = await res.json();
-        const responseText = data.reply || data.response || data.text || 'I have completed analyzing your request.';
-        bodyEl.innerHTML = formatMarkdownText(responseText);
-        scrollChatToBottom();
+        // Handle SSE Stream
+        if (contentType.includes('text/event-stream') && res.body) {
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            let streamAccumulator = '';
 
-        if (data.credits_remaining !== undefined) {
-            currentUser.credits = data.credits_remaining;
-            renderUserData();
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Retain incomplete line
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line.startsWith('event: token')) {
+                        const dataLine = lines[i + 1]?.trim();
+                        if (dataLine && dataLine.startsWith('data:')) {
+                            try {
+                                const parsed = JSON.parse(dataLine.slice(5).trim());
+                                if (parsed.text) {
+                                    streamAccumulator += parsed.text;
+                                    bodyEl.innerHTML = formatMarkdownText(streamAccumulator) + '<span class="streaming-cursor"></span>';
+                                    scrollChatToBottom();
+                                }
+                            } catch (e) {}
+                        }
+                    } else if (line.startsWith('event: done')) {
+                        const dataLine = lines[i + 1]?.trim();
+                        if (dataLine && dataLine.startsWith('data:')) {
+                            try {
+                                const parsed = JSON.parse(dataLine.slice(5).trim());
+                                if (parsed.response) streamAccumulator = parsed.response;
+                                if (parsed.credits_remaining !== undefined) {
+                                    currentUser.credits = parsed.credits_remaining;
+                                    renderUserData();
+                                }
+                            } catch (e) {}
+                        }
+                    } else if (line.startsWith('event: error')) {
+                        const dataLine = lines[i + 1]?.trim();
+                        if (dataLine && dataLine.startsWith('data:')) {
+                            try {
+                                const parsed = JSON.parse(dataLine.slice(5).trim());
+                                bodyEl.innerHTML = `
+                                    <div class="chat-error-card">
+                                        <div class="chat-error-title">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                            <span>${parsed.code === 'AI_NOT_CONFIGURED' ? 'Model Belum Dikonfigurasi' : 'AI Service Unavailable'}</span>
+                                        </div>
+                                        <p class="chat-error-msg">${parsed.message || 'Layanan AI sedang tidak tersedia.'}</p>
+                                        <div class="chat-error-actions">
+                                            <button class="btn-error-switch" onclick="openModal('modal-model-sheet')">Ganti Model AI</button>
+                                        </div>
+                                    </div>
+                                `;
+                                scrollChatToBottom();
+                                return;
+                            } catch (e) {}
+                        }
+                    }
+                }
+            }
+
+            bodyEl.innerHTML = formatMarkdownText(streamAccumulator || 'I have completed analyzing your request.');
+            scrollChatToBottom();
+        } else {
+            // Standard JSON fallback
+            const data = await res.json();
+            const responseText = data.reply || data.response || data.text || '';
+            bodyEl.innerHTML = formatMarkdownText(responseText);
+            scrollChatToBottom();
+
+            if (data.credits_remaining !== undefined) {
+                currentUser.credits = data.credits_remaining;
+                renderUserData();
+            }
         }
     } catch (err) {
-        bodyEl.innerHTML = `<p class="ai-text-para" style="color: #DC2626;">Connection error: ${err.message}</p>`;
+        bodyEl.innerHTML = `
+            <div class="chat-error-card">
+                <div class="chat-error-title">Connection Error</div>
+                <p class="chat-error-msg">${err.message || 'Gagal terhubung ke backend VARIS AI.'}</p>
+            </div>
+        `;
+        scrollChatToBottom();
     }
 }
 
@@ -518,7 +714,12 @@ function showToast(msg, duration = 2500) {
 
 function openModal(id) {
     const modal = document.getElementById(id);
-    if (modal) modal.classList.remove('hidden');
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (id === 'modal-model-sheet') {
+            loadAIModels();
+        }
+    }
 }
 
 function closeModal(id) {
@@ -531,8 +732,9 @@ function closeModal(id) {
 // ==========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Check current session
+    // 1. Check current session & Load available models
     fetchCurrentUser();
+    loadAIModels();
 
     // 2. Initialize GIS Google Auth
     setTimeout(initGoogleAuth, 600);

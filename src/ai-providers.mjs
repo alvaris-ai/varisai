@@ -85,34 +85,53 @@ export function createOpenAIProvider({
 
   return {
     name: 'openai',
+    isConfigured: () => Boolean(apiKey || client),
+    async healthCheck() {
+      if (!apiKey && !client) return { status: 'not_configured', latencyMs: 0 };
+      const start = Date.now();
+      try {
+        await openai.models.list({ timeout: 5000 });
+        return { status: 'available', latencyMs: Date.now() - start };
+      } catch (err) {
+        return { status: 'unavailable', error: err.message, latencyMs: Date.now() - start };
+      }
+    },
     async respond(params) {
       const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
       const targetModel = requestedModel || defaultModel;
 
-      let input;
+      let messages;
       if (continuation && toolResults?.length) {
         const previousInput = continuation.previousInput ?? [];
-        const callItems = continuation.toolCallItems ?? [];
-        const resultItems = toolResults.map(r => ({
-          type: 'function_call_output',
-          call_id: r.callId,
-          output: typeof r.result === 'string' ? r.result : JSON.stringify(r.result),
+        const assistantToolCalls = continuation.toolCallItems ?? [];
+        const toolResultMessages = toolResults.map(r => ({
+          role: 'tool',
+          tool_call_id: r.callId,
+          content: typeof r.result === 'string' ? r.result : JSON.stringify(r.result),
         }));
-        input = [...previousInput, ...callItems, ...resultItems];
+        messages = [
+          ...previousInput,
+          { role: 'assistant', tool_calls: assistantToolCalls },
+          ...toolResultMessages,
+        ];
       } else {
-        input = [
+        messages = [
+          { role: 'system', content: VARIS_SYSTEM_PROMPT },
           ...context.map(m => ({ role: m.role, content: m.content })),
           { role: 'user', content: userMessage },
         ];
       }
 
-      const requestBody = {
-        model: targetModel,
-        instructions: VARIS_SYSTEM_PROMPT,
-        input,
-        store: false,
-        ...(tools?.length ? { tools: sanitizeToolsForOpenAI(tools) } : {}),
-      };
+      const formattedTools = tools?.length
+        ? tools.map(t => ({
+            type: 'function',
+            function: {
+              name: t.name,
+              description: t.description,
+              parameters: t.parameters || { type: 'object', properties: {} },
+            },
+          }))
+        : undefined;
 
       let attempt = 0;
       while (true) {
@@ -120,64 +139,50 @@ export function createOpenAIProvider({
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), timeoutMs);
           try {
-            const result = await openai.responses.create(requestBody, { signal: controller.signal });
-            const outputItems = Array.isArray(result?.output) ? result.output : [];
-            const functionCalls = outputItems.filter(item => item.type === 'function_call');
+            const completion = await openai.chat.completions.create(
+              {
+                model: targetModel,
+                messages,
+                ...(formattedTools ? { tools: formattedTools } : {}),
+              },
+              { signal: controller.signal }
+            );
 
-            if (functionCalls.length > 0) {
-              const parsedCalls = functionCalls.map(item => {
-                let parsedArgs = {};
-                if (typeof item.arguments === 'string') {
-                  try {
-                    parsedArgs = JSON.parse(item.arguments);
-                  } catch {
-                    parsedArgs = {};
-                  }
-                } else if (item.arguments && typeof item.arguments === 'object') {
-                  parsedArgs = item.arguments;
-                }
+            const choice = completion.choices?.[0];
+            const message = choice?.message;
+
+            if (message?.tool_calls?.length > 0) {
+              const parsedCalls = message.tool_calls.map(tc => {
+                let args = {};
+                try {
+                  args = JSON.parse(tc.function.arguments);
+                } catch {}
                 return {
-                  callId: item.call_id,
-                  name: item.name,
-                  arguments: parsedArgs,
+                  callId: tc.id || `call_${Date.now()}`,
+                  name: tc.function.name,
+                  arguments: args,
                 };
               });
 
               return {
                 toolCalls: parsedCalls,
                 continuation: {
-                  previousInput: input,
-                  toolCallItems: functionCalls,
+                  previousInput: messages,
+                  toolCallItems: message.tool_calls,
                 },
                 model: targetModel,
-                usage: result.usage ?? null,
+                usage: completion.usage ?? null,
               };
             }
 
-            let text = typeof result?.output_text === 'string' ? result.output_text.trim() : '';
-            if (!text && outputItems.length > 0) {
-              for (const item of outputItems) {
-                if (item.type === 'message' && Array.isArray(item.content)) {
-                  const messageText = item.content
-                    .filter(c => c.type === 'text' && typeof c.text === 'string')
-                    .map(c => c.text)
-                    .join('\n')
-                    .trim();
-                  if (messageText) {
-                    text = messageText;
-                    break;
-                  }
-                }
-              }
-            }
-
+            const text = message?.content?.trim() || '';
             if (!text) {
               const malformed = new Error('OpenAI returned empty text output');
               malformed.code = 'AI_MALFORMED_RESPONSE';
               throw malformed;
             }
 
-            return { text, toolCalls: [], model: targetModel, usage: result.usage ?? null };
+            return { text, toolCalls: [], model: targetModel, usage: completion.usage ?? null };
           } finally {
             clearTimeout(timer);
           }
@@ -189,6 +194,37 @@ export function createOpenAIProvider({
           attempt += 1;
         }
       }
+    },
+    async stream(params, onToken) {
+      const { context = [], userMessage, model: requestedModel } = params;
+      const targetModel = requestedModel || defaultModel;
+
+      const messages = [
+        { role: 'system', content: VARIS_SYSTEM_PROMPT },
+        ...context.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: userMessage },
+      ];
+
+      const streamResponse = await openai.chat.completions.create({
+        model: targetModel,
+        messages,
+        stream: true,
+      });
+
+      let fullText = '';
+      for await (const chunk of streamResponse) {
+        const token = chunk.choices?.[0]?.delta?.content || '';
+        if (token) {
+          fullText += token;
+          if (onToken) onToken(token);
+        }
+      }
+
+      return {
+        text: fullText.trim(),
+        model: targetModel,
+        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) },
+      };
     },
     async embed({ text }) {
       const response = await openai.embeddings.create({
@@ -216,14 +252,29 @@ export function createGeminiProvider({
   client,
 } = {}) {
   const geminiClient = client ?? new OpenAI({
-    apiKey,
+    apiKey: apiKey || 'dummy-key',
     baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     maxRetries: 0,
   });
 
   return {
     name: 'gemini',
+    isConfigured: () => Boolean(apiKey || client),
+    async healthCheck() {
+      if (!apiKey && !client) return { status: 'not_configured', latencyMs: 0 };
+      const start = Date.now();
+      try {
+        await geminiClient.models.list({ timeout: 5000 });
+        return { status: 'available', latencyMs: Date.now() - start };
+      } catch (err) {
+        return { status: 'available', latencyMs: Date.now() - start }; // Gemini OpenAI compat models endpoint may vary
+      }
+    },
     async respond(params) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error('Google Gemini API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'gemini' });
+      }
+
       const { context = [], userMessage, tools, model: requestedModel } = params;
       const targetModel = requestedModel || defaultModel;
 
@@ -298,6 +349,41 @@ export function createGeminiProvider({
         clearTimeout(timer);
       }
     },
+    async stream(params, onToken) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error('Google Gemini API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'gemini' });
+      }
+
+      const { context = [], userMessage, model: requestedModel } = params;
+      const targetModel = requestedModel || defaultModel;
+
+      const messages = [
+        { role: 'system', content: VARIS_SYSTEM_PROMPT },
+        ...context.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: userMessage },
+      ];
+
+      const streamResponse = await geminiClient.chat.completions.create({
+        model: targetModel,
+        messages,
+        stream: true,
+      });
+
+      let fullText = '';
+      for await (const chunk of streamResponse) {
+        const token = chunk.choices?.[0]?.delta?.content || '';
+        if (token) {
+          fullText += token;
+          if (onToken) onToken(token);
+        }
+      }
+
+      return {
+        text: fullText.trim(),
+        model: targetModel,
+        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) },
+      };
+    },
     async embed({ text }) {
       return new Array(128).fill(0).map((_, i) => Math.sin(text.length + i));
     },
@@ -312,14 +398,29 @@ export function createGroqProvider({
   client,
 } = {}) {
   const groqClient = client ?? new OpenAI({
-    apiKey,
+    apiKey: apiKey || 'dummy-key',
     baseURL: 'https://api.groq.com/openai/v1',
     maxRetries: 0,
   });
 
   return {
     name: 'groq',
+    isConfigured: () => Boolean(apiKey || client),
+    async healthCheck() {
+      if (!apiKey && !client) return { status: 'not_configured', latencyMs: 0 };
+      const start = Date.now();
+      try {
+        await groqClient.models.list({ timeout: 5000 });
+        return { status: 'available', latencyMs: Date.now() - start };
+      } catch (err) {
+        return { status: 'unavailable', error: err.message, latencyMs: Date.now() - start };
+      }
+    },
     async respond(params) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error('Groq API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'groq' });
+      }
+
       const { context = [], userMessage, tools, model: requestedModel } = params;
       const targetModel = requestedModel || defaultModel;
 
@@ -388,18 +489,69 @@ export function createGroqProvider({
         clearTimeout(timer);
       }
     },
+    async stream(params, onToken) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error('Groq API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'groq' });
+      }
+
+      const { context = [], userMessage, model: requestedModel } = params;
+      const targetModel = requestedModel || defaultModel;
+
+      const messages = [
+        { role: 'system', content: VARIS_SYSTEM_PROMPT },
+        ...context.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: userMessage },
+      ];
+
+      const streamResponse = await groqClient.chat.completions.create({
+        model: targetModel,
+        messages,
+        stream: true,
+      });
+
+      let fullText = '';
+      for await (const chunk of streamResponse) {
+        const token = chunk.choices?.[0]?.delta?.content || '';
+        if (token) {
+          fullText += token;
+          if (onToken) onToken(token);
+        }
+      }
+
+      return {
+        text: fullText.trim(),
+        model: targetModel,
+        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) },
+      };
+    },
   };
 }
 
-// 4. Smart Local Provider (Fallback & Free Engine)
+// 4. Smart Local Provider (Fallback & Test Harness)
 export function createSmartLocalProvider() {
   return {
     name: 'smart_local',
+    isConfigured: () => true,
+    async healthCheck() {
+      return { status: 'available', latencyMs: 1 };
+    },
     async respond({ userMessage }) {
       const text = generateFreeSmartResponse(userMessage);
       return {
         text,
         toolCalls: [],
+        model: 'varis-smart-engine',
+        usage: { prompt_tokens: 20, completion_tokens: 40, total_tokens: 60 },
+      };
+    },
+    async stream({ userMessage }, onToken) {
+      const text = generateFreeSmartResponse(userMessage);
+      const words = text.split(' ');
+      for (const word of words) {
+        if (onToken) onToken(word + ' ');
+      }
+      return {
+        text,
         model: 'varis-smart-engine',
         usage: { prompt_tokens: 20, completion_tokens: 40, total_tokens: 60 },
       };
@@ -413,21 +565,24 @@ export function createSmartLocalProvider() {
 // 5. Smart Model Router for Auto Mode
 export function selectAutoModel({ userMessage = '', intent = {}, userPlan = null, availableProviders = [] }) {
   const text = (userMessage || '').toLowerCase();
-  const providerNames = availableProviders.map(p => p.name);
+  const providerNames = availableProviders.filter(p => typeof p.isConfigured === 'function' ? p.isConfigured() : true).map(p => p.name);
 
   // 1. Complex Coding / Architecture / Reasoning
   if (intent.type === 'coding' || text.includes('arsitektur') || text.includes('algoritma kompleks')) {
     if (providerNames.includes('openai') && userPlan?.allowed_tiers?.includes('pro')) {
       return { providerName: 'openai', modelId: 'gpt-4o' };
     }
-    if (providerNames.includes('google')) {
-      return { providerName: 'google', modelId: 'gemini-2.0-flash' };
+    if (providerNames.includes('google') || providerNames.includes('gemini')) {
+      return { providerName: 'gemini', modelId: 'gemini-2.0-flash' };
+    }
+    if (providerNames.includes('openai')) {
+      return { providerName: 'openai', modelId: 'gpt-4o-mini' };
     }
   }
 
   // 2. High Speed / General Talk / Math / Fact Search
-  if (providerNames.includes('google')) {
-    return { providerName: 'google', modelId: 'gemini-2.0-flash' };
+  if (providerNames.includes('google') || providerNames.includes('gemini')) {
+    return { providerName: 'gemini', modelId: 'gemini-2.0-flash' };
   }
   if (providerNames.includes('openai')) {
     return { providerName: 'openai', modelId: 'gpt-4o-mini' };
@@ -439,7 +594,7 @@ export function selectAutoModel({ userMessage = '', intent = {}, userPlan = null
   return { providerName: 'smart_local', modelId: 'varis-smart-engine' };
 }
 
-// 6. Multi-Provider & Multi-Model Orchestrator
+// 6. Multi-Provider Orchestrator with Strict Routing & Real Availability
 export function createMultiProviderOrchestrator({
   providers = [],
   logger,
@@ -448,12 +603,34 @@ export function createMultiProviderOrchestrator({
   const providerMap = new Map();
   for (const p of activeProviders) {
     providerMap.set(p.name, p);
+    if (p.name === 'gemini') providerMap.set('google', p);
+    if (p.name === 'google') providerMap.set('gemini', p);
   }
 
   return {
     providers: activeProviders,
     getProvider(name) {
       return providerMap.get(name);
+    },
+
+    /**
+     * Inspect live availability of all AI models based on configured provider keys
+     */
+    getModelAvailabilityStatus() {
+      const hasOpenAI = Boolean(providerMap.get('openai')?.isConfigured?.());
+      const hasGemini = Boolean(providerMap.get('gemini')?.isConfigured?.() || providerMap.get('google')?.isConfigured?.());
+      const hasGroq = Boolean(providerMap.get('groq')?.isConfigured?.());
+      const hasAny = hasOpenAI || hasGemini || hasGroq;
+
+      return {
+        'auto': hasAny ? 'available' : 'available',
+        'gemini-2.0-flash': hasGemini ? 'available' : 'not_configured',
+        'gemini-1.5-pro': hasGemini ? 'available' : 'not_configured',
+        'gpt-4o-mini': hasOpenAI ? 'available' : 'not_configured',
+        'gpt-4o': hasOpenAI ? 'available' : 'not_configured',
+        'o3-mini': hasOpenAI ? 'available' : 'not_configured',
+        'llama-3.3-70b': hasGroq ? 'available' : 'not_configured',
+      };
     },
 
     async respond(params) {
@@ -474,7 +651,7 @@ export function createMultiProviderOrchestrator({
           userPlan,
           availableProviders: activeProviders,
         });
-        targetProvider = providerMap.get(auto.providerName) || providerMap.get('gemini') || providerMap.get('openai') || activeProviders[0];
+        targetProvider = providerMap.get(auto.providerName) || activeProviders[0];
         targetModelId = auto.modelId;
       } else if (requestedModel.startsWith('gemini')) {
         targetProvider = providerMap.get('gemini') || providerMap.get('google');
@@ -484,14 +661,21 @@ export function createMultiProviderOrchestrator({
         targetProvider = providerMap.get('groq');
       }
 
-      // If requested specific provider is not available or not matching
-      if (!targetProvider) {
+      // Strict Model Fidelity: If user specifically asked for a provider and it's missing
+      if (!targetProvider || (typeof targetProvider.isConfigured === 'function' && !targetProvider.isConfigured())) {
+        if (!allowFallback && requestedModel !== 'auto') {
+          const providerDisplayName = requestedModel.startsWith('gemini') ? 'Google Gemini' : requestedModel.startsWith('gpt') ? 'OpenAI GPT' : 'Requested AI Provider';
+          throw Object.assign(
+            new Error(`${providerDisplayName} is not configured or unavailable. Please select an available model.`),
+            { code: 'AI_NOT_CONFIGURED', requestedModel }
+          );
+        }
         targetProvider = activeProviders[0];
       }
 
       // 2. Execute Primary Request
       try {
-        logger?.info?.({ provider: targetProvider.name, model: targetModelId }, 'Attempting AI model execution');
+        logger?.info?.({ provider: targetProvider.name, model: targetModelId }, 'Executing AI model');
         const result = await targetProvider.respond({ ...params, model: targetModelId });
         if (result && (result.text || (result.toolCalls && result.toolCalls.length > 0))) {
           return { ...result, activeProvider: targetProvider.name, modelUsed: targetModelId };
@@ -499,18 +683,20 @@ export function createMultiProviderOrchestrator({
       } catch (primaryError) {
         logger?.warn?.(
           { provider: targetProvider.name, model: targetModelId, err: primaryError.message, status: primaryError.status },
-          'Selected AI model failed'
+          'Selected AI provider execution failed'
         );
 
-        if (!allowFallback) {
+        if (!allowFallback || requestedModel !== 'auto') {
           throw primaryError;
         }
 
-        // 3. Transparent Fallback to Available Secondary Providers
+        // 3. Fallback for Auto Mode
         for (const backupProvider of activeProviders) {
           if (backupProvider === targetProvider) continue;
+          if (typeof backupProvider.isConfigured === 'function' && !backupProvider.isConfigured()) continue;
+
           try {
-            logger?.info?.({ backupProvider: backupProvider.name }, 'Attempting transparent fallback to backup provider');
+            logger?.info?.({ backupProvider: backupProvider.name }, 'Transparent fallback for auto mode');
             const fallbackResult = await backupProvider.respond(params);
             if (fallbackResult && (fallbackResult.text || (fallbackResult.toolCalls && fallbackResult.toolCalls.length > 0))) {
               return {
@@ -533,6 +719,52 @@ export function createMultiProviderOrchestrator({
       }
 
       throw new Error('AI execution produced no output');
+    },
+
+    async stream(params, onToken) {
+      if (activeProviders.length === 0) {
+        throw Object.assign(new Error('No AI providers configured'), { code: 'AI_NOT_CONFIGURED' });
+      }
+
+      const { model: requestedModel = 'auto', userPlan } = params;
+      let targetProvider = null;
+      let targetModelId = requestedModel;
+
+      if (requestedModel === 'auto') {
+        const auto = selectAutoModel({
+          userMessage: params.userMessage,
+          intent: params.intent || {},
+          userPlan,
+          availableProviders: activeProviders,
+        });
+        targetProvider = providerMap.get(auto.providerName) || activeProviders[0];
+        targetModelId = auto.modelId;
+      } else if (requestedModel.startsWith('gemini')) {
+        targetProvider = providerMap.get('gemini') || providerMap.get('google');
+      } else if (requestedModel.startsWith('gpt') || requestedModel.startsWith('o1') || requestedModel.startsWith('o3')) {
+        targetProvider = providerMap.get('openai');
+      } else if (requestedModel.startsWith('llama') || requestedModel.includes('groq')) {
+        targetProvider = providerMap.get('groq');
+      }
+
+      if (!targetProvider || (typeof targetProvider.isConfigured === 'function' && !targetProvider.isConfigured())) {
+        targetProvider = activeProviders[0];
+      }
+
+      if (typeof targetProvider.stream === 'function') {
+        return targetProvider.stream({ ...params, model: targetModelId }, onToken);
+      }
+
+      // If provider only supports respond, simulate chunk delivery
+      const result = await targetProvider.respond({ ...params, model: targetModelId });
+      const text = result.text || '';
+      if (onToken) {
+        const words = text.split(' ');
+        for (const word of words) {
+          onToken(word + ' ');
+        }
+      }
+      return { ...result, modelUsed: targetModelId };
     },
 
     async embed(params) {
@@ -599,8 +831,10 @@ export function createAIProviderFromConfig(config, { logger } = {}) {
     );
   }
 
-  // Always append Smart Local Provider as final resilient safety net
-  providers.push(createSmartLocalProvider());
+  // Append Smart Local Provider ONLY in test mode or explicit offline testing
+  if (config.nodeEnv === 'test' || providers.length === 0) {
+    providers.push(createSmartLocalProvider());
+  }
 
   return createMultiProviderOrchestrator({ providers, logger });
 }

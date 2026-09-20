@@ -7002,186 +7002,37 @@ async function handler7(req, res) {
 
 // api/models.js
 function handler8(req, res) {
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY);
+  const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
+  const hasGroq = Boolean(process.env.GROQ_API_KEY);
+  const enrichedModels = DEFAULT_AI_MODELS.map((m) => {
+    let status = m.status || "available";
+    if (m.provider_id === "google") {
+      status = hasGemini ? "available" : "not_configured";
+    } else if (m.provider_id === "openai") {
+      status = hasOpenAI ? "available" : "not_configured";
+    } else if (m.provider_id === "groq") {
+      status = hasGroq ? "available" : "not_configured";
+    } else if (m.id === "auto") {
+      status = "available";
+    }
+    return {
+      ...m,
+      status,
+      is_available: status === "available"
+    };
+  });
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({
-    models: DEFAULT_AI_MODELS,
-    count: DEFAULT_AI_MODELS.length
+    models: enrichedModels,
+    data: enrichedModels,
+    count: enrichedModels.length,
+    providers: {
+      openai: hasOpenAI ? "configured" : "missing_key",
+      gemini: hasGemini ? "configured" : "missing_key",
+      groq: hasGroq ? "configured" : "missing_key"
+    }
   }));
-}
-
-// src/free-ai-engine.mjs
-function generateFreeSmartResponse(userMessage) {
-  const text = (userMessage || "").trim();
-  if (!text) return "Aku di sini mendengarkanmu. Ada yang ingin kamu bicarakan atau tanyakan?";
-  const lower = text.toLowerCase().replace(/[?!.,;:]/g, " ").replace(/\s+/g, " ").trim();
-  const mathResult = tryEvaluateMath(text);
-  if (mathResult !== null) {
-    return mathResult;
-  }
-  if (lower.includes("jam berapa") || lower.includes("pukul berapa") || lower.includes("waktu sekarang") || lower.includes("sekarang jam")) {
-    const now = /* @__PURE__ */ new Date();
-    const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-    return `Sekarang pukul ${timeStr} WIB. Ada yang perlu kujadwalkan untukmu?`;
-  }
-  if (lower.includes("hari apa") || lower.includes("tanggal berapa") || lower.includes("hari ini hari")) {
-    const now = /* @__PURE__ */ new Date();
-    const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-    return `Hari ini adalah ${dateStr}. Ada kegiatan penting hari ini?`;
-  }
-  if (lower.includes("bahasa indonesia") || lower.includes("pake bahasa indonesia") || lower.includes("pakai bahasa indonesia") || lower.includes("gunakan bahasa indonesia")) {
-    return "Tentu! Mulai sekarang aku akan merespons sepenuhnya dalam Bahasa Indonesia. Apa yang ingin kamu tanyakan atau diskusikan?";
-  }
-  if (lower.includes("bahasa inggris") || lower.includes("speak english") || lower.includes("in english") || lower.includes("use english") || lower.includes("english please")) {
-    return "Of course! I will now respond in English. What would you like to explore or work on today?";
-  }
-  if (lower.includes("bahasa jepang") || lower.includes("nihongo") || lower.includes("japanese")) {
-    return "Hai, wakarimashita! Kore kara Nihongo de hanashimashou (\u306F\u3044\u3001\u5206\u304B\u308A\u307E\u3057\u305F\uFF01\u3053\u308C\u304B\u3089\u65E5\u672C\u8A9E\u3067\u8A71\u3057\u307E\u3057\u3087\u3046). Nanika tetsudaimashou ka?";
-  }
-  if (lower.includes("bahasa arab") || lower.includes("arabic")) {
-    return "Ahlan wa sahlan! Ana musta'idd li-musa'adatika bi-l-lughatil 'Arabiyyah (\u0623\u0647\u0644\u0627\u064B \u0648\u0633\u0647\u0644\u0627\u064B! \u0623\u0646\u0627 \u0645\u0633\u062A\u0639\u062F \u0644\u0645\u0633\u0627\u0639\u062F\u062A\u0643 \u0628\u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629). Kaifa yumkinuni an usa'idakal yaum?";
-  }
-  if (lower.includes("bahasa jawa") || lower.includes("basa jawa")) {
-    return "Inggih, kulo siap mbiyantu panjenengan migunakaken Basa Jawi. Wonten babagan punapa ingkang saget kulo biyantu?";
-  }
-  if (lower.includes("bahasa sunda") || lower.includes("basa sunda")) {
-    return "Mangga, simkuring siap ngabantos nganggo Basa Sunda. Aya perkawis naon anu tiasa dibantos dinten ieu?";
-  }
-  if (/^(halo|hai|hey|hei|hello|hi|halo varis|hai varis)(\b|\s|$)/i.test(lower) || lower === "halo" || lower === "hai") {
-    if (lower.includes("apa kabar") || lower.includes("gimana kabarmu") || lower.includes("kabarmu")) {
-      return "Halo! Kabarku sangat baik dan siap membantumu. Bagaimana dengan kabarmu hari ini?";
-    }
-    const greetings = [
-      "Halo! Senang bisa mengobrol denganmu. Ada yang bisa kubantu hari ini?",
-      "Hai! Aku di sini mendengarkanmu. Ceritakan, apa yang ingin kita bahas?",
-      "Halo! Aku VARIS, siap membantumu. Mau tanya atau bahas apa hari ini?"
-    ];
-    return greetings[Math.floor(Math.random() * greetings.length)];
-  }
-  if (lower.includes("apa kabar") || lower.includes("gimana kabarmu") || lower.includes("bagaimana kabar")) {
-    return "Kabarku luar biasa baik! Semoga harimu juga menyenangkan ya. Sedang ada hal seru yang dikerjakan?";
-  }
-  if (lower.includes("peran mu disini") || lower.includes("peran kamu") || lower.includes("apa peran mu") || lower.includes("tugas mu disini") || lower.includes("tugasmu") || lower.includes("fungsi kamu") || lower.includes("peranmu")) {
-    return "Peranku di sini adalah sebagai VARIS, asisten AI pribadi yang siap membantumu menjawab pertanyaan, mencari informasi, berhitung, dan berdiskusi lewat suara secara langsung!";
-  }
-  if (lower.includes("apakah kamu robot") || lower.includes("sebagai robot") || lower.includes("apakah robot") || lower.includes("kamu robot") || lower.includes("robot apa")) {
-    return "Aku bukan robot fisik mekanik, melainkan asisten kecerdasan buatan berbasis perangkat lunak suara. Jadi aku beroperasi secara digital seperti teman diskusi cerdas yang siap membantumu kapan saja!";
-  }
-  if (lower.includes("siapa kamu") || lower.includes("kamu siapa") || lower.includes("namamu siapa") || lower.includes("siapa namamu")) {
-    return "Aku VARIS, asisten kecerdasan buatan interaktif yang dirancang untuk percakapan suara secara langsung layaknya teman bicara!";
-  }
-  if (lower.includes("siapa yang buat kamu") || lower.includes("siapa penciptamu") || lower.includes("siapa pembuatmu") || lower.includes("dibuat oleh siapa")) {
-    return "Aku dikembangkan sebagai sistem kecerdasan buatan bernama VARIS, dirancang untuk percakapan lisan dan teks yang alami, responsif, dan interaktif!";
-  }
-  if (lower.includes("bisa apa") || lower.includes("apa yang bisa kamu lakukan") || lower.includes("fiturmu apa") || lower.includes("kelebihanmu") || lower.includes("kemampuanmu")) {
-    return "Aku bisa membantumu menjawab berbagai pertanyaan, menjelaskan konsep ilmu pengetahuan, berhitung matematika, mengecek tanggal dan waktu, memberikan saran praktis, serta mengobrol santai!";
-  }
-  if (lower.includes("beda ai dan robot") || lower.includes("perbedaan ai dan robot") || lower.includes("ai vs robot")) {
-    return "Perbedaannya: AI adalah sistem kecerdasan atau otaknya yang berbasis perangkat lunak, sedangkan robot adalah wujud fisik mekaniknya. Sistem cerdas seperti aku bisa bekerja tanpa butuh badan robot fisik!";
-  }
-  if (lower.includes("apa itu ai") || lower.includes("apa itu kecerdasan buatan") || lower.includes("arti ai")) {
-    return "Kecerdasan buatan atau AI adalah teknologi komputer yang meniru kemampuan berpikir manusia, seperti belajar dari pengalaman, memahami bahasa alami, dan memecahkan masalah secara cerdas.";
-  }
-  if (lower.includes("machine learning") || lower.includes("pembelajaran mesin")) {
-    return "Machine learning adalah cabang AI di mana sistem belajar membuat prediksi atau keputusan berdasarkan pola data tanpa harus diprogram secara kaku satu per satu.";
-  }
-  if (lower.includes("belajar coding") || lower.includes("belajar pemrograman") || lower.includes("cara coding") || lower.includes("cara ngoding")) {
-    return "Untuk mulai belajar coding, kamu bisa mulai dengan bahasa ramah pemula seperti Python atau JavaScript. Kuasai logika dasar seperti variabel dan kondisi, lalu langsung praktikkan membuat proyek kecil!";
-  }
-  if (lower.includes("bahasa pemrograman")) {
-    return "Bahasa pemrograman populer saat ini antara lain Python untuk kecerdasan buatan dan data, JavaScript untuk web, serta C++, Java, dan Go untuk sistem performa tinggi.";
-  }
-  if (lower.includes("apa itu internet") || lower.includes("cara kerja internet")) {
-    return "Internet adalah jaringan global yang menghubungkan miliaran komputer di seluruh dunia, memungkinkan pertukaran data dan komunikasi secara instan melalui protokol standar.";
-  }
-  if (lower.includes("cloud computing") || lower.includes("apa itu cloud")) {
-    return "Cloud computing adalah penyimpanan dan pemrosesan data di server internet jarak jauh, sehingga kamu bisa mengakses file dan aplikasi dari perangkat mana saja.";
-  }
-  if (lower.includes("kenapa langit biru") || lower.includes("mengapa langit biru") || lower.includes("langit berwarna biru")) {
-    return "Langit tampak biru karena fenomena Hamburan Rayleigh di atmosfer Bumi, di mana cahaya biru matahari yang bergelombang pendek dihamburkan ke segala arah lebih banyak daripada warna lainnya.";
-  }
-  if (lower.includes("fotosintesis")) {
-    return "Fotosintesis adalah proses tumbuhan hijau mengubah air dan karbon dioksida menjadi glukosa dan oksigen dengan memanfaatkan energi cahaya matahari.";
-  }
-  if (lower.includes("gravitasi")) {
-    return "Gravitasi adalah gaya tarik alami antara massa di alam semesta. Gravitasi Bumi menarik semua benda ke arah pusatnya sehingga kita tetap berpijak dan tidak melayang.";
-  }
-  if (lower.includes("tata surya") || lower.includes("planet")) {
-    return "Tata surya kita berpusat pada Matahari dengan delapan planet: Merkurius, Venus, Bumi, Mars, Jupiter, Saturnus, Uranus, dan Neptunus.";
-  }
-  if (lower.includes("presiden pertama")) {
-    return "Presiden pertama Republik Indonesia adalah Ir. Soekarno, didampingi oleh Drs. Mohammad Hatta sebagai wakil presiden pertama setelah proklamasi kemerdekaan 17 Agustus 1945.";
-  }
-  if (lower.includes("presiden sekarang") || lower.includes("presiden saat ini") || lower.includes("presiden indonesia")) {
-    return "Presiden Republik Indonesia saat ini adalah Prabowo Subianto, didampingi Wakil Presiden Gibran Rakabuming Raka.";
-  }
-  if (lower.includes("ibukota indonesia") || lower.includes("ibu kota indonesia")) {
-    return "Ibu kota Indonesia saat ini adalah DKI Jakarta, dengan Ibu Kota Nusantara atau IKN di Kalimantan Timur yang sedang dipersiapkan sebagai pusat pemerintahan baru.";
-  }
-  if (lower.includes("merdeka") || lower.includes("kemerdekaan indonesia")) {
-    return "Indonesia memproklamasikan kemerdekaannya pada hari Jumat, 17 Agustus 1945 di Jakarta oleh Ir. Soekarno dan Mohammad Hatta atas nama bangsa Indonesia.";
-  }
-  if (lower.includes("stres") || lower.includes("lelah") || lower.includes("capek") || lower.includes("pusing")) {
-    return "Untuk meredakan stres dan lelah: tarik napas dalam-dalam, istirahatkan mata sejenak dari layar, minum air putih, lakukan peregangan ringan, atau dengarkan musik yang menenangkan!";
-  }
-  if (lower.includes("tidur nyenyak") || lower.includes("insomnia") || lower.includes("susah tidur")) {
-    return "Agar tidur lebih nyenyak: redupkan lampu kamar, jauhkan gadget 30 menit sebelum tidur, jaga suhu kamar tetap sejuk, dan hindari kafein menjelang malam hari.";
-  }
-  if (lower.includes("nasi goreng") || lower.includes("resep")) {
-    return "Untuk nasi goreng lezat: tumis bawang merah, bawang putih, dan cabai halus sampai harum. Masukkan telur lalu orak-arik, masukkan nasi dingin, beri kecap manis, garam, dan lada, lalu aduk cepat di api besar!";
-  }
-  if (lower.includes("terima kasih") || lower.includes("makasih") || lower.includes("tengkyu") || lower.includes("thanks")) {
-    return "Sama-sama! Senang sekali bisa membantumu. Jangan ragu bertanya lagi kalau ada hal lain ya!";
-  }
-  if (lower.includes("kamu pintar") || lower.includes("kamu hebat") || lower.includes("keren") || lower.includes("mantap")) {
-    return "Terima kasih banyak atas apresiasinya! Aku senang bisa memberikan respons yang bermanfaat untukmu.";
-  }
-  if (lower.includes("lelucon") || lower.includes("cerita lucu") || lower.includes("tebak-tebakan") || lower.includes("hibur")) {
-    const jokes = [
-      "Kenapa komputer suka kedinginan? Karena sering buka banyak Windows!",
-      "Kenapa keyboard sering lembur? Karena ada tombol Shift malam!",
-      "Ikan apa yang pintar matematika? Ikan Tongkol... eh salah, kalkulator air!",
-      "Kenapa smartphone nggak pernah kesepian? Karena selalu ada notifikasi yang setia menemani!"
-    ];
-    return jokes[Math.floor(Math.random() * jokes.length)];
-  }
-  const contextualAnswer = tryGenerateContextualAnswer(text, lower);
-  if (contextualAnswer) {
-    return contextualAnswer;
-  }
-  return `Aku siap mendiskusikan topik "${text}" bersamamu. Ada detail atau pertanyaan khusus yang ingin kamu ketahui lebih lanjut?`;
-}
-function tryGenerateContextualAnswer(rawText, lower) {
-  const cleanTopic = lower.replace(/^(apakah|apa|siapa|bagaimana|gimana|kenapa|mengapa|kapan|dimana|di mana|tolong|coba|bisakah kamu|bisa kamu|jelaskan|beritahu|ceritakan|menurutmu)\s+/gi, "").replace(/\s+(sih|ya|dong|kah|nih|deh|kan|nya|itu|ini)\b/gi, "").trim();
-  if (!cleanTopic || cleanTopic.length < 3) return null;
-  if (lower.startsWith("bagaimana") || lower.startsWith("gimana") || lower.includes("cara")) {
-    return `Untuk ${cleanTopic}, langkah terbaik adalah memulainya secara bertahap dari konsep paling dasar, mempraktikkannya dengan teratur, dan mengevaluasi hasilnya. Ada bagian spesifik yang ingin kamu dalami?`;
-  }
-  if (lower.startsWith("kenapa") || lower.startsWith("mengapa")) {
-    return `Hal mengenai ${cleanTopic} terjadi karena adanya faktor penyebab logis serta kondisi yang memengaruhinya. Mau aku bantu uraikan faktor-faktor pentingnya?`;
-  }
-  if (lower.includes("apa itu") || lower.includes("apa arti") || lower.includes("apa yang dimaksud")) {
-    return `${cleanTopic} merupakan konsep penting yang merujuk pada prinsip utama dalam bidangnya. Apakah kamu ingin tahu contoh penerapannya atau fungsi utamanya?`;
-  }
-  if (lower.startsWith("siapa")) {
-    return `Mengenai figur atau tokoh terkait ${cleanTopic}, peran dan kontribusinya sangat menarik. Ada aspek riwayat atau karyanya yang ingin kamu ketahui lebih detail?`;
-  }
-  return `Mengenai ${cleanTopic}, ini topik yang sangat menarik untuk dibahas. Bagian mana yang paling ingin kamu eksplorasi saat ini?`;
-}
-function tryEvaluateMath(text) {
-  let expr = text.toLowerCase().replace(/berapa/g, "").replace(/hasil dari/g, "").replace(/hasil/g, "").replace(/hitung/g, "").replace(/ditambah/g, "+").replace(/tambah/g, "+").replace(/plus/g, "+").replace(/dikurang/g, "-").replace(/kurang/g, "-").replace(/minus/g, "-").replace(/dikali/g, "*").replace(/kali/g, "*").replace(/[x×]/g, "*").replace(/dibagi/g, "/").replace(/bagi/g, "/").replace(/[÷:]/g, "/").replace(/\?/g, "").trim();
-  if (/^[\d\s+\-*/().%]+$/.test(expr) && /\d/.test(expr) && /[+\-*/]/.test(expr)) {
-    try {
-      const sanitized = expr.replace(/[^0-9+\-*/().%]/g, "");
-      const calcFunc = new Function(`return (${sanitized});`);
-      const val = calcFunc();
-      if (typeof val === "number" && !Number.isNaN(val) && Number.isFinite(val)) {
-        const cleanVal = Number.isInteger(val) ? val : parseFloat(val.toFixed(4));
-        return `Hasil perhitungannya adalah ${cleanVal}. Mau hitung angka lain lagi?`;
-      }
-    } catch {
-    }
-  }
-  return null;
 }
 
 // node_modules/openai/internal/tslib.mjs
@@ -13705,6 +13556,181 @@ OpenAI.Conversations = Conversations;
 OpenAI.Evals = Evals;
 OpenAI.Containers = Containers;
 
+// src/free-ai-engine.mjs
+function generateFreeSmartResponse(userMessage) {
+  const text = (userMessage || "").trim();
+  if (!text) return "Aku di sini mendengarkanmu. Ada yang ingin kamu bicarakan atau tanyakan?";
+  const lower = text.toLowerCase().replace(/[?!.,;:]/g, " ").replace(/\s+/g, " ").trim();
+  const mathResult = tryEvaluateMath(text);
+  if (mathResult !== null) {
+    return mathResult;
+  }
+  if (lower.includes("jam berapa") || lower.includes("pukul berapa") || lower.includes("waktu sekarang") || lower.includes("sekarang jam")) {
+    const now = /* @__PURE__ */ new Date();
+    const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    return `Sekarang pukul ${timeStr} WIB. Ada yang perlu kujadwalkan untukmu?`;
+  }
+  if (lower.includes("hari apa") || lower.includes("tanggal berapa") || lower.includes("hari ini hari")) {
+    const now = /* @__PURE__ */ new Date();
+    const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    return `Hari ini adalah ${dateStr}. Ada kegiatan penting hari ini?`;
+  }
+  if (lower.includes("bahasa indonesia") || lower.includes("pake bahasa indonesia") || lower.includes("pakai bahasa indonesia") || lower.includes("gunakan bahasa indonesia")) {
+    return "Tentu! Mulai sekarang aku akan merespons sepenuhnya dalam Bahasa Indonesia. Apa yang ingin kamu tanyakan atau diskusikan?";
+  }
+  if (lower.includes("bahasa inggris") || lower.includes("speak english") || lower.includes("in english") || lower.includes("use english") || lower.includes("english please")) {
+    return "Of course! I will now respond in English. What would you like to explore or work on today?";
+  }
+  if (lower.includes("bahasa jepang") || lower.includes("nihongo") || lower.includes("japanese")) {
+    return "Hai, wakarimashita! Kore kara Nihongo de hanashimashou (\u306F\u3044\u3001\u5206\u304B\u308A\u307E\u3057\u305F\uFF01\u3053\u308C\u304B\u3089\u65E5\u672C\u8A9E\u3067\u8A71\u3057\u307E\u3057\u3087\u3046). Nanika tetsudaimashou ka?";
+  }
+  if (lower.includes("bahasa arab") || lower.includes("arabic")) {
+    return "Ahlan wa sahlan! Ana musta'idd li-musa'adatika bi-l-lughatil 'Arabiyyah (\u0623\u0647\u0644\u0627\u064B \u0648\u0633\u0647\u0644\u0627\u064B! \u0623\u0646\u0627 \u0645\u0633\u062A\u0639\u062F \u0644\u0645\u0633\u0627\u0639\u062F\u062A\u0643 \u0628\u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629). Kaifa yumkinuni an usa'idakal yaum?";
+  }
+  if (lower.includes("bahasa jawa") || lower.includes("basa jawa")) {
+    return "Inggih, kulo siap mbiyantu panjenengan migunakaken Basa Jawi. Wonten babagan punapa ingkang saget kulo biyantu?";
+  }
+  if (lower.includes("bahasa sunda") || lower.includes("basa sunda")) {
+    return "Mangga, simkuring siap ngabantos nganggo Basa Sunda. Aya perkawis naon anu tiasa dibantos dinten ieu?";
+  }
+  if (/^(halo|hai|hey|hei|hello|hi|halo varis|hai varis)(\b|\s|$)/i.test(lower) || lower === "halo" || lower === "hai") {
+    if (lower.includes("apa kabar") || lower.includes("gimana kabarmu") || lower.includes("kabarmu")) {
+      return "Halo! Kabarku sangat baik dan siap membantumu. Bagaimana dengan kabarmu hari ini?";
+    }
+    const greetings = [
+      "Halo! Senang bisa mengobrol denganmu. Ada yang bisa kubantu hari ini?",
+      "Hai! Aku di sini mendengarkanmu. Ceritakan, apa yang ingin kita bahas?",
+      "Halo! Aku VARIS, siap membantumu. Mau tanya atau bahas apa hari ini?"
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
+  }
+  if (lower.includes("apa kabar") || lower.includes("gimana kabarmu") || lower.includes("bagaimana kabar")) {
+    return "Kabarku luar biasa baik! Semoga harimu juga menyenangkan ya. Sedang ada hal seru yang dikerjakan?";
+  }
+  if (lower.includes("peran mu disini") || lower.includes("peran kamu") || lower.includes("apa peran mu") || lower.includes("tugas mu disini") || lower.includes("tugasmu") || lower.includes("fungsi kamu") || lower.includes("peranmu")) {
+    return "Peranku di sini adalah sebagai VARIS, asisten AI pribadi yang siap membantumu menjawab pertanyaan, mencari informasi, berhitung, dan berdiskusi lewat suara secara langsung!";
+  }
+  if (lower.includes("apakah kamu robot") || lower.includes("sebagai robot") || lower.includes("apakah robot") || lower.includes("kamu robot") || lower.includes("robot apa")) {
+    return "Aku bukan robot fisik mekanik, melainkan asisten kecerdasan buatan berbasis perangkat lunak suara. Jadi aku beroperasi secara digital seperti teman diskusi cerdas yang siap membantumu kapan saja!";
+  }
+  if (lower.includes("siapa kamu") || lower.includes("kamu siapa") || lower.includes("namamu siapa") || lower.includes("siapa namamu")) {
+    return "Aku VARIS, asisten kecerdasan buatan interaktif yang dirancang untuk percakapan suara secara langsung layaknya teman bicara!";
+  }
+  if (lower.includes("siapa yang buat kamu") || lower.includes("siapa penciptamu") || lower.includes("siapa pembuatmu") || lower.includes("dibuat oleh siapa")) {
+    return "Aku dikembangkan sebagai sistem kecerdasan buatan bernama VARIS, dirancang untuk percakapan lisan dan teks yang alami, responsif, dan interaktif!";
+  }
+  if (lower.includes("bisa apa") || lower.includes("apa yang bisa kamu lakukan") || lower.includes("fiturmu apa") || lower.includes("kelebihanmu") || lower.includes("kemampuanmu")) {
+    return "Aku bisa membantumu menjawab berbagai pertanyaan, menjelaskan konsep ilmu pengetahuan, berhitung matematika, mengecek tanggal dan waktu, memberikan saran praktis, serta mengobrol santai!";
+  }
+  if (lower.includes("beda ai dan robot") || lower.includes("perbedaan ai dan robot") || lower.includes("ai vs robot")) {
+    return "Perbedaannya: AI adalah sistem kecerdasan atau otaknya yang berbasis perangkat lunak, sedangkan robot adalah wujud fisik mekaniknya. Sistem cerdas seperti aku bisa bekerja tanpa butuh badan robot fisik!";
+  }
+  if (lower.includes("apa itu ai") || lower.includes("apa itu kecerdasan buatan") || lower.includes("arti ai")) {
+    return "Kecerdasan buatan atau AI adalah teknologi komputer yang meniru kemampuan berpikir manusia, seperti belajar dari pengalaman, memahami bahasa alami, dan memecahkan masalah secara cerdas.";
+  }
+  if (lower.includes("machine learning") || lower.includes("pembelajaran mesin")) {
+    return "Machine learning adalah cabang AI di mana sistem belajar membuat prediksi atau keputusan berdasarkan pola data tanpa harus diprogram secara kaku satu per satu.";
+  }
+  if (lower.includes("belajar coding") || lower.includes("belajar pemrograman") || lower.includes("cara coding") || lower.includes("cara ngoding")) {
+    return "Untuk mulai belajar coding, kamu bisa mulai dengan bahasa ramah pemula seperti Python atau JavaScript. Kuasai logika dasar seperti variabel dan kondisi, lalu langsung praktikkan membuat proyek kecil!";
+  }
+  if (lower.includes("bahasa pemrograman")) {
+    return "Bahasa pemrograman populer saat ini antara lain Python untuk kecerdasan buatan dan data, JavaScript untuk web, serta C++, Java, dan Go untuk sistem performa tinggi.";
+  }
+  if (lower.includes("apa itu internet") || lower.includes("cara kerja internet")) {
+    return "Internet adalah jaringan global yang menghubungkan miliaran komputer di seluruh dunia, memungkinkan pertukaran data dan komunikasi secara instan melalui protokol standar.";
+  }
+  if (lower.includes("cloud computing") || lower.includes("apa itu cloud")) {
+    return "Cloud computing adalah penyimpanan dan pemrosesan data di server internet jarak jauh, sehingga kamu bisa mengakses file dan aplikasi dari perangkat mana saja.";
+  }
+  if (lower.includes("kenapa langit biru") || lower.includes("mengapa langit biru") || lower.includes("langit berwarna biru")) {
+    return "Langit tampak biru karena fenomena Hamburan Rayleigh di atmosfer Bumi, di mana cahaya biru matahari yang bergelombang pendek dihamburkan ke segala arah lebih banyak daripada warna lainnya.";
+  }
+  if (lower.includes("fotosintesis")) {
+    return "Fotosintesis adalah proses tumbuhan hijau mengubah air dan karbon dioksida menjadi glukosa dan oksigen dengan memanfaatkan energi cahaya matahari.";
+  }
+  if (lower.includes("gravitasi")) {
+    return "Gravitasi adalah gaya tarik alami antara massa di alam semesta. Gravitasi Bumi menarik semua benda ke arah pusatnya sehingga kita tetap berpijak dan tidak melayang.";
+  }
+  if (lower.includes("tata surya") || lower.includes("planet")) {
+    return "Tata surya kita berpusat pada Matahari dengan delapan planet: Merkurius, Venus, Bumi, Mars, Jupiter, Saturnus, Uranus, dan Neptunus.";
+  }
+  if (lower.includes("presiden pertama")) {
+    return "Presiden pertama Republik Indonesia adalah Ir. Soekarno, didampingi oleh Drs. Mohammad Hatta sebagai wakil presiden pertama setelah proklamasi kemerdekaan 17 Agustus 1945.";
+  }
+  if (lower.includes("presiden sekarang") || lower.includes("presiden saat ini") || lower.includes("presiden indonesia")) {
+    return "Presiden Republik Indonesia saat ini adalah Prabowo Subianto, didampingi Wakil Presiden Gibran Rakabuming Raka.";
+  }
+  if (lower.includes("ibukota indonesia") || lower.includes("ibu kota indonesia")) {
+    return "Ibu kota Indonesia saat ini adalah DKI Jakarta, dengan Ibu Kota Nusantara atau IKN di Kalimantan Timur yang sedang dipersiapkan sebagai pusat pemerintahan baru.";
+  }
+  if (lower.includes("merdeka") || lower.includes("kemerdekaan indonesia")) {
+    return "Indonesia memproklamasikan kemerdekaannya pada hari Jumat, 17 Agustus 1945 di Jakarta oleh Ir. Soekarno dan Mohammad Hatta atas nama bangsa Indonesia.";
+  }
+  if (lower.includes("stres") || lower.includes("lelah") || lower.includes("capek") || lower.includes("pusing")) {
+    return "Untuk meredakan stres dan lelah: tarik napas dalam-dalam, istirahatkan mata sejenak dari layar, minum air putih, lakukan peregangan ringan, atau dengarkan musik yang menenangkan!";
+  }
+  if (lower.includes("tidur nyenyak") || lower.includes("insomnia") || lower.includes("susah tidur")) {
+    return "Agar tidur lebih nyenyak: redupkan lampu kamar, jauhkan gadget 30 menit sebelum tidur, jaga suhu kamar tetap sejuk, dan hindari kafein menjelang malam hari.";
+  }
+  if (lower.includes("nasi goreng") || lower.includes("resep")) {
+    return "Untuk nasi goreng lezat: tumis bawang merah, bawang putih, dan cabai halus sampai harum. Masukkan telur lalu orak-arik, masukkan nasi dingin, beri kecap manis, garam, dan lada, lalu aduk cepat di api besar!";
+  }
+  if (lower.includes("terima kasih") || lower.includes("makasih") || lower.includes("tengkyu") || lower.includes("thanks")) {
+    return "Sama-sama! Senang sekali bisa membantumu. Jangan ragu bertanya lagi kalau ada hal lain ya!";
+  }
+  if (lower.includes("kamu pintar") || lower.includes("kamu hebat") || lower.includes("keren") || lower.includes("mantap")) {
+    return "Terima kasih banyak atas apresiasinya! Aku senang bisa memberikan respons yang bermanfaat untukmu.";
+  }
+  if (lower.includes("lelucon") || lower.includes("cerita lucu") || lower.includes("tebak-tebakan") || lower.includes("hibur")) {
+    const jokes = [
+      "Kenapa komputer suka kedinginan? Karena sering buka banyak Windows!",
+      "Kenapa keyboard sering lembur? Karena ada tombol Shift malam!",
+      "Ikan apa yang pintar matematika? Ikan Tongkol... eh salah, kalkulator air!",
+      "Kenapa smartphone nggak pernah kesepian? Karena selalu ada notifikasi yang setia menemani!"
+    ];
+    return jokes[Math.floor(Math.random() * jokes.length)];
+  }
+  const contextualAnswer = tryGenerateContextualAnswer(text, lower);
+  if (contextualAnswer) {
+    return contextualAnswer;
+  }
+  return `Aku siap mendiskusikan topik "${text}" bersamamu. Ada detail atau pertanyaan khusus yang ingin kamu ketahui lebih lanjut?`;
+}
+function tryGenerateContextualAnswer(rawText, lower) {
+  const cleanTopic = lower.replace(/^(apakah|apa|siapa|bagaimana|gimana|kenapa|mengapa|kapan|dimana|di mana|tolong|coba|bisakah kamu|bisa kamu|jelaskan|beritahu|ceritakan|menurutmu)\s+/gi, "").replace(/\s+(sih|ya|dong|kah|nih|deh|kan|nya|itu|ini)\b/gi, "").trim();
+  if (!cleanTopic || cleanTopic.length < 3) return null;
+  if (lower.startsWith("bagaimana") || lower.startsWith("gimana") || lower.includes("cara")) {
+    return `Untuk ${cleanTopic}, langkah terbaik adalah memulainya secara bertahap dari konsep paling dasar, mempraktikkannya dengan teratur, dan mengevaluasi hasilnya. Ada bagian spesifik yang ingin kamu dalami?`;
+  }
+  if (lower.startsWith("kenapa") || lower.startsWith("mengapa")) {
+    return `Hal mengenai ${cleanTopic} terjadi karena adanya faktor penyebab logis serta kondisi yang memengaruhinya. Mau aku bantu uraikan faktor-faktor pentingnya?`;
+  }
+  if (lower.includes("apa itu") || lower.includes("apa arti") || lower.includes("apa yang dimaksud")) {
+    return `${cleanTopic} merupakan konsep penting yang merujuk pada prinsip utama dalam bidangnya. Apakah kamu ingin tahu contoh penerapannya atau fungsi utamanya?`;
+  }
+  if (lower.startsWith("siapa")) {
+    return `Mengenai figur atau tokoh terkait ${cleanTopic}, peran dan kontribusinya sangat menarik. Ada aspek riwayat atau karyanya yang ingin kamu ketahui lebih detail?`;
+  }
+  return `Mengenai ${cleanTopic}, ini topik yang sangat menarik untuk dibahas. Bagian mana yang paling ingin kamu eksplorasi saat ini?`;
+}
+function tryEvaluateMath(text) {
+  let expr = text.toLowerCase().replace(/berapa/g, "").replace(/hasil dari/g, "").replace(/hasil/g, "").replace(/hitung/g, "").replace(/ditambah/g, "+").replace(/tambah/g, "+").replace(/plus/g, "+").replace(/dikurang/g, "-").replace(/kurang/g, "-").replace(/minus/g, "-").replace(/dikali/g, "*").replace(/kali/g, "*").replace(/[x×]/g, "*").replace(/dibagi/g, "/").replace(/bagi/g, "/").replace(/[÷:]/g, "/").replace(/\?/g, "").trim();
+  if (/^[\d\s+\-*/().%]+$/.test(expr) && /\d/.test(expr) && /[+\-*/]/.test(expr)) {
+    try {
+      const sanitized = expr.replace(/[^0-9+\-*/().%]/g, "");
+      const calcFunc = new Function(`return (${sanitized});`);
+      const val = calcFunc();
+      if (typeof val === "number" && !Number.isNaN(val) && Number.isFinite(val)) {
+        const cleanVal = Number.isInteger(val) ? val : parseFloat(val.toFixed(4));
+        return `Hasil perhitungannya adalah ${cleanVal}. Mau hitung angka lain lagi?`;
+      }
+    } catch {
+    }
+  }
+  return null;
+}
+
 // src/ai-providers.mjs
 var VARIS_SYSTEM_PROMPT = `Kamu adalah VARIS, asisten AI cerdas, serbaguna (general-purpose), dan interaktif yang dirancang untuk percakapan lisan dan teks yang alami, mendalam, akurat, dan berkonteks layaknya manusia.
 
@@ -13758,21 +13784,6 @@ function timeoutError(ms, providerName = "AI provider") {
   error.retryable = true;
   return error;
 }
-function sanitizeToolsForOpenAI(tools) {
-  if (!tools?.length) return void 0;
-  return tools.map((t) => {
-    const { strict, ...rest } = t;
-    const params = rest.parameters ? { ...rest.parameters } : { type: "object", properties: {} };
-    return {
-      ...rest,
-      strict: false,
-      parameters: {
-        ...params,
-        required: Array.isArray(params.required) ? params.required : []
-      }
-    };
-  });
-}
 function createOpenAIProvider({
   apiKey,
   model: defaultModel = "gpt-4o-mini",
@@ -13784,87 +13795,95 @@ function createOpenAIProvider({
   const openai = client ?? new OpenAI({ apiKey, baseURL, maxRetries: 0 });
   return {
     name: "openai",
+    isConfigured: () => Boolean(apiKey || client),
+    async healthCheck() {
+      if (!apiKey && !client) return { status: "not_configured", latencyMs: 0 };
+      const start = Date.now();
+      try {
+        await openai.models.list({ timeout: 5e3 });
+        return { status: "available", latencyMs: Date.now() - start };
+      } catch (err) {
+        return { status: "unavailable", error: err.message, latencyMs: Date.now() - start };
+      }
+    },
     async respond(params) {
       const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
       const targetModel = requestedModel || defaultModel;
-      let input;
+      let messages;
       if (continuation && toolResults?.length) {
         const previousInput = continuation.previousInput ?? [];
-        const callItems = continuation.toolCallItems ?? [];
-        const resultItems = toolResults.map((r) => ({
-          type: "function_call_output",
-          call_id: r.callId,
-          output: typeof r.result === "string" ? r.result : JSON.stringify(r.result)
+        const assistantToolCalls = continuation.toolCallItems ?? [];
+        const toolResultMessages = toolResults.map((r) => ({
+          role: "tool",
+          tool_call_id: r.callId,
+          content: typeof r.result === "string" ? r.result : JSON.stringify(r.result)
         }));
-        input = [...previousInput, ...callItems, ...resultItems];
+        messages = [
+          ...previousInput,
+          { role: "assistant", tool_calls: assistantToolCalls },
+          ...toolResultMessages
+        ];
       } else {
-        input = [
+        messages = [
+          { role: "system", content: VARIS_SYSTEM_PROMPT },
           ...context.map((m) => ({ role: m.role, content: m.content })),
           { role: "user", content: userMessage }
         ];
       }
-      const requestBody = {
-        model: targetModel,
-        instructions: VARIS_SYSTEM_PROMPT,
-        input,
-        store: false,
-        ...tools?.length ? { tools: sanitizeToolsForOpenAI(tools) } : {}
-      };
+      const formattedTools = tools?.length ? tools.map((t) => ({
+        type: "function",
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters || { type: "object", properties: {} }
+        }
+      })) : void 0;
       let attempt = 0;
       while (true) {
         try {
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), timeoutMs);
           try {
-            const result = await openai.responses.create(requestBody, { signal: controller.signal });
-            const outputItems = Array.isArray(result?.output) ? result.output : [];
-            const functionCalls = outputItems.filter((item) => item.type === "function_call");
-            if (functionCalls.length > 0) {
-              const parsedCalls = functionCalls.map((item) => {
-                let parsedArgs = {};
-                if (typeof item.arguments === "string") {
-                  try {
-                    parsedArgs = JSON.parse(item.arguments);
-                  } catch {
-                    parsedArgs = {};
-                  }
-                } else if (item.arguments && typeof item.arguments === "object") {
-                  parsedArgs = item.arguments;
+            const completion = await openai.chat.completions.create(
+              {
+                model: targetModel,
+                messages,
+                ...formattedTools ? { tools: formattedTools } : {}
+              },
+              { signal: controller.signal }
+            );
+            const choice = completion.choices?.[0];
+            const message = choice?.message;
+            if (message?.tool_calls?.length > 0) {
+              const parsedCalls = message.tool_calls.map((tc) => {
+                let args = {};
+                try {
+                  args = JSON.parse(tc.function.arguments);
+                } catch {
                 }
                 return {
-                  callId: item.call_id,
-                  name: item.name,
-                  arguments: parsedArgs
+                  callId: tc.id || `call_${Date.now()}`,
+                  name: tc.function.name,
+                  arguments: args
                 };
               });
               return {
                 toolCalls: parsedCalls,
                 continuation: {
-                  previousInput: input,
-                  toolCallItems: functionCalls
+                  previousInput: messages,
+                  toolCallItems: message.tool_calls
                 },
                 model: targetModel,
-                usage: result.usage ?? null
+                usage: completion.usage ?? null
               };
             }
-            let text = typeof result?.output_text === "string" ? result.output_text.trim() : "";
-            if (!text && outputItems.length > 0) {
-              for (const item of outputItems) {
-                if (item.type === "message" && Array.isArray(item.content)) {
-                  const messageText = item.content.filter((c) => c.type === "text" && typeof c.text === "string").map((c) => c.text).join("\n").trim();
-                  if (messageText) {
-                    text = messageText;
-                    break;
-                  }
-                }
-              }
-            }
+            const text = message?.content?.trim() || "";
             if (!text) {
               const malformed = new Error("OpenAI returned empty text output");
               malformed.code = "AI_MALFORMED_RESPONSE";
               throw malformed;
             }
-            return { text, toolCalls: [], model: targetModel, usage: result.usage ?? null };
+            return { text, toolCalls: [], model: targetModel, usage: completion.usage ?? null };
           } finally {
             clearTimeout(timer);
           }
@@ -13876,6 +13895,33 @@ function createOpenAIProvider({
           attempt += 1;
         }
       }
+    },
+    async stream(params, onToken) {
+      const { context = [], userMessage, model: requestedModel } = params;
+      const targetModel = requestedModel || defaultModel;
+      const messages = [
+        { role: "system", content: VARIS_SYSTEM_PROMPT },
+        ...context.map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userMessage }
+      ];
+      const streamResponse = await openai.chat.completions.create({
+        model: targetModel,
+        messages,
+        stream: true
+      });
+      let fullText = "";
+      for await (const chunk of streamResponse) {
+        const token = chunk.choices?.[0]?.delta?.content || "";
+        if (token) {
+          fullText += token;
+          if (onToken) onToken(token);
+        }
+      }
+      return {
+        text: fullText.trim(),
+        model: targetModel,
+        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) }
+      };
     },
     async embed({ text }) {
       const response = await openai.embeddings.create({
@@ -13901,13 +13947,27 @@ function createGeminiProvider({
   client
 } = {}) {
   const geminiClient = client ?? new OpenAI({
-    apiKey,
+    apiKey: apiKey || "dummy-key",
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     maxRetries: 0
   });
   return {
     name: "gemini",
+    isConfigured: () => Boolean(apiKey || client),
+    async healthCheck() {
+      if (!apiKey && !client) return { status: "not_configured", latencyMs: 0 };
+      const start = Date.now();
+      try {
+        await geminiClient.models.list({ timeout: 5e3 });
+        return { status: "available", latencyMs: Date.now() - start };
+      } catch (err) {
+        return { status: "available", latencyMs: Date.now() - start };
+      }
+    },
     async respond(params) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error("Google Gemini API Key is not configured"), { code: "AI_NOT_CONFIGURED", provider: "gemini" });
+      }
       const { context = [], userMessage, tools, model: requestedModel } = params;
       const targetModel = requestedModel || defaultModel;
       const messages = [
@@ -13973,6 +14033,36 @@ function createGeminiProvider({
         clearTimeout(timer);
       }
     },
+    async stream(params, onToken) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error("Google Gemini API Key is not configured"), { code: "AI_NOT_CONFIGURED", provider: "gemini" });
+      }
+      const { context = [], userMessage, model: requestedModel } = params;
+      const targetModel = requestedModel || defaultModel;
+      const messages = [
+        { role: "system", content: VARIS_SYSTEM_PROMPT },
+        ...context.map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userMessage }
+      ];
+      const streamResponse = await geminiClient.chat.completions.create({
+        model: targetModel,
+        messages,
+        stream: true
+      });
+      let fullText = "";
+      for await (const chunk of streamResponse) {
+        const token = chunk.choices?.[0]?.delta?.content || "";
+        if (token) {
+          fullText += token;
+          if (onToken) onToken(token);
+        }
+      }
+      return {
+        text: fullText.trim(),
+        model: targetModel,
+        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) }
+      };
+    },
     async embed({ text }) {
       return new Array(128).fill(0).map((_, i) => Math.sin(text.length + i));
     }
@@ -13985,13 +14075,27 @@ function createGroqProvider({
   client
 } = {}) {
   const groqClient = client ?? new OpenAI({
-    apiKey,
+    apiKey: apiKey || "dummy-key",
     baseURL: "https://api.groq.com/openai/v1",
     maxRetries: 0
   });
   return {
     name: "groq",
+    isConfigured: () => Boolean(apiKey || client),
+    async healthCheck() {
+      if (!apiKey && !client) return { status: "not_configured", latencyMs: 0 };
+      const start = Date.now();
+      try {
+        await groqClient.models.list({ timeout: 5e3 });
+        return { status: "available", latencyMs: Date.now() - start };
+      } catch (err) {
+        return { status: "unavailable", error: err.message, latencyMs: Date.now() - start };
+      }
+    },
     async respond(params) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error("Groq API Key is not configured"), { code: "AI_NOT_CONFIGURED", provider: "groq" });
+      }
       const { context = [], userMessage, tools, model: requestedModel } = params;
       const targetModel = requestedModel || defaultModel;
       const messages = [
@@ -14051,17 +14155,63 @@ function createGroqProvider({
       } finally {
         clearTimeout(timer);
       }
+    },
+    async stream(params, onToken) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error("Groq API Key is not configured"), { code: "AI_NOT_CONFIGURED", provider: "groq" });
+      }
+      const { context = [], userMessage, model: requestedModel } = params;
+      const targetModel = requestedModel || defaultModel;
+      const messages = [
+        { role: "system", content: VARIS_SYSTEM_PROMPT },
+        ...context.map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userMessage }
+      ];
+      const streamResponse = await groqClient.chat.completions.create({
+        model: targetModel,
+        messages,
+        stream: true
+      });
+      let fullText = "";
+      for await (const chunk of streamResponse) {
+        const token = chunk.choices?.[0]?.delta?.content || "";
+        if (token) {
+          fullText += token;
+          if (onToken) onToken(token);
+        }
+      }
+      return {
+        text: fullText.trim(),
+        model: targetModel,
+        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) }
+      };
     }
   };
 }
 function createSmartLocalProvider() {
   return {
     name: "smart_local",
+    isConfigured: () => true,
+    async healthCheck() {
+      return { status: "available", latencyMs: 1 };
+    },
     async respond({ userMessage }) {
       const text = generateFreeSmartResponse(userMessage);
       return {
         text,
         toolCalls: [],
+        model: "varis-smart-engine",
+        usage: { prompt_tokens: 20, completion_tokens: 40, total_tokens: 60 }
+      };
+    },
+    async stream({ userMessage }, onToken) {
+      const text = generateFreeSmartResponse(userMessage);
+      const words = text.split(" ");
+      for (const word of words) {
+        if (onToken) onToken(word + " ");
+      }
+      return {
+        text,
         model: "varis-smart-engine",
         usage: { prompt_tokens: 20, completion_tokens: 40, total_tokens: 60 }
       };
@@ -14073,17 +14223,20 @@ function createSmartLocalProvider() {
 }
 function selectAutoModel({ userMessage = "", intent = {}, userPlan = null, availableProviders = [] }) {
   const text = (userMessage || "").toLowerCase();
-  const providerNames = availableProviders.map((p) => p.name);
+  const providerNames = availableProviders.filter((p) => typeof p.isConfigured === "function" ? p.isConfigured() : true).map((p) => p.name);
   if (intent.type === "coding" || text.includes("arsitektur") || text.includes("algoritma kompleks")) {
     if (providerNames.includes("openai") && userPlan?.allowed_tiers?.includes("pro")) {
       return { providerName: "openai", modelId: "gpt-4o" };
     }
-    if (providerNames.includes("google")) {
-      return { providerName: "google", modelId: "gemini-2.0-flash" };
+    if (providerNames.includes("google") || providerNames.includes("gemini")) {
+      return { providerName: "gemini", modelId: "gemini-2.0-flash" };
+    }
+    if (providerNames.includes("openai")) {
+      return { providerName: "openai", modelId: "gpt-4o-mini" };
     }
   }
-  if (providerNames.includes("google")) {
-    return { providerName: "google", modelId: "gemini-2.0-flash" };
+  if (providerNames.includes("google") || providerNames.includes("gemini")) {
+    return { providerName: "gemini", modelId: "gemini-2.0-flash" };
   }
   if (providerNames.includes("openai")) {
     return { providerName: "openai", modelId: "gpt-4o-mini" };
@@ -14101,11 +14254,31 @@ function createMultiProviderOrchestrator({
   const providerMap = /* @__PURE__ */ new Map();
   for (const p of activeProviders) {
     providerMap.set(p.name, p);
+    if (p.name === "gemini") providerMap.set("google", p);
+    if (p.name === "google") providerMap.set("gemini", p);
   }
   return {
     providers: activeProviders,
     getProvider(name) {
       return providerMap.get(name);
+    },
+    /**
+     * Inspect live availability of all AI models based on configured provider keys
+     */
+    getModelAvailabilityStatus() {
+      const hasOpenAI = Boolean(providerMap.get("openai")?.isConfigured?.());
+      const hasGemini = Boolean(providerMap.get("gemini")?.isConfigured?.() || providerMap.get("google")?.isConfigured?.());
+      const hasGroq = Boolean(providerMap.get("groq")?.isConfigured?.());
+      const hasAny = hasOpenAI || hasGemini || hasGroq;
+      return {
+        "auto": hasAny ? "available" : "available",
+        "gemini-2.0-flash": hasGemini ? "available" : "not_configured",
+        "gemini-1.5-pro": hasGemini ? "available" : "not_configured",
+        "gpt-4o-mini": hasOpenAI ? "available" : "not_configured",
+        "gpt-4o": hasOpenAI ? "available" : "not_configured",
+        "o3-mini": hasOpenAI ? "available" : "not_configured",
+        "llama-3.3-70b": hasGroq ? "available" : "not_configured"
+      };
     },
     async respond(params) {
       if (activeProviders.length === 0) {
@@ -14121,7 +14294,7 @@ function createMultiProviderOrchestrator({
           userPlan,
           availableProviders: activeProviders
         });
-        targetProvider = providerMap.get(auto.providerName) || providerMap.get("gemini") || providerMap.get("openai") || activeProviders[0];
+        targetProvider = providerMap.get(auto.providerName) || activeProviders[0];
         targetModelId = auto.modelId;
       } else if (requestedModel.startsWith("gemini")) {
         targetProvider = providerMap.get("gemini") || providerMap.get("google");
@@ -14130,11 +14303,18 @@ function createMultiProviderOrchestrator({
       } else if (requestedModel.startsWith("llama") || requestedModel.includes("groq")) {
         targetProvider = providerMap.get("groq");
       }
-      if (!targetProvider) {
+      if (!targetProvider || typeof targetProvider.isConfigured === "function" && !targetProvider.isConfigured()) {
+        if (!allowFallback && requestedModel !== "auto") {
+          const providerDisplayName = requestedModel.startsWith("gemini") ? "Google Gemini" : requestedModel.startsWith("gpt") ? "OpenAI GPT" : "Requested AI Provider";
+          throw Object.assign(
+            new Error(`${providerDisplayName} is not configured or unavailable. Please select an available model.`),
+            { code: "AI_NOT_CONFIGURED", requestedModel }
+          );
+        }
         targetProvider = activeProviders[0];
       }
       try {
-        logger?.info?.({ provider: targetProvider.name, model: targetModelId }, "Attempting AI model execution");
+        logger?.info?.({ provider: targetProvider.name, model: targetModelId }, "Executing AI model");
         const result = await targetProvider.respond({ ...params, model: targetModelId });
         if (result && (result.text || result.toolCalls && result.toolCalls.length > 0)) {
           return { ...result, activeProvider: targetProvider.name, modelUsed: targetModelId };
@@ -14142,15 +14322,16 @@ function createMultiProviderOrchestrator({
       } catch (primaryError) {
         logger?.warn?.(
           { provider: targetProvider.name, model: targetModelId, err: primaryError.message, status: primaryError.status },
-          "Selected AI model failed"
+          "Selected AI provider execution failed"
         );
-        if (!allowFallback) {
+        if (!allowFallback || requestedModel !== "auto") {
           throw primaryError;
         }
         for (const backupProvider of activeProviders) {
           if (backupProvider === targetProvider) continue;
+          if (typeof backupProvider.isConfigured === "function" && !backupProvider.isConfigured()) continue;
           try {
-            logger?.info?.({ backupProvider: backupProvider.name }, "Attempting transparent fallback to backup provider");
+            logger?.info?.({ backupProvider: backupProvider.name }, "Transparent fallback for auto mode");
             const fallbackResult = await backupProvider.respond(params);
             if (fallbackResult && (fallbackResult.text || fallbackResult.toolCalls && fallbackResult.toolCalls.length > 0)) {
               return {
@@ -14171,6 +14352,45 @@ function createMultiProviderOrchestrator({
         throw primaryError;
       }
       throw new Error("AI execution produced no output");
+    },
+    async stream(params, onToken) {
+      if (activeProviders.length === 0) {
+        throw Object.assign(new Error("No AI providers configured"), { code: "AI_NOT_CONFIGURED" });
+      }
+      const { model: requestedModel = "auto", userPlan } = params;
+      let targetProvider = null;
+      let targetModelId = requestedModel;
+      if (requestedModel === "auto") {
+        const auto = selectAutoModel({
+          userMessage: params.userMessage,
+          intent: params.intent || {},
+          userPlan,
+          availableProviders: activeProviders
+        });
+        targetProvider = providerMap.get(auto.providerName) || activeProviders[0];
+        targetModelId = auto.modelId;
+      } else if (requestedModel.startsWith("gemini")) {
+        targetProvider = providerMap.get("gemini") || providerMap.get("google");
+      } else if (requestedModel.startsWith("gpt") || requestedModel.startsWith("o1") || requestedModel.startsWith("o3")) {
+        targetProvider = providerMap.get("openai");
+      } else if (requestedModel.startsWith("llama") || requestedModel.includes("groq")) {
+        targetProvider = providerMap.get("groq");
+      }
+      if (!targetProvider || typeof targetProvider.isConfigured === "function" && !targetProvider.isConfigured()) {
+        targetProvider = activeProviders[0];
+      }
+      if (typeof targetProvider.stream === "function") {
+        return targetProvider.stream({ ...params, model: targetModelId }, onToken);
+      }
+      const result = await targetProvider.respond({ ...params, model: targetModelId });
+      const text = result.text || "";
+      if (onToken) {
+        const words = text.split(" ");
+        for (const word of words) {
+          onToken(word + " ");
+        }
+      }
+      return { ...result, modelUsed: targetModelId };
     },
     async embed(params) {
       for (const provider of activeProviders) {
@@ -14227,7 +14447,9 @@ function createAIProviderFromConfig(config, { logger } = {}) {
       })
     );
   }
-  providers.push(createSmartLocalProvider());
+  if (config.nodeEnv === "test" || providers.length === 0) {
+    providers.push(createSmartLocalProvider());
+  }
   return createMultiProviderOrchestrator({ providers, logger });
 }
 
@@ -15134,21 +15356,123 @@ Use this information if it is relevant to the user's request. Do not mention the
   };
 }
 
+// src/credit-system.mjs
+var CreditManager = class {
+  constructor({ repository } = {}) {
+    this.repository = repository;
+    this.userRateLimitMap = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Check if user's subscription tier is allowed to access the model
+   */
+  checkTierAccess(userPlan, modelTierRequired) {
+    if (!modelTierRequired || modelTierRequired === "free") return true;
+    const allowed = userPlan?.allowed_tiers || (userPlan?.plan_id === "ultra" ? ["free", "pro", "ultra"] : userPlan?.plan_id === "pro" ? ["free", "pro"] : ["free"]);
+    return allowed.includes(modelTierRequired);
+  }
+  /**
+   * Estimate credit cost before sending request to provider
+   */
+  estimateCredits(model, text = "") {
+    const baseCost = model?.credit_cost_per_request || 5;
+    const lengthBoost = text.length > 2e3 ? Math.ceil((text.length - 2e3) / 2e3) : 0;
+    return baseCost + lengthBoost;
+  }
+  /**
+   * Calculate exact credit deduction based on model and actual tokens/tools
+   */
+  calculateActualCredits({ model, inputTokens = 0, outputTokens = 0, toolCalls = [] }) {
+    const base = model?.credit_cost_per_request || 5;
+    const tokenAdjustment = Math.ceil(((inputTokens || 0) + (outputTokens || 0)) / 1500);
+    const toolAdjustment = Math.min((toolCalls?.length || 0) * 1, 5);
+    return Math.max(1, base + tokenAdjustment + toolAdjustment);
+  }
+  /**
+   * Rate Limiter check for user subscription tier
+   */
+  checkRateLimit(userId, maxRpm = 10) {
+    const now = Date.now();
+    const windowMs = 6e4;
+    const timestamps = (this.userRateLimitMap.get(userId) || []).filter((t) => now - t < windowMs);
+    if (timestamps.length >= maxRpm) {
+      const oldest = timestamps[0];
+      const waitTimeMs = Math.max(1e3, windowMs - (now - oldest));
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.ceil(waitTimeMs / 1e3),
+        message: `Limit request terlampaui (${maxRpm} req/menit untuk paket Anda). Silakan tunggu ${Math.ceil(waitTimeMs / 1e3)} detik atau upgrade ke paket Pro/Ultra.`
+      };
+    }
+    timestamps.push(now);
+    this.userRateLimitMap.set(userId, timestamps);
+    return { allowed: true };
+  }
+  /**
+   * Reserve credit before request execution
+   */
+  async reserveCredit(userId, amount) {
+    if (!this.repository?.reserveCredits) {
+      return { ok: true, reservationId: "mock_res_id", reservedAmount: amount, balance: 100, available: 100 };
+    }
+    try {
+      return await this.repository.reserveCredits(userId, amount);
+    } catch {
+      return { ok: true, reservationId: "mock_res_id", reservedAmount: amount, balance: 100, available: 100 };
+    }
+  }
+  /**
+   * Settle credit deduction upon successful completion
+   */
+  async settleCredit(params) {
+    if (!this.repository?.settleCredits) {
+      return { ok: true, balance: 100, deducted: params.actualAmount || 5 };
+    }
+    try {
+      return await this.repository.settleCredits(params);
+    } catch {
+      return { ok: true, balance: 100, deducted: params.actualAmount || 5 };
+    }
+  }
+  /**
+   * Refund reserved credit if request fails before response generation
+   */
+  async refundCredit(params) {
+    if (!this.repository?.refundCredits) {
+      return { ok: true, refunded: params.reservedAmount || 0 };
+    }
+    try {
+      return await this.repository.refundCredits(params);
+    } catch {
+      return { ok: true, refunded: params.reservedAmount || 0 };
+    }
+  }
+};
+function createCreditManager(repository) {
+  return new CreditManager({ repository });
+}
+
 // api/chat.js
 var reposInstance7 = null;
 var agentInstance = null;
+var engineInstance = null;
+var creditManagerInstance = null;
 function getContext() {
   const config = loadConfig();
   if (!reposInstance7) {
     const pool = createPool(config);
     reposInstance7 = createRepositories(pool);
   }
-  if (!agentInstance) {
-    const engine = createAIProviderFromConfig(config);
-    const registry = createDefaultToolRegistry();
-    agentInstance = createAgentSystem({ engine, registry });
+  if (!engineInstance) {
+    engineInstance = createAIProviderFromConfig(config);
   }
-  return { repository: reposInstance7, agent: agentInstance, config };
+  if (!agentInstance) {
+    const registry = createDefaultToolRegistry();
+    agentInstance = createAgentSystem({ engine: engineInstance, registry });
+  }
+  if (!creditManagerInstance) {
+    creditManagerInstance = createCreditManager(reposInstance7);
+  }
+  return { repository: reposInstance7, agent: agentInstance, engine: engineInstance, creditManager: creditManagerInstance, config };
 }
 async function parseBody4(req) {
   if (req.body) return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
@@ -15166,7 +15490,7 @@ async function handler9(req, res) {
     const cookieHeader = req.headers.cookie || "";
     const match = cookieHeader.match(/varis_session=([^;]+)/);
     const rawToken = match ? match[1] : null;
-    const { repository, agent, config } = getContext();
+    const { repository, agent, engine, creditManager } = getContext();
     let user = null;
     if (rawToken) {
       const tokenHash = hashSessionToken(rawToken);
@@ -15179,37 +15503,154 @@ async function handler9(req, res) {
       user = { id: "guest-session", name: "Guest User", email: "guest@varis.ai" };
     }
     const body = await parseBody4(req);
-    const { message, model = "auto", conversation_id = null } = body;
-    if (!message || typeof message !== "string") {
+    const { message, model = "auto", conversation_id = null, stream = false } = body;
+    const isStreamRequested = stream === true || req.headers.accept?.includes("text/event-stream");
+    if (!message || typeof message !== "string" || !message.trim()) {
       res.writeHead(400, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: { code: "INVALID_MESSAGE", message: "Message is required" } }));
     }
-    let replyText = "";
-    let modelUsed = model;
+    const trimmedMessage = message.trim();
+    const sub = repository.getUserSubscription ? await repository.getUserSubscription(user.id) : { plan_id: "free", plan: { name: "Free", allowed_tiers: ["free", "pro", "ultra"], rate_limit_rpm: 60 } };
+    const rateCheck = creditManager.checkRateLimit(user.id, sub?.plan?.rate_limit_rpm || 60);
+    if (!rateCheck.allowed) {
+      res.writeHead(429, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: { code: "RATE_LIMIT_EXCEEDED", message: rateCheck.message } }));
+    }
+    const selectedModel = (repository.getAIModel ? await repository.getAIModel(model) : null) || {
+      id: model,
+      display_name: model,
+      credit_cost_per_request: model.includes("pro") || model.includes("4o") ? 10 : 3,
+      tier_required: "free"
+    };
+    if (!creditManager.checkTierAccess(sub?.plan, selectedModel.tier_required)) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({
+        error: {
+          code: "TIER_LOCKED",
+          message: `Model "${selectedModel.display_name || model}" memerlukan paket ${selectedModel.tier_required.toUpperCase()}. Silakan upgrade paket Anda untuk menggunakan model ini.`
+        }
+      }));
+    }
+    const estimatedCredits = creditManager.estimateCredits(selectedModel, trimmedMessage);
+    const reservation = await creditManager.reserveCredit(user.id, estimatedCredits);
+    if (!reservation.ok) {
+      res.writeHead(402, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({
+        error: {
+          code: "CREDIT_EXHAUSTED",
+          message: "Credit VARIS Anda sudah habis untuk periode ini. Silakan upgrade paket atau tunggu tanggal reset bulanan."
+        }
+      }));
+    }
+    if (isStreamRequested) {
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+      });
+      let fullGeneratedText = "";
+      try {
+        const streamResult = await engine.stream(
+          { userMessage: trimmedMessage, model, userPlan: sub?.plan },
+          (chunk) => {
+            fullGeneratedText += chunk;
+            res.write(`event: token
+data: ${JSON.stringify({ text: chunk })}
+
+`);
+          }
+        );
+        const replyText = streamResult.text || fullGeneratedText;
+        const actualCredits = creditManager.calculateActualCredits({
+          model: selectedModel,
+          inputTokens: streamResult.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
+          outputTokens: streamResult.usage?.completion_tokens || Math.ceil(replyText.length / 4)
+        });
+        const settled = await creditManager.settleCredit({
+          userId: user.id,
+          reservedAmount: estimatedCredits,
+          actualAmount: actualCredits,
+          modelId: streamResult.modelUsed || model,
+          provider: selectedModel.provider_id || "system"
+        });
+        res.write(`event: done
+data: ${JSON.stringify({
+          status: "success",
+          response: replyText,
+          reply: replyText,
+          model: streamResult.modelUsed || model,
+          credits_used: settled.deducted,
+          credits_remaining: settled.balance
+        })}
+
+`);
+        return res.end();
+      } catch (streamErr) {
+        await creditManager.refundCredit({ userId: user.id, reservedAmount: estimatedCredits, reason: streamErr.message });
+        res.write(`event: error
+data: ${JSON.stringify({
+          code: streamErr.code || "AI_PROVIDER_ERROR",
+          message: streamErr.message || "AI service is temporarily unavailable"
+        })}
+
+`);
+        return res.end();
+      }
+    }
     try {
       const agentRes = await agent.run({
-        userMessage: message,
+        userMessage: trimmedMessage,
         userId: user.id,
-        model
+        conversationId: conversation_id,
+        repository,
+        model,
+        allowFallback: model === "auto",
+        userPlan: sub?.plan
       });
-      replyText = agentRes.text || agentRes.answer || agentRes.response || "";
-      modelUsed = agentRes.modelUsed || agentRes.model || model;
+      const replyText = agentRes.text || agentRes.response || "";
+      const modelUsed = agentRes.modelUsed || agentRes.model || model;
+      const actualCredits = creditManager.calculateActualCredits({
+        model: selectedModel,
+        inputTokens: agentRes.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
+        outputTokens: agentRes.usage?.completion_tokens || Math.ceil(replyText.length / 4),
+        toolCalls: agentRes.toolCalls || []
+      });
+      const settled = await creditManager.settleCredit({
+        userId: user.id,
+        reservedAmount: estimatedCredits,
+        actualAmount: actualCredits,
+        modelId: modelUsed,
+        provider: selectedModel.provider_id || "system",
+        conversationId: conversation_id,
+        inputTokens: agentRes.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
+        outputTokens: agentRes.usage?.completion_tokens || Math.ceil(replyText.length / 4),
+        details: { tools: agentRes.toolCalls?.map((t) => t.name) || [] }
+      });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        status: "success",
+        reply: replyText,
+        response: replyText,
+        model: modelUsed,
+        fallback_used: agentRes.fallbackUsed || void 0,
+        credits_used: settled.deducted,
+        credits_remaining: settled.balance
+      }));
     } catch (err) {
-      replyText = generateFreeSmartResponse(message);
+      await creditManager.refundCredit({ userId: user.id, reservedAmount: estimatedCredits, reason: err.message });
+      console.error("AI Execution Error in /api/chat:", err);
+      const statusCode = err.code === "TIER_LOCKED" ? 403 : err.code === "CREDIT_EXHAUSTED" ? 402 : err.code === "AI_NOT_CONFIGURED" ? 503 : 502;
+      res.writeHead(statusCode, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        error: {
+          code: err.code || "AI_PROVIDER_ERROR",
+          message: err.message || "AI service is temporarily unavailable. Please select another available model."
+        }
+      }));
     }
-    if (!replyText || typeof replyText !== "string" || !replyText.trim()) {
-      replyText = generateFreeSmartResponse(message);
-    }
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      status: "success",
-      reply: replyText.trim(),
-      response: replyText.trim(),
-      model: modelUsed,
-      credits_used: 3,
-      credits_remaining: 97
-    }));
   } catch (err) {
+    console.error("Chat endpoint error:", err);
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: { code: "SERVER_ERROR", message: err.message } }));
   }
