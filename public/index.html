@@ -473,15 +473,22 @@
                     <div class="chat-subview-wrapper">
                         <!-- Chat Subtoolbar -->
                         <div class="chat-subtoolbar">
-                            <button class="pill-model-selector" id="chat-model-selector-btn">
-                                <span class="model-status-dot"></span>
-                                <span class="model-name-text" id="chat-active-model-name">VARIS Auto</span>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
-                            </button>
+                            <div class="chat-subtoolbar-left">
+                                <button class="pill-model-selector" id="chat-model-selector-btn">
+                                    <span class="model-status-dot"></span>
+                                    <span class="model-name-text" id="chat-active-model-name">VARIS Auto</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <button class="pill-search-mode-selector" id="chat-search-mode-btn" title="Ganti Mode Pencarian Web">
+                                    <span class="search-mode-icon">🌐</span>
+                                    <span class="search-mode-text" id="chat-active-search-mode-name">Always Search</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                            </div>
 
                             <button class="pill-credits-indicator" id="chat-credits-pill-btn">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B3BE5" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                                <span id="chat-credits-display">2,450 / 3,000 credits</span>
+                                <span id="chat-credits-display">Unlimited (∞)</span>
                             </button>
                         </div>
 
@@ -1033,6 +1040,54 @@ print(f"Workspace Delight Index: {calculate_delight_score([4.5, 5.0, 4.8])}")</c
                         <p class="model-desc-text">Exceptional nuance, code architecture, and analytical depth.</p>
                     </div>
                     <span class="model-credit-badge">12 Credits</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Web Search Mode Bottom Sheet -->
+    <div class="modal-backdrop hidden" id="modal-search-mode-sheet">
+        <div class="bottom-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <h3 class="sheet-title">Web Research Mode</h3>
+                <button class="btn-sheet-close" id="btn-close-search-mode-sheet">✕</button>
+            </div>
+
+            <div class="sheet-body-scroll">
+                <span class="sheet-section-tag">PILIH MODE PENELUSURAN WEB</span>
+                
+                <div class="search-mode-option-card selected" data-search-mode="always">
+                    <div class="model-icon-square bg-blue">🌐</div>
+                    <div class="model-option-info">
+                        <div class="model-name-badge-row">
+                            <strong>Always Search</strong>
+                            <span class="badge-tag">Default & Disarankan</span>
+                        </div>
+                        <p class="model-desc-text">Mencari informasi terkini di internet untuk setiap pertanyaan sebelum AI menyusun jawaban.</p>
+                    </div>
+                </div>
+
+                <div class="search-mode-option-card" data-search-mode="smart">
+                    <div class="model-icon-square bg-purple">⚡</div>
+                    <div class="model-option-info">
+                        <div class="model-name-badge-row">
+                            <strong>Smart Search</strong>
+                            <span class="badge-tag">Otomatis</span>
+                        </div>
+                        <p class="model-desc-text">Mencari di internet secara cerdas jika pertanyaan membutuhkan data eksternal/terbaru.</p>
+                    </div>
+                </div>
+
+                <div class="search-mode-option-card" data-search-mode="offline">
+                    <div class="model-icon-square bg-slate">📴</div>
+                    <div class="model-option-info">
+                        <div class="model-name-badge-row">
+                            <strong>Offline Mode</strong>
+                            <span class="badge-tag">Tanpa Web</span>
+                        </div>
+                        <p class="model-desc-text">Hanya menggunakan pengetahuan internal model AI tanpa penelusuran internet.</p>
+                    </div>
                 </div>
             </div>
         </div>

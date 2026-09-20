@@ -21,10 +21,13 @@ let currentUser = {
 };
 let currentModel = 'auto';
 let currentModelName = 'VARIS Auto';
+let currentSearchMode = 'always'; // 'always', 'smart', 'offline'
+let currentSearchModeName = 'Always Search';
+let currentSearchModeIcon = '🌐';
 let currentConversationId = 'conv-' + Date.now();
 let isRegisterMode = false;
 let isVoiceMuted = false;
-let isWebSearchEnabled = false;
+let isWebSearchEnabled = true;
 
 // Voice Mode Web Audio State
 let audioCtx = null;
@@ -415,7 +418,9 @@ function createAIMessageElement(initialText = '') {
             <span class="ai-message-time">Just now</span>
         </div>
         <div class="ai-message-card">
+            <div class="research-status-wrapper" style="display: none;"></div>
             <div class="ai-message-body">${formatMarkdownText(initialText)}</div>
+            <div class="research-sources-container" style="display: none;"></div>
         </div>
     `;
     return row;
@@ -429,6 +434,45 @@ function createUserMessageElement(text) {
     bubble.textContent = text;
     row.appendChild(bubble);
     return row;
+}
+
+function renderSourcesCards(sources) {
+    if (!Array.isArray(sources) || sources.length === 0) return '';
+    const cardsHtml = sources.map((s, idx) => {
+        let domain = s.domain || '';
+        if (!domain && s.url) {
+            try { domain = new URL(s.url).hostname.replace(/^www\./, ''); } catch (e) { domain = 'web'; }
+        }
+        const title = s.title || 'Verified Source';
+        const snippet = s.snippet || '';
+        const scoreBadge = s.score ? `<span class="source-score-badge">${s.score}% Credibility</span>` : '';
+
+        return `
+            <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="research-source-card" title="${title}">
+                <div class="source-card-top">
+                    <span class="source-domain-pill">
+                        <span class="source-index-num">[${idx + 1}]</span>
+                        <span>${domain}</span>
+                    </span>
+                    ${scoreBadge}
+                </div>
+                <strong class="source-card-title">${title}</strong>
+                ${snippet ? `<p class="source-card-snippet">${snippet}</p>` : ''}
+            </a>
+        `;
+    }).join('');
+
+    return `
+        <div class="research-sources-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
+            <span class="research-sources-title">
+                📚 Verified Web Sources
+                <span class="research-sources-count-badge">${sources.length}</span>
+            </span>
+        </div>
+        <div class="research-sources-grid">
+            ${cardsHtml}
+        </div>
+    `;
 }
 
 function formatMarkdownText(text) {
@@ -450,11 +494,17 @@ function formatMarkdownText(text) {
         `;
     });
 
+    // Parse markdown links [Title](url)
+    formatted = formatted.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="citation-link">$1 ↗</a>');
+
     // Parse inline code `code`
     formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
 
     // Parse bold **text**
     formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+    // Parse bullet points
+    formatted = formatted.replace(/^[\*\-]\s+(.+)$/gm, '• $1');
 
     // Parse paragraphs
     const paragraphs = formatted.split('\n\n');
@@ -495,7 +545,9 @@ async function handleSendMessage() {
     const aiRow = createAIMessageElement('');
     feed.appendChild(aiRow);
     scrollChatToBottom();
+    const statusWrapper = aiRow.querySelector('.research-status-wrapper');
     const bodyEl = aiRow.querySelector('.ai-message-body');
+    const sourcesContainer = aiRow.querySelector('.research-sources-container');
     bodyEl.innerHTML = '<span class="streaming-cursor"></span>';
 
     try {
@@ -510,7 +562,8 @@ async function handleSendMessage() {
                 model: currentModel,
                 conversation_id: currentConversationId,
                 stream: true,
-                web_search: isWebSearchEnabled
+                search_mode: currentSearchMode,
+                web_search: currentSearchMode !== 'offline'
             })
         });
 
@@ -552,6 +605,7 @@ async function handleSendMessage() {
             const decoder = new TextDecoder('utf-8');
             let buffer = '';
             let streamAccumulator = '';
+            let collectedSources = [];
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -563,7 +617,40 @@ async function handleSendMessage() {
 
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i].trim();
-                    if (line.startsWith('event: token')) {
+
+                    if (line.startsWith('event: search_status')) {
+                        const dataLine = lines[i + 1]?.trim();
+                        if (dataLine && dataLine.startsWith('data:')) {
+                            try {
+                                const parsed = JSON.parse(dataLine.slice(5).trim());
+                                if (statusWrapper && parsed.status) {
+                                    statusWrapper.style.display = 'block';
+                                    statusWrapper.innerHTML = `
+                                        <div class="research-status-pill">
+                                            <span class="pulse-dot"></span>
+                                            <span>${parsed.status}</span>
+                                        </div>
+                                    `;
+                                    scrollChatToBottom();
+                                }
+                            } catch (e) {}
+                        }
+                    } else if (line.startsWith('event: sources')) {
+                        const dataLine = lines[i + 1]?.trim();
+                        if (dataLine && dataLine.startsWith('data:')) {
+                            try {
+                                const parsed = JSON.parse(dataLine.slice(5).trim());
+                                if (parsed.sources && parsed.sources.length > 0) {
+                                    collectedSources = parsed.sources;
+                                    if (sourcesContainer) {
+                                        sourcesContainer.innerHTML = renderSourcesCards(collectedSources);
+                                        sourcesContainer.style.display = 'block';
+                                        scrollChatToBottom();
+                                    }
+                                }
+                            } catch (e) {}
+                        }
+                    } else if (line.startsWith('event: token')) {
                         const dataLine = lines[i + 1]?.trim();
                         if (dataLine && dataLine.startsWith('data:')) {
                             try {
@@ -581,6 +668,13 @@ async function handleSendMessage() {
                             try {
                                 const parsed = JSON.parse(dataLine.slice(5).trim());
                                 if (parsed.response) streamAccumulator = parsed.response;
+                                if (parsed.sources && parsed.sources.length > 0) {
+                                    collectedSources = parsed.sources;
+                                    if (sourcesContainer) {
+                                        sourcesContainer.innerHTML = renderSourcesCards(collectedSources);
+                                        sourcesContainer.style.display = 'block';
+                                    }
+                                }
                                 if (parsed.credits_remaining !== undefined) {
                                     currentUser.credits = parsed.credits_remaining;
                                     renderUserData();
@@ -613,12 +707,20 @@ async function handleSendMessage() {
             }
 
             bodyEl.innerHTML = formatMarkdownText(streamAccumulator || 'I have completed analyzing your request.');
+            if (collectedSources.length > 0 && sourcesContainer) {
+                sourcesContainer.innerHTML = renderSourcesCards(collectedSources);
+                sourcesContainer.style.display = 'block';
+            }
             scrollChatToBottom();
         } else {
             // Standard JSON fallback
             const data = await res.json();
             const responseText = data.reply || data.response || data.text || '';
             bodyEl.innerHTML = formatMarkdownText(responseText);
+            if (data.sources && data.sources.length > 0 && sourcesContainer) {
+                sourcesContainer.innerHTML = renderSourcesCards(data.sources);
+                sourcesContainer.style.display = 'block';
+            }
             scrollChatToBottom();
 
             if (data.credits_remaining !== undefined) {
@@ -1101,12 +1203,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeNewFileSheet = document.getElementById('btn-close-newfile-sheet');
     if (closeNewFileSheet) closeNewFileSheet.onclick = () => closeModal('modal-newfile-sheet');
 
+    const closeSearchModeSheet = document.getElementById('btn-close-search-mode-sheet');
+    if (closeSearchModeSheet) closeSearchModeSheet.onclick = () => closeModal('modal-search-mode-sheet');
+
+    const btnChatSearchMode = document.getElementById('chat-search-mode-btn');
+    if (btnChatSearchMode) btnChatSearchMode.onclick = () => openModal('modal-search-mode-sheet');
+
+    const btnComposerWeb = document.getElementById('btn-composer-web');
+    if (btnComposerWeb) btnComposerWeb.onclick = () => openModal('modal-search-mode-sheet');
+
     // Close on backdrop click
     document.querySelectorAll('.modal-backdrop').forEach(modal => {
         modal.onclick = (e) => {
             if (e.target === modal) {
                 modal.classList.add('hidden');
             }
+        };
+    });
+
+    // Search Mode Option Cards Click
+    document.querySelectorAll('.search-mode-option-card').forEach(card => {
+        card.onclick = () => {
+            document.querySelectorAll('.search-mode-option-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            currentSearchMode = card.dataset.searchMode || 'always';
+            
+            const nameEl = card.querySelector('strong');
+            currentSearchModeName = nameEl ? nameEl.textContent : 'Always Search';
+            currentSearchModeIcon = currentSearchMode === 'always' ? '🌐' : currentSearchMode === 'smart' ? '⚡' : '📴';
+
+            const activeSearchNameDisplay = document.getElementById('chat-active-search-mode-name');
+            if (activeSearchNameDisplay) {
+                activeSearchNameDisplay.textContent = currentSearchModeName;
+            }
+
+            const searchIconEl = document.querySelector('#chat-search-mode-btn .search-mode-icon');
+            if (searchIconEl) {
+                searchIconEl.textContent = currentSearchModeIcon;
+            }
+
+            closeModal('modal-search-mode-sheet');
+            showToast(`Web research mode: ${currentSearchModeName}`);
         };
     });
 

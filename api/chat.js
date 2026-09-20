@@ -6,6 +6,7 @@ import { createAIProviderFromConfig } from '../src/ai-providers.mjs';
 import { createDefaultToolRegistry } from '../src/tool-system.mjs';
 import { createAgentSystem } from '../src/agent-system.mjs';
 import { createCreditManager } from '../src/credit-system.mjs';
+import { getDefaultWebSearchEngine } from '../src/web-research.mjs';
 
 let reposInstance = null;
 let agentInstance = null;
@@ -39,6 +40,16 @@ async function parseBody(req) {
   return str ? JSON.parse(str) : {};
 }
 
+function shouldExecuteSearch(searchMode, message) {
+  if (searchMode === 'offline') return false;
+  if (searchMode === 'always') return true;
+  // 'smart' mode: analyze if search is helpful
+  const trimmed = message.trim().toLowerCase();
+  if (/^(halo|hai|hi|hello|selamat (pagi|siang|sore|malam)|terima kasih|thanks|makasih)$/i.test(trimmed)) return false;
+  if (/^(\d+[\s\d+\-*/÷×%^()]+)$/.test(trimmed)) return false;
+  return true;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.writeHead(405, { 'Content-Type': 'application/json' });
@@ -66,7 +77,15 @@ export default async function handler(req, res) {
     }
 
     const body = await parseBody(req);
-    const { message, model = 'auto', conversation_id = null, stream = false, web_search = false } = body;
+    const {
+      message,
+      model = 'auto',
+      conversation_id = null,
+      stream = false,
+      search_mode = 'always', // Default to REAL WEB RESEARCH MODE: 'always' | 'smart' | 'offline'
+      web_search = true,
+    } = body;
+
     const isStreamRequested = stream === true || req.headers.accept?.includes('text/event-stream');
 
     if (!message || typeof message !== 'string' || !message.trim()) {
@@ -75,6 +94,13 @@ export default async function handler(req, res) {
     }
 
     const trimmedMessage = message.trim();
+    // Resolve effective search mode
+    let effectiveSearchMode = search_mode;
+    if (body.web_search === false && !body.search_mode) {
+      effectiveSearchMode = 'offline';
+    }
+
+    const doSearch = shouldExecuteSearch(effectiveSearchMode, trimmedMessage);
 
     // 1. Check User Subscription & Rate Limit
     const sub = repository.getUserSubscription
@@ -112,36 +138,7 @@ export default async function handler(req, res) {
       reservation = { ok: true, balance: 999999, reservedAmount: estimatedCredits };
     }
 
-    // Live Web Search Grounding (Google-like live retrieval)
-    let searchContext = null;
-    const shouldWebSearch = web_search === true || 
-      /^(siapa presiden|berita|kabar|info terbaru|terkini|cuaca|update|search|cari|harga saham|skor|jadwal|siapa pemenang|fakta|peristiwa)/i.test(trimmedMessage) ||
-      trimmedMessage.toLowerCase().includes('presiden indonesia') ||
-      trimmedMessage.toLowerCase().includes('terbaru') ||
-      trimmedMessage.toLowerCase().includes('terkini');
-
-    if (shouldWebSearch) {
-      try {
-        const registry = createDefaultToolRegistry();
-        const searchTool = registry.get('web_search');
-        if (searchTool) {
-          const searchData = await searchTool.execute({ query: trimmedMessage }, { permissions: new Set(['web:search']) });
-          if (searchData?.ok && searchData.result?.results?.length > 0) {
-            const formattedResults = searchData.result.results.map((r, i) => 
-              `[${i + 1}] ${r.title} (${r.source})\n${r.snippet}`
-            ).join('\n\n');
-            searchContext = {
-              role: 'system',
-              content: `Berikut hasil penelusuran web real-time terkini untuk query pengguna:\n\n${formattedResults}\n\nGunakan data di atas untuk menjawab secara akurat, faktual, dan sertakan rujukan URL/sumber bila bermanfaat bagi pengguna.`
-            };
-          }
-        }
-      } catch (err) {
-        console.warn('Web search pre-fetch warning:', err);
-      }
-    }
-
-    // 4. Handle SSE Streaming Response
+    // 4. Handle SSE Streaming Response with Real-Time Web Research Lifecycle
     if (isStreamRequested) {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
@@ -151,7 +148,61 @@ export default async function handler(req, res) {
       });
 
       let fullGeneratedText = '';
+      let researchData = null;
+      let searchContext = null;
+
       try {
+        // Step A: Real-Time Web Search Execution
+        if (doSearch) {
+          res.write(`event: search_status\ndata: ${JSON.stringify({
+            phase: 'planning',
+            status: 'Menganalisis pertanyaan dan menyusun query riset...',
+            search_mode: effectiveSearchMode,
+          })}\n\n`);
+
+          const searchEngine = getDefaultWebSearchEngine();
+          researchData = await searchEngine.research(trimmedMessage, { maxSources: 5 });
+
+          const sources = researchData?.sources || [];
+          const plannedQueries = researchData?.planned_queries || [];
+
+          if (sources.length > 0) {
+            res.write(`event: search_status\ndata: ${JSON.stringify({
+              phase: 'searching',
+              status: `Ditemukan ${sources.length} sumber terverifikasi`,
+              sources_count: sources.length,
+              queries: plannedQueries,
+            })}\n\n`);
+
+            res.write(`event: sources\ndata: ${JSON.stringify({
+              sources,
+              planned_queries: plannedQueries,
+              search_mode: effectiveSearchMode,
+            })}\n\n`);
+
+            if (researchData.formatted_context) {
+              searchContext = {
+                role: 'system',
+                content: researchData.formatted_context,
+              };
+            }
+          } else {
+            res.write(`event: search_status\ndata: ${JSON.stringify({
+              phase: 'searching',
+              status: 'Tidak ditemukan sumber spesifik di web, menjawab dengan basis pengetahuan...',
+              sources_count: 0,
+              queries: plannedQueries,
+            })}\n\n`);
+
+            res.write(`event: sources\ndata: ${JSON.stringify({
+              sources: [],
+              planned_queries: plannedQueries,
+              search_mode: effectiveSearchMode,
+            })}\n\n`);
+          }
+        }
+
+        // Step B: Stream AI Model Inference
         const chatContext = searchContext ? [searchContext] : [];
         const streamResult = await engine.stream(
           { userMessage: trimmedMessage, model, userPlan: sub?.plan, context: chatContext },
@@ -181,6 +232,9 @@ export default async function handler(req, res) {
           response: replyText,
           reply: replyText,
           model: streamResult.modelUsed || model,
+          sources: researchData?.sources || [],
+          planned_queries: researchData?.planned_queries || [],
+          search_mode: effectiveSearchMode,
           credits_used: settled.deducted,
           credits_remaining: settled.balance,
         })}\n\n`);
@@ -197,6 +251,24 @@ export default async function handler(req, res) {
 
     // 5. Handle Non-Streaming JSON Response
     try {
+      let researchData = null;
+      let initialContext = [];
+
+      if (doSearch) {
+        try {
+          const searchEngine = getDefaultWebSearchEngine();
+          researchData = await searchEngine.research(trimmedMessage, { maxSources: 5 });
+          if (researchData?.formatted_context) {
+            initialContext.push({
+              role: 'system',
+              content: researchData.formatted_context,
+            });
+          }
+        } catch (searchErr) {
+          console.warn('Non-streaming search pre-fetch warning:', searchErr);
+        }
+      }
+
       const agentRes = await agent.run({
         userMessage: trimmedMessage,
         userId: user.id,
@@ -205,6 +277,7 @@ export default async function handler(req, res) {
         model,
         allowFallback: model === 'auto',
         userPlan: sub?.plan,
+        initialContext,
       });
 
       const replyText = agentRes.text || agentRes.response || '';
@@ -235,6 +308,9 @@ export default async function handler(req, res) {
         reply: replyText,
         response: replyText,
         model: modelUsed,
+        sources: researchData?.sources || [],
+        planned_queries: researchData?.planned_queries || [],
+        search_mode: effectiveSearchMode,
         fallback_used: agentRes.fallbackUsed || undefined,
         credits_used: settled.deducted,
         credits_remaining: settled.balance,

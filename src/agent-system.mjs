@@ -30,6 +30,7 @@ export function createAgentSystem({
   return {
     async run({
       context = [],
+      initialContext = [],
       userMessage,
       userId,
       conversationId,
@@ -100,7 +101,7 @@ export function createAgentSystem({
         },
       };
 
-      let currentContext = [...(context || [])];
+      let currentContext = [...(initialContext || []), ...(context || [])];
 
       if (userMessage && userId && repository?.searchMemories && engine.embed) {
         try {

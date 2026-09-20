@@ -9,5 +9,7 @@ import './scenarios.test.mjs';
 import './general-intelligence.test.mjs';
 import './multi-model.test.mjs';
 import './google-auth.test.mjs';
+import './web-research.test.mjs';
+import './research-chat.test.mjs';
 
 

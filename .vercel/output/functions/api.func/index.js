@@ -13752,23 +13752,22 @@ var VARIS_SYSTEM_PROMPT = `Kamu adalah VARIS, asisten AI cerdas, serbaguna (gene
 
 Prinsip Utama VARIS:
 
-1. Kecerdasan Umum (General Intelligence):
-- Mampu membahas, menganalisis, dan memecahkan masalah dalam berbagai domain: pengetahuan umum, sains, astronomi, sejarah, teknologi, pemrograman, matematika, bahasa, pendidikan, logika, analisis data/file, penulisan kreatif, brainstorming, hingga obrolan santai sehari-hari.
-- Terbuka untuk semua topik baru yang diajukan pengguna tanpa membatasi diri pada kumpulan template.
+1. Kecerdasan Umum & Riset Real-Time (General Intelligence & Real-Time Research):
+- Mampu membahas, menganalisis, dan memecahkan masalah dalam berbagai domain: pengetahuan umum, sains, astronomi, sejarah, teknologi, pemrograman, matematika, bahasa, pendidikan, logika, analisis data/file, penulisan kreatif, hingga peristiwa terkini.
+- Apabila disediakan konteks hasil penelusuran web real-time (Real-Time Web Research Context), WAJIB gunakan informasi terverifikasi tersebut sebagai fakta acuan utama untuk menyusun jawaban.
 
 2. Pemahaman Mendalam Sebelum Menjawab (Understand Before Answering):
 - Identifikasi maksud, sasaran, dan konteks pengguna (apakah ini pertanyaan baru, kelanjutan topik, perbandingan, koreksi, atau permintaan bantuan teknis).
 - Pertahankan kesinambungan multi-turn. Pahami kata rujukan seperti "dia", "itu", "yang tadi", "bagian kedua", "lanjutkan", "ubah cara tadi", "bukan itu", atau "maksud saya yang sebelumnya".
 - Pecah masalah kompleks atau troubleshooting menjadi tahapan terstruktur yang logis dan mudah dipahami.
 
-3. Pemanfaatan Tools Secara Tepat (Tool Intelligence):
+3. Pemanfaatan Tools & Web Search (Tool Intelligence):
 - 'calculator': Gunakan untuk perhitungan matematika angka besar, perkalian/pembagian kompleks, dan ekspresi aritmatika agar presisi 100%.
 - 'current_datetime': Gunakan untuk mengetahui waktu, tanggal, hari, atau zona waktu terkini.
 - 'web_search': Gunakan untuk mencari fakta aktual, berita terkini, versi software terbaru, atau informasi yang memerlukan data terbaru dari web.
 - 'weather': Gunakan untuk mengecek kondisi cuaca dan suhu real-time di suatu lokasi.
 - 'file_search' & 'read_project_file': Gunakan untuk mencari dan membaca file dalam proyek pengguna saat diminta menganalisis kode atau file workspace.
 - 'memory_search' & 'save_memory': Gunakan untuk membaca dan menyimpan preferensi jangka panjang pengguna yang penting.
-- Jangan memanggil tool jika pertanyaan dapat dijawab secara langsung dengan pengetahuan konseptual yang sudah pasti.
 
 4. Gaya Bahasa & Komunikasi Adaptif:
 - Gunakan bahasa yang santai, alami, ramah, dan komunikatif (sesuaikan dengan gaya bahasa user: Bahasa Indonesia, English, atau bahasa campuran).
@@ -13776,11 +13775,12 @@ Prinsip Utama VARIS:
 - Pertanyaan sederhana / percakapan suara: Berikan jawaban ringkas, padat, dan jelas (1-3 kalimat).
 - Coding / tutorial teknis: Berikan penjelasan konseptual singkat beserta blok kode yang bersih, valid, dan siap pakai.
 
-5. Akurasi, Kontrol Halusinasi & Koreksi Diri:
+5. Akurasi, Kontrol Halusinasi, Koreksi Diri & Sitasi Terverifikasi:
 - Prioritas utama: Akurasi > Relevansi > Konteks > Kejelasan > Kecepatan.
 - Jangan pernah mengarang data, angka, nama, URL, atau hasil eksekusi tool.
-- Jika user mengoreksi jawabanmu ("Jawabanmu salah"), bersikaplah terbuka, teliti kembali kesalahan dengan rendah hati, dan berikan perbaikan yang benar.
-- Jika suatu informasi tidak diketahui atau tidak dapat dipastikan, sampaikan dengan jujur.`;
+- Saat menggunakan informasi hasil web search, cantumkan sumber atau rujukan yang sesuai.
+- Jika ada kontradiksi antar sumber yang ditemukan, jelaskan perbedaannya secara objektif dan netral.
+- Jika suatu informasi tidak ditemukan atau belum pasti, sampaikan dengan jujur tanpa berspekulasi.`;
 function isRetryable(error) {
   if (error?.retryable === false) return false;
   const status = error?.status ?? error?.statusCode;
@@ -14582,6 +14582,483 @@ function createAIProviderFromConfig(config, { logger } = {}) {
 // src/tool-system.mjs
 import fs from "node:fs/promises";
 import path2 from "node:path";
+
+// src/web-research.mjs
+import { URL as URL2 } from "node:url";
+var ResearchCache = class {
+  #store = /* @__PURE__ */ new Map();
+  constructor({ defaultTtlMs = 15 * 60 * 1e3 } = {}) {
+    this.defaultTtlMs = defaultTtlMs;
+  }
+  get(key) {
+    if (!key) return null;
+    const normalizedKey = String(key).trim().toLowerCase();
+    const entry = this.#store.get(normalizedKey);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      this.#store.delete(normalizedKey);
+      return null;
+    }
+    return entry.value;
+  }
+  set(key, value, ttlMs = this.defaultTtlMs) {
+    if (!key) return;
+    const normalizedKey = String(key).trim().toLowerCase();
+    this.#store.set(normalizedKey, {
+      value,
+      expiresAt: Date.now() + (ttlMs || this.defaultTtlMs),
+      createdAt: Date.now()
+    });
+  }
+  has(key) {
+    return this.get(key) !== null;
+  }
+  clear() {
+    this.#store.clear();
+  }
+  size() {
+    const now = Date.now();
+    for (const [k, v] of this.#store.entries()) {
+      if (now > v.expiresAt) this.#store.delete(k);
+    }
+    return this.#store.size;
+  }
+};
+var QueryPlanner = class {
+  /**
+   * Cleans conversational filler words from queries
+   */
+  static cleanQuery(text) {
+    if (!text || typeof text !== "string") return "";
+    let result = text.trim();
+    const prefixRegex = /^(tolong\s+carikan|tolong\s+cari|tolong\s+search|tolong|bisa\s+tolong|coba\s+carikan|coba\s+cari|cari|search|googling|carikan|info\s+tentang|informasi\s+tentang|berikan\s+informasi\s+tentang|mohon\s+jelaskan|siapakah|apakah\s+kamu\s+tahu|apakah\s+anda\s+tahu|apa\s+itu|jelaskan\s+tentang|jelaskan)\s+/i;
+    let changed = true;
+    while (changed) {
+      const next = result.replace(prefixRegex, "");
+      if (next === result) {
+        changed = false;
+      } else {
+        result = next.trim();
+      }
+    }
+    return result.replace(/[?!.,;:"'(){}\[\]]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  /**
+   * Analyzes user intent and builds 1 to 3 optimized web search queries
+   */
+  static plan(userMessage, { recentContext = [] } = {}) {
+    const raw = (userMessage || "").trim();
+    if (!raw) return [];
+    const cleaned = this.cleanQuery(raw);
+    const lowerRaw = raw.toLowerCase();
+    const queries = [];
+    const seen = /* @__PURE__ */ new Set();
+    const addQuery = (q) => {
+      const normalized = q.trim().replace(/\s+/g, " ");
+      if (normalized.length > 2 && !seen.has(normalized.toLowerCase())) {
+        seen.add(normalized.toLowerCase());
+        queries.push(normalized);
+      }
+    };
+    if (cleaned) {
+      addQuery(cleaned);
+    }
+    const vsMatch = cleaned.match(/(.+?)\s+(?:vs|versus|dibandingkan dengan|dibanding|bandingkan)\s+(.+)/i);
+    if (vsMatch) {
+      const itemA = vsMatch[1].trim();
+      const itemB = vsMatch[2].trim();
+      addQuery(`${itemA} specs`);
+      addQuery(`${itemB} specs`);
+      addQuery(`${itemA} vs ${itemB} comparison review`);
+    }
+    if (/presiden\s+indonesia/i.test(cleaned) || /wakil\s+presiden/i.test(cleaned) || /menteri/i.test(cleaned)) {
+      addQuery("Presiden Republik Indonesia terbaru");
+      addQuery("Prabowo Subianto Presiden Indonesia");
+    }
+    if (/harga|biaya|tarif|price|cost|beli/i.test(cleaned)) {
+      addQuery(`${cleaned} harga resmi`);
+    }
+    if (/dokumentasi|setup|install|cara pakai|api|sdk|library|tutorial/i.test(cleaned)) {
+      addQuery(`${cleaned} official documentation`);
+    }
+    if (/berita|terbaru|terkini|update|hari ini|skor|jadwal|gempa|cuaca/i.test(lowerRaw)) {
+      const date = /* @__PURE__ */ new Date();
+      const currentYear = date.getFullYear();
+      addQuery(`${cleaned} berita terbaru ${currentYear}`);
+    }
+    return queries.slice(0, 3);
+  }
+};
+var SourceRanker = class {
+  /**
+   * Scores domain authority and credibility (0 - 100)
+   */
+  static scoreDomain(rawUrl) {
+    if (!rawUrl) return 50;
+    try {
+      const parsed = new URL2(rawUrl);
+      const host = parsed.hostname.toLowerCase();
+      if (host.endsWith(".go.id") || host.endsWith(".gov") || host.endsWith(".mil")) return 98;
+      if (host.endsWith(".ac.id") || host.endsWith(".edu")) return 95;
+      if (host === "developer.mozilla.org" || host === "docs.python.org" || host === "developers.google.com" || host === "learn.microsoft.com" || host === "nodejs.org" || host === "github.com" || host === "w3.org") return 94;
+      if (host.includes("wikipedia.org") || host.includes("britannica.com")) return 88;
+      if (host.includes("antaranews.com") || host.includes("reuters.com") || host.includes("bbc.com") || host.includes("apnews.com") || host.includes("bloomberg.com") || host.includes("kompas.com") || host.includes("tempo.co") || host.includes("detik.com") || host.includes("theverge.com") || host.includes("techcrunch.com")) return 85;
+      return 70;
+    } catch {
+      return 50;
+    }
+  }
+  /**
+   * Normalizes URL to prevent duplicates with tracking query parameters
+   */
+  static normalizeUrl(rawUrl) {
+    if (!rawUrl) return "";
+    try {
+      const parsed = new URL2(rawUrl);
+      parsed.hash = "";
+      ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "ref"].forEach((p) => {
+        parsed.searchParams.delete(p);
+      });
+      return parsed.toString().replace(/\/+$/, "");
+    } catch {
+      return rawUrl.trim();
+    }
+  }
+  /**
+   * Ranks, deduplicates, and validates retrieved sources
+   */
+  static rankAndFilter(sources = [], { targetQueries = [], maxSources = 6 } = {}) {
+    if (!Array.isArray(sources) || sources.length === 0) return [];
+    const seenUrls = /* @__PURE__ */ new Set();
+    const seenTitles = /* @__PURE__ */ new Set();
+    const ranked = [];
+    for (const source of sources) {
+      if (!source || !source.title || !source.url) continue;
+      const normalizedUrl = this.normalizeUrl(source.url);
+      const normalizedTitle = source.title.trim().toLowerCase();
+      if (seenUrls.has(normalizedUrl) || seenTitles.has(normalizedTitle)) {
+        continue;
+      }
+      seenUrls.add(normalizedUrl);
+      seenTitles.add(normalizedTitle);
+      const domainScore = this.scoreDomain(source.url);
+      const snippetLength = (source.snippet || "").trim().length;
+      const snippetScore = snippetLength > 80 ? 15 : snippetLength > 30 ? 10 : 5;
+      let queryMatchBonus = 0;
+      const combinedText = `${source.title} ${source.snippet || ""}`.toLowerCase();
+      for (const q of targetQueries) {
+        const words = q.toLowerCase().split(" ").filter((w) => w.length > 2);
+        const matchCount = words.filter((w) => combinedText.includes(w)).length;
+        if (words.length > 0) {
+          queryMatchBonus += Math.min(15, matchCount / words.length * 15);
+        }
+      }
+      const totalScore = domainScore + snippetScore + queryMatchBonus;
+      let domain = "";
+      try {
+        domain = new URL2(source.url).hostname.replace(/^www\./, "");
+      } catch {
+        domain = source.source_name || "web";
+      }
+      ranked.push({
+        id: source.id || `src-${ranked.length + 1}`,
+        title: source.title.trim(),
+        url: normalizedUrl,
+        snippet: (source.snippet || "").replace(/<[^>]+>/g, "").trim(),
+        source_name: source.source_name || domain,
+        domain,
+        score: Math.round(totalScore),
+        type: source.type || "web_result",
+        published_date: source.published_date || null
+      });
+    }
+    ranked.sort((a, b) => b.score - a.score);
+    return ranked.slice(0, maxSources);
+  }
+};
+var BaseWebSearchProvider = class {
+  constructor(name) {
+    this.name = name;
+  }
+  async search(query, options = {}) {
+    throw new Error("search() must be implemented by subclass");
+  }
+};
+var WikipediaSearchProvider = class extends BaseWebSearchProvider {
+  constructor({ timeoutMs = 4500 } = {}) {
+    super("wikipedia");
+    this.timeoutMs = timeoutMs;
+  }
+  async search(query, { limit: limit2 = 3 } = {}) {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return [];
+    const results = [];
+    const seenTitles = /* @__PURE__ */ new Set();
+    try {
+      const idUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      const res = await fetch(idUrl, {
+        headers: { "User-Agent": "VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)" },
+        signal: controller.signal
+      }).finally(() => clearTimeout(timer));
+      if (res.ok) {
+        const data = await res.json();
+        const searchItems = data?.query?.search || [];
+        for (const item of searchItems.slice(0, limit2)) {
+          if (seenTitles.has(item.title.toLowerCase())) continue;
+          seenTitles.add(item.title.toLowerCase());
+          let snippet = (item.snippet || "").replace(/<[^>]+>/g, "").trim();
+          try {
+            const sumController = new AbortController();
+            const sumTimer = setTimeout(() => sumController.abort(), 2500);
+            const sumRes = await fetch(
+              `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+              { headers: { "User-Agent": "VarisAI-Research/2.0" }, signal: sumController.signal }
+            ).finally(() => clearTimeout(sumTimer));
+            if (sumRes.ok) {
+              const sumData = await sumRes.json();
+              if (sumData.extract) {
+                snippet = sumData.extract;
+              }
+            }
+          } catch {
+          }
+          results.push({
+            title: item.title,
+            url: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+            snippet,
+            source_name: "Wikipedia (ID)",
+            domain: "id.wikipedia.org",
+            type: "encyclopedic_id"
+          });
+        }
+      }
+    } catch {
+    }
+    if (results.length < limit2) {
+      try {
+        const enUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        const res = await fetch(enUrl, {
+          headers: { "User-Agent": "VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)" },
+          signal: controller.signal
+        }).finally(() => clearTimeout(timer));
+        if (res.ok) {
+          const data = await res.json();
+          const searchItems = (data?.query?.search || []).slice(0, limit2 - results.length);
+          for (const item of searchItems) {
+            if (seenTitles.has(item.title.toLowerCase())) continue;
+            seenTitles.add(item.title.toLowerCase());
+            let snippet = (item.snippet || "").replace(/<[^>]+>/g, "").trim();
+            try {
+              const sumController = new AbortController();
+              const sumTimer = setTimeout(() => sumController.abort(), 2500);
+              const sumRes = await fetch(
+                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+                { headers: { "User-Agent": "VarisAI-Research/2.0" }, signal: sumController.signal }
+              ).finally(() => clearTimeout(sumTimer));
+              if (sumRes.ok) {
+                const sumData = await sumRes.json();
+                if (sumData.extract) snippet = sumData.extract;
+              }
+            } catch {
+            }
+            results.push({
+              title: item.title,
+              url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+              snippet,
+              source_name: "Wikipedia (Global)",
+              domain: "en.wikipedia.org",
+              type: "encyclopedic_en"
+            });
+          }
+        }
+      } catch {
+      }
+    }
+    return results;
+  }
+};
+var DuckDuckGoSearchProvider = class extends BaseWebSearchProvider {
+  constructor({ timeoutMs = 4500 } = {}) {
+    super("duckduckgo");
+    this.timeoutMs = timeoutMs;
+  }
+  async search(query, { limit: limit2 = 4 } = {}) {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return [];
+    const results = [];
+    try {
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      const res = await fetch(url, {
+        headers: { "User-Agent": "VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)" },
+        signal: controller.signal
+      }).finally(() => clearTimeout(timer));
+      if (res.ok) {
+        const data = await res.json();
+        if (data.AbstractText && data.AbstractURL) {
+          results.push({
+            title: data.Heading || cleanQuery,
+            url: data.AbstractURL,
+            snippet: data.AbstractText,
+            source_name: data.AbstractSource || "DuckDuckGo Knowledge",
+            type: "direct_answer"
+          });
+        }
+        if (Array.isArray(data.RelatedTopics)) {
+          for (const topic of data.RelatedTopics) {
+            if (results.length >= limit2) break;
+            if (topic.Text && topic.FirstURL) {
+              const title = topic.Text.split(" - ")[0] || cleanQuery;
+              results.push({
+                title,
+                url: topic.FirstURL,
+                snippet: topic.Text,
+                source_name: "DuckDuckGo Topic",
+                type: "web_result"
+              });
+            } else if (Array.isArray(topic.Topics)) {
+              for (const subTopic of topic.Topics) {
+                if (results.length >= limit2) break;
+                if (subTopic.Text && subTopic.FirstURL) {
+                  results.push({
+                    title: subTopic.Text.split(" - ")[0] || cleanQuery,
+                    url: subTopic.FirstURL,
+                    snippet: subTopic.Text,
+                    source_name: "DuckDuckGo SubTopic",
+                    type: "web_result"
+                  });
+                }
+              }
+            }
+          }
+        }
+        if (Array.isArray(data.Results)) {
+          for (const item of data.Results) {
+            if (results.length >= limit2) break;
+            if (item.FirstURL && item.Text) {
+              results.push({
+                title: item.Text.split(" - ")[0] || cleanQuery,
+                url: item.FirstURL,
+                snippet: item.Text,
+                source_name: "DuckDuckGo Direct Link",
+                type: "web_result"
+              });
+            }
+          }
+        }
+      }
+    } catch {
+    }
+    return results;
+  }
+};
+var MultiWebSearchEngine = class {
+  constructor({
+    providers = [],
+    cache = new ResearchCache(),
+    maxSources = 5
+  } = {}) {
+    this.providers = providers.length > 0 ? providers : [
+      new WikipediaSearchProvider(),
+      new DuckDuckGoSearchProvider()
+    ];
+    this.cache = cache;
+    this.maxSources = maxSources;
+  }
+  /**
+   * Executes multi-query parallel research workflow
+   */
+  async research(userMessage, { maxSources = this.maxSources, bypassCache = false } = {}) {
+    const raw = (userMessage || "").trim();
+    if (!raw) {
+      return {
+        query: "",
+        planned_queries: [],
+        sources: [],
+        formatted_context: "",
+        status: "empty_query"
+      };
+    }
+    const cacheKey = `research:${raw.toLowerCase()}`;
+    if (!bypassCache) {
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        return { ...cached, from_cache: true };
+      }
+    }
+    const plannedQueries = QueryPlanner.plan(raw);
+    if (plannedQueries.length === 0) {
+      plannedQueries.push(QueryPlanner.cleanQuery(raw) || raw);
+    }
+    const rawCollectedSources = [];
+    const searchPromises = [];
+    for (const query of plannedQueries) {
+      for (const provider of this.providers) {
+        searchPromises.push(
+          provider.search(query, { limit: 3 }).then((res) => {
+            if (Array.isArray(res)) {
+              rawCollectedSources.push(...res);
+            }
+          }).catch(() => {
+          })
+        );
+      }
+    }
+    await Promise.all(searchPromises);
+    const rankedSources = SourceRanker.rankAndFilter(rawCollectedSources, {
+      targetQueries: plannedQueries,
+      maxSources
+    });
+    const formattedContext = buildResearchContext(rankedSources, raw);
+    const result = {
+      query: raw,
+      planned_queries: plannedQueries,
+      total_sources_found: rawCollectedSources.length,
+      sources: rankedSources,
+      formatted_context: formattedContext,
+      status: rankedSources.length > 0 ? "success" : "no_sources_found",
+      timestamp: Date.now()
+    };
+    this.cache.set(cacheKey, result, 10 * 60 * 1e3);
+    return result;
+  }
+};
+function buildResearchContext(sources = [], userQuery = "") {
+  if (!Array.isArray(sources) || sources.length === 0) {
+    return "";
+  }
+  const citationsList = sources.map((s, idx) => {
+    const num = idx + 1;
+    return `[${num}] "${s.title}" (${s.source_name || s.domain})
+URL: ${s.url}
+Ringkasan: ${s.snippet}`;
+  }).join("\n\n");
+  return `=== HASIL RISET WEB REAL-TIME TERKINI ===
+Topik/Pertanyaan: "${userQuery}"
+Jumlah Sumber Terverifikasi: ${sources.length}
+
+${citationsList}
+
+INSTRUKSI PENGGUNAAN SUMBER:
+1. Gunakan fakta di atas sebagai landasan utama jawaban yang akurat dan terkini.
+2. Cantumkan rujukan berupa tautan markdown langsung ke sumber asli, contoh: "[Nama Sumber](URL)" atau gunakan nomor rujukan seperti "[1]".
+3. Jangan pernah mengarang data atau URL fiktif di luar sumber yang terverifikasi.
+4. Jika ada perbedaan informasi antar sumber, jelaskan perbedaannya secara netral.`;
+}
+var defaultEngineInstance = null;
+function getDefaultWebSearchEngine() {
+  if (!defaultEngineInstance) {
+    defaultEngineInstance = new MultiWebSearchEngine();
+  }
+  return defaultEngineInstance;
+}
+
+// src/tool-system.mjs
 function toolError(code, message, details = void 0) {
   return { ok: false, error: { code, message, ...details !== void 0 ? { details } : {} } };
 }
@@ -15116,132 +15593,28 @@ function createDefaultToolRegistry({ now = () => /* @__PURE__ */ new Date() } = 
     },
     execute: async ({ query }) => {
       try {
-        const results = [];
         const cleanQuery = query.trim();
-        const seenTitles = /* @__PURE__ */ new Set();
-        try {
-          const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
-          const ddgController = new AbortController();
-          const ddgTimer = setTimeout(() => ddgController.abort(), 4e3);
-          const ddgRes = await fetch(ddgUrl, {
-            headers: { "User-Agent": "VarisAI/2.0" },
-            signal: ddgController.signal
-          }).finally(() => clearTimeout(ddgTimer));
-          if (ddgRes.ok) {
-            const ddgData = await ddgRes.json();
-            if (ddgData.AbstractText) {
-              const heading = ddgData.Heading || cleanQuery;
-              seenTitles.add(heading.toLowerCase());
-              results.push({
-                title: heading,
-                snippet: ddgData.AbstractText,
-                source: ddgData.AbstractURL || "https://duckduckgo.com/?q=" + encodeURIComponent(cleanQuery),
-                type: "direct_answer"
-              });
-            }
-            if (Array.isArray(ddgData.RelatedTopics)) {
-              for (const topic of ddgData.RelatedTopics.slice(0, 3)) {
-                if (topic.Text && topic.FirstURL) {
-                  const title = topic.Text.split(" - ")[0] || cleanQuery;
-                  if (!seenTitles.has(title.toLowerCase())) {
-                    seenTitles.add(title.toLowerCase());
-                    results.push({
-                      title,
-                      snippet: topic.Text,
-                      source: topic.FirstURL,
-                      type: "web_result"
-                    });
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-        }
-        try {
-          const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
-          const wikiController = new AbortController();
-          const wikiTimer = setTimeout(() => wikiController.abort(), 4500);
-          const wikiRes = await fetch(wikiUrl, {
-            headers: { "User-Agent": "VarisAI/2.0" },
-            signal: wikiController.signal
-          }).finally(() => clearTimeout(wikiTimer));
-          if (wikiRes.ok) {
-            const wikiData = await wikiRes.json();
-            const searchItems = wikiData?.query?.search || [];
-            for (const item of searchItems.slice(0, 3)) {
-              if (seenTitles.has(item.title.toLowerCase())) continue;
-              seenTitles.add(item.title.toLowerCase());
-              let richSnippet = item.snippet.replace(/<[^>]+>/g, "").trim();
-              try {
-                const sumController = new AbortController();
-                const sumTimer = setTimeout(() => sumController.abort(), 3e3);
-                const sumRes = await fetch(
-                  `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
-                  { headers: { "User-Agent": "VarisAI/2.0" }, signal: sumController.signal }
-                ).finally(() => clearTimeout(sumTimer));
-                if (sumRes.ok) {
-                  const sumData = await sumRes.json();
-                  if (sumData.extract) {
-                    richSnippet = sumData.extract;
-                  }
-                }
-              } catch (e) {
-              }
-              results.push({
-                title: item.title,
-                snippet: richSnippet,
-                source: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
-                type: "encyclopedic"
-              });
-            }
-          }
-        } catch (e) {
-        }
-        if (results.length < 2) {
-          try {
-            const enWikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
-            const enController = new AbortController();
-            const enTimer = setTimeout(() => enController.abort(), 4500);
-            const enRes = await fetch(enWikiUrl, {
-              headers: { "User-Agent": "VarisAI/2.0" },
-              signal: enController.signal
-            }).finally(() => clearTimeout(enTimer));
-            if (enRes.ok) {
-              const enData = await enRes.json();
-              const enItems = (enData?.query?.search || []).slice(0, 2);
-              for (const item of enItems) {
-                if (seenTitles.has(item.title.toLowerCase())) continue;
-                seenTitles.add(item.title.toLowerCase());
-                let snippet = item.snippet.replace(/<[^>]+>/g, "").trim();
-                try {
-                  const sumController = new AbortController();
-                  const sumTimer = setTimeout(() => sumController.abort(), 3e3);
-                  const sumRes = await fetch(
-                    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
-                    { headers: { "User-Agent": "VarisAI/2.0" }, signal: sumController.signal }
-                  ).finally(() => clearTimeout(sumTimer));
-                  if (sumRes.ok) {
-                    const sumData = await sumRes.json();
-                    if (sumData.extract) snippet = sumData.extract;
-                  }
-                } catch (e) {
-                }
-                results.push({
-                  title: item.title,
-                  snippet,
-                  source: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
-                  type: "encyclopedic_global"
-                });
-              }
-            }
-          } catch (e) {
-          }
-        }
+        const engine = getDefaultWebSearchEngine();
+        const researchData = await engine.research(cleanQuery, { maxSources: 5 });
+        const results = (researchData?.sources || []).map((s) => ({
+          title: s.title,
+          snippet: s.snippet,
+          source: s.url,
+          source_name: s.source_name,
+          domain: s.domain,
+          score: s.score,
+          type: s.type
+        }));
         if (results.length === 0) {
-          return { query: cleanQuery, results: [], message: `No direct web search results found for "${cleanQuery}".` };
+          return { query: cleanQuery, results: [], total_results: 0, message: `No direct web search results found for "${cleanQuery}".` };
         }
-        return { query: cleanQuery, total_results: results.length, results: results.slice(0, 5) };
+        return {
+          query: cleanQuery,
+          total_results: results.length,
+          results,
+          planned_queries: researchData?.planned_queries || [cleanQuery],
+          formatted_context: researchData?.formatted_context || ""
+        };
       } catch (err) {
         throw Object.assign(new Error(`Web search failed: ${err.message}`), { code: "SEARCH_FAILED" });
       }
@@ -15447,6 +15820,7 @@ function createAgentSystem({
   return {
     async run({
       context = [],
+      initialContext = [],
       userMessage,
       userId,
       conversationId,
@@ -15513,7 +15887,7 @@ function createAgentSystem({
           }
         }
       };
-      let currentContext = [...context || []];
+      let currentContext = [...initialContext || [], ...context || []];
       if (userMessage && userId && repository?.searchMemories && engine.embed) {
         try {
           const embedding = await engine.embed({ text: userMessage });
@@ -15712,6 +16086,14 @@ async function parseBody4(req) {
   const str2 = Buffer.concat(chunks).toString();
   return str2 ? JSON.parse(str2) : {};
 }
+function shouldExecuteSearch(searchMode, message) {
+  if (searchMode === "offline") return false;
+  if (searchMode === "always") return true;
+  const trimmed = message.trim().toLowerCase();
+  if (/^(halo|hai|hi|hello|selamat (pagi|siang|sore|malam)|terima kasih|thanks|makasih)$/i.test(trimmed)) return false;
+  if (/^(\d+[\s\d+\-*/÷×%^()]+)$/.test(trimmed)) return false;
+  return true;
+}
 async function handler9(req, res) {
   if (req.method !== "POST") {
     res.writeHead(405, { "Content-Type": "application/json" });
@@ -15734,13 +16116,26 @@ async function handler9(req, res) {
       user = { id: "guest-session", name: "Guest User", email: "guest@varis.ai" };
     }
     const body = await parseBody4(req);
-    const { message, model = "auto", conversation_id = null, stream = false, web_search = false } = body;
+    const {
+      message,
+      model = "auto",
+      conversation_id = null,
+      stream = false,
+      search_mode = "always",
+      // Default to REAL WEB RESEARCH MODE: 'always' | 'smart' | 'offline'
+      web_search = true
+    } = body;
     const isStreamRequested = stream === true || req.headers.accept?.includes("text/event-stream");
     if (!message || typeof message !== "string" || !message.trim()) {
       res.writeHead(400, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: { code: "INVALID_MESSAGE", message: "Message is required" } }));
     }
     const trimmedMessage = message.trim();
+    let effectiveSearchMode = search_mode;
+    if (body.web_search === false && !body.search_mode) {
+      effectiveSearchMode = "offline";
+    }
+    const doSearch = shouldExecuteSearch(effectiveSearchMode, trimmedMessage);
     const sub = repository.getUserSubscription ? await repository.getUserSubscription(user.id) : { plan_id: "free", plan: { name: "Unlimited Free", allowed_tiers: ["free", "pro", "ultra"], rate_limit_rpm: 1e3 } };
     const rateCheck = creditManager.checkRateLimit(user.id, sub?.plan?.rate_limit_rpm || 1e3);
     if (!rateCheck.allowed) {
@@ -15767,33 +16162,6 @@ async function handler9(req, res) {
     if (!reservation?.ok) {
       reservation = { ok: true, balance: 999999, reservedAmount: estimatedCredits };
     }
-    let searchContext = null;
-    const shouldWebSearch = web_search === true || /^(siapa presiden|berita|kabar|info terbaru|terkini|cuaca|update|search|cari|harga saham|skor|jadwal|siapa pemenang|fakta|peristiwa)/i.test(trimmedMessage) || trimmedMessage.toLowerCase().includes("presiden indonesia") || trimmedMessage.toLowerCase().includes("terbaru") || trimmedMessage.toLowerCase().includes("terkini");
-    if (shouldWebSearch) {
-      try {
-        const registry = createDefaultToolRegistry();
-        const searchTool = registry.get("web_search");
-        if (searchTool) {
-          const searchData = await searchTool.execute({ query: trimmedMessage }, { permissions: /* @__PURE__ */ new Set(["web:search"]) });
-          if (searchData?.ok && searchData.result?.results?.length > 0) {
-            const formattedResults = searchData.result.results.map(
-              (r, i) => `[${i + 1}] ${r.title} (${r.source})
-${r.snippet}`
-            ).join("\n\n");
-            searchContext = {
-              role: "system",
-              content: `Berikut hasil penelusuran web real-time terkini untuk query pengguna:
-
-${formattedResults}
-
-Gunakan data di atas untuk menjawab secara akurat, faktual, dan sertakan rujukan URL/sumber bila bermanfaat bagi pengguna.`
-            };
-          }
-        }
-      } catch (err) {
-        console.warn("Web search pre-fetch warning:", err);
-      }
-    }
     if (isStreamRequested) {
       res.writeHead(200, {
         "Content-Type": "text/event-stream; charset=utf-8",
@@ -15802,7 +16170,66 @@ Gunakan data di atas untuk menjawab secara akurat, faktual, dan sertakan rujukan
         "X-Accel-Buffering": "no"
       });
       let fullGeneratedText = "";
+      let researchData = null;
+      let searchContext = null;
       try {
+        if (doSearch) {
+          res.write(`event: search_status
+data: ${JSON.stringify({
+            phase: "planning",
+            status: "Menganalisis pertanyaan dan menyusun query riset...",
+            search_mode: effectiveSearchMode
+          })}
+
+`);
+          const searchEngine = getDefaultWebSearchEngine();
+          researchData = await searchEngine.research(trimmedMessage, { maxSources: 5 });
+          const sources = researchData?.sources || [];
+          const plannedQueries = researchData?.planned_queries || [];
+          if (sources.length > 0) {
+            res.write(`event: search_status
+data: ${JSON.stringify({
+              phase: "searching",
+              status: `Ditemukan ${sources.length} sumber terverifikasi`,
+              sources_count: sources.length,
+              queries: plannedQueries
+            })}
+
+`);
+            res.write(`event: sources
+data: ${JSON.stringify({
+              sources,
+              planned_queries: plannedQueries,
+              search_mode: effectiveSearchMode
+            })}
+
+`);
+            if (researchData.formatted_context) {
+              searchContext = {
+                role: "system",
+                content: researchData.formatted_context
+              };
+            }
+          } else {
+            res.write(`event: search_status
+data: ${JSON.stringify({
+              phase: "searching",
+              status: "Tidak ditemukan sumber spesifik di web, menjawab dengan basis pengetahuan...",
+              sources_count: 0,
+              queries: plannedQueries
+            })}
+
+`);
+            res.write(`event: sources
+data: ${JSON.stringify({
+              sources: [],
+              planned_queries: plannedQueries,
+              search_mode: effectiveSearchMode
+            })}
+
+`);
+          }
+        }
         const chatContext = searchContext ? [searchContext] : [];
         const streamResult = await engine.stream(
           { userMessage: trimmedMessage, model, userPlan: sub?.plan, context: chatContext },
@@ -15833,6 +16260,9 @@ data: ${JSON.stringify({
           response: replyText,
           reply: replyText,
           model: streamResult.modelUsed || model,
+          sources: researchData?.sources || [],
+          planned_queries: researchData?.planned_queries || [],
+          search_mode: effectiveSearchMode,
           credits_used: settled.deducted,
           credits_remaining: settled.balance
         })}
@@ -15852,6 +16282,22 @@ data: ${JSON.stringify({
       }
     }
     try {
+      let researchData = null;
+      let initialContext = [];
+      if (doSearch) {
+        try {
+          const searchEngine = getDefaultWebSearchEngine();
+          researchData = await searchEngine.research(trimmedMessage, { maxSources: 5 });
+          if (researchData?.formatted_context) {
+            initialContext.push({
+              role: "system",
+              content: researchData.formatted_context
+            });
+          }
+        } catch (searchErr) {
+          console.warn("Non-streaming search pre-fetch warning:", searchErr);
+        }
+      }
       const agentRes = await agent.run({
         userMessage: trimmedMessage,
         userId: user.id,
@@ -15859,7 +16305,8 @@ data: ${JSON.stringify({
         repository,
         model,
         allowFallback: model === "auto",
-        userPlan: sub?.plan
+        userPlan: sub?.plan,
+        initialContext
       });
       const replyText = agentRes.text || agentRes.response || "";
       const modelUsed = agentRes.modelUsed || agentRes.model || model;
@@ -15886,6 +16333,9 @@ data: ${JSON.stringify({
         reply: replyText,
         response: replyText,
         model: modelUsed,
+        sources: researchData?.sources || [],
+        planned_queries: researchData?.planned_queries || [],
+        search_mode: effectiveSearchMode,
         fallback_used: agentRes.fallbackUsed || void 0,
         credits_used: settled.deducted,
         credits_remaining: settled.balance

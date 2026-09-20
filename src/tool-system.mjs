@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { getDefaultWebSearchEngine } from './web-research.mjs';
 
 function toolError(code, message, details = undefined) {
   return { ok: false, error: { code, message, ...(details !== undefined ? { details } : {}) } };
@@ -588,147 +589,31 @@ export function createDefaultToolRegistry({ now = () => new Date() } = {}) {
     },
     execute: async ({ query }) => {
       try {
-        const results = [];
         const cleanQuery = query.trim();
-        const seenTitles = new Set();
+        const engine = getDefaultWebSearchEngine();
+        const researchData = await engine.research(cleanQuery, { maxSources: 5 });
 
-        // 1. DuckDuckGo Instant Answer / Knowledge Graph
-        try {
-          const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
-          const ddgController = new AbortController();
-          const ddgTimer = setTimeout(() => ddgController.abort(), 4000);
-          const ddgRes = await fetch(ddgUrl, {
-            headers: { 'User-Agent': 'VarisAI/2.0' },
-            signal: ddgController.signal,
-          }).finally(() => clearTimeout(ddgTimer));
-
-          if (ddgRes.ok) {
-            const ddgData = await ddgRes.json();
-            if (ddgData.AbstractText) {
-              const heading = ddgData.Heading || cleanQuery;
-              seenTitles.add(heading.toLowerCase());
-              results.push({
-                title: heading,
-                snippet: ddgData.AbstractText,
-                source: ddgData.AbstractURL || 'https://duckduckgo.com/?q=' + encodeURIComponent(cleanQuery),
-                type: 'direct_answer',
-              });
-            }
-            if (Array.isArray(ddgData.RelatedTopics)) {
-              for (const topic of ddgData.RelatedTopics.slice(0, 3)) {
-                if (topic.Text && topic.FirstURL) {
-                  const title = topic.Text.split(' - ')[0] || cleanQuery;
-                  if (!seenTitles.has(title.toLowerCase())) {
-                    seenTitles.add(title.toLowerCase());
-                    results.push({
-                      title,
-                      snippet: topic.Text,
-                      source: topic.FirstURL,
-                      type: 'web_result',
-                    });
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {}
-
-        // 2. Wikipedia Indonesian Search + Rich REST Extract
-        try {
-          const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
-          const wikiController = new AbortController();
-          const wikiTimer = setTimeout(() => wikiController.abort(), 4500);
-          const wikiRes = await fetch(wikiUrl, {
-            headers: { 'User-Agent': 'VarisAI/2.0' },
-            signal: wikiController.signal,
-          }).finally(() => clearTimeout(wikiTimer));
-
-          if (wikiRes.ok) {
-            const wikiData = await wikiRes.json();
-            const searchItems = wikiData?.query?.search || [];
-            
-            for (const item of searchItems.slice(0, 3)) {
-              if (seenTitles.has(item.title.toLowerCase())) continue;
-              seenTitles.add(item.title.toLowerCase());
-
-              let richSnippet = item.snippet.replace(/<[^>]+>/g, '').trim();
-              
-              // Attempt to fetch full paragraph extract
-              try {
-                const sumController = new AbortController();
-                const sumTimer = setTimeout(() => sumController.abort(), 3000);
-                const sumRes = await fetch(
-                  `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-                  { headers: { 'User-Agent': 'VarisAI/2.0' }, signal: sumController.signal }
-                ).finally(() => clearTimeout(sumTimer));
-
-                if (sumRes.ok) {
-                  const sumData = await sumRes.json();
-                  if (sumData.extract) {
-                    richSnippet = sumData.extract;
-                  }
-                }
-              } catch (e) {}
-
-              results.push({
-                title: item.title,
-                snippet: richSnippet,
-                source: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-                type: 'encyclopedic',
-              });
-            }
-          }
-        } catch (e) {}
-
-        // 3. English Wikipedia Fallback if few results
-        if (results.length < 2) {
-          try {
-            const enWikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
-            const enController = new AbortController();
-            const enTimer = setTimeout(() => enController.abort(), 4500);
-            const enRes = await fetch(enWikiUrl, {
-              headers: { 'User-Agent': 'VarisAI/2.0' },
-              signal: enController.signal,
-            }).finally(() => clearTimeout(enTimer));
-
-            if (enRes.ok) {
-              const enData = await enRes.json();
-              const enItems = (enData?.query?.search || []).slice(0, 2);
-              for (const item of enItems) {
-                if (seenTitles.has(item.title.toLowerCase())) continue;
-                seenTitles.add(item.title.toLowerCase());
-
-                let snippet = item.snippet.replace(/<[^>]+>/g, '').trim();
-                try {
-                  const sumController = new AbortController();
-                  const sumTimer = setTimeout(() => sumController.abort(), 3000);
-                  const sumRes = await fetch(
-                    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-                    { headers: { 'User-Agent': 'VarisAI/2.0' }, signal: sumController.signal }
-                  ).finally(() => clearTimeout(sumTimer));
-
-                  if (sumRes.ok) {
-                    const sumData = await sumRes.json();
-                    if (sumData.extract) snippet = sumData.extract;
-                  }
-                } catch (e) {}
-
-                results.push({
-                  title: item.title,
-                  snippet,
-                  source: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-                  type: 'encyclopedic_global',
-                });
-              }
-            }
-          } catch (e) {}
-        }
+        const results = (researchData?.sources || []).map(s => ({
+          title: s.title,
+          snippet: s.snippet,
+          source: s.url,
+          source_name: s.source_name,
+          domain: s.domain,
+          score: s.score,
+          type: s.type,
+        }));
 
         if (results.length === 0) {
-          return { query: cleanQuery, results: [], message: `No direct web search results found for "${cleanQuery}".` };
+          return { query: cleanQuery, results: [], total_results: 0, message: `No direct web search results found for "${cleanQuery}".` };
         }
 
-        return { query: cleanQuery, total_results: results.length, results: results.slice(0, 5) };
+        return {
+          query: cleanQuery,
+          total_results: results.length,
+          results,
+          planned_queries: researchData?.planned_queries || [cleanQuery],
+          formatted_context: researchData?.formatted_context || '',
+        };
       } catch (err) {
         throw Object.assign(new Error(`Web search failed: ${err.message}`), { code: 'SEARCH_FAILED' });
       }
