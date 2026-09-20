@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { buildSync } from 'esbuild';
+import { build } from 'esbuild';
 
 // 1. Read static files
 const html = fs.readFileSync(path.join('public', 'index.html'), 'utf-8');
@@ -47,7 +47,7 @@ const vcConfig = {
 fs.writeFileSync(path.join(funcDir, '.vc-config.json'), JSON.stringify(vcConfig, null, 2), 'utf-8');
 
 // Bundle all backend dependencies into single standalone bundle for lambda
-buildSync({
+await build({
   entryPoints: [path.resolve('api', 'router.js')],
   bundle: true,
   platform: 'node',

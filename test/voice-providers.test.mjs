@@ -296,6 +296,23 @@ test('Free Smart Engine: answers role, robot distinction, science, history, and 
   // Test health advice
   const stressRes = generateFreeSmartResponse('bagaimana cara mengatasi stres?');
   assert.ok(stressRes.toLowerCase().includes('stres') || stressRes.toLowerCase().includes('napas') || stressRes.toLowerCase().includes('istirahat'));
+
+  // Test AI History & Inception (Konferensi Dartmouth 1956 & Alan Turing)
+  const aiHistoryRes = generateFreeSmartResponse('jawab aja kapan ai di ciptakan pertama kali');
+  assert.ok(aiHistoryRes.includes('1956') && aiHistoryRes.includes('Dartmouth'));
+
+  // Test Places of Worship & Religion
+  const masjidRes = generateFreeSmartResponse('masjid tempat ibadah umat apa jawab singkat padat jelas');
+  assert.ok(masjidRes.toLowerCase().includes('islam') || masjidRes.toLowerCase().includes('muslim'));
+
+  // Test Computing History
+  const compRes = generateFreeSmartResponse('siapa penemu komputer');
+  assert.ok(compRes.includes('Charles Babbage'));
+
+  // Test Physics / Astronomy
+  const lightSpeedRes = generateFreeSmartResponse('berapa kecepatan cahaya');
+  assert.ok(lightSpeedRes.includes('299.792.458') || lightSpeedRes.includes('300.000'));
 });
+
 
 

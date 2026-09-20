@@ -75,9 +75,9 @@ export class QueryPlanner {
     let result = text.trim();
     
     // 1. Remove instruction prefixes & brevity modifiers
-    result = result.replace(/\b(jawab\s+dengan\s+singkat\s+padat\s+dan\s+jelas|jawab\s+dengan\s+singkat\s+padat\s+jelas|jawab\s+singkat\s+padat\s+jelas|jawab\s+dengan\s+singkat|jawab\s+singkat|secara\s+singkat|singkat\s+padat\s+jelas|singkat\s+jelas|singkat\s+saja|dengan\s+singkat|ambil\s+poinnya|ambil\s+point\s+nya|ambil\s+poin\s+nya|to\s+the\s+point)\b/gi, '');
+    result = result.replace(/\b(jawab\s+dengan\s+singkat\s+padat\s+dan\s+jelas|jawab\s+dengan\s+singkat\s+padat\s+jelas|jawab\s+singkat\s+padat\s+jelas|jawab\s+dengan\s+singkat|jawab\s+singkat|secara\s+singkat|singkat\s+padat\s+jelas|singkat\s+jelas|singkat\s+saja|dengan\s+singkat|ambil\s+poinnya|ambil\s+point\s+nya|ambil\s+poin\s+nya|to\s+the\s+point|jawab\s+aja|jawab\s+saja|coba\s+jawab|tolong\s+jawab|kasih\s+tau|kasih\s+tahu|beritahu|beri\s+tahu)\b/gi, '');
 
-    const prefixRegex = /^(tolong\s+carikan|tolong\s+cari|tolong\s+search|tolong\s+jawab|tolong\s+sebutkan|tolong|bisa\s+tolong|coba\s+carikan|coba\s+cari|coba\s+jawab|coba\s+sebutkan|cari|search|googling|carikan|info\s+tentang|informasi\s+tentang|berikan\s+informasi\s+tentang|mohon\s+jelaskan|siapakah|apakah\s+kamu\s+tahu|apakah\s+anda\s+tahu|apa\s+itu|jelaskan\s+tentang|jelaskan|sebutkan|beritahu|kasih\s+tahu)\s+/i;
+    const prefixRegex = /^(tolong\s+carikan|tolong\s+cari|tolong\s+search|tolong\s+jawab|tolong\s+sebutkan|tolong|bisa\s+tolong|coba\s+carikan|coba\s+cari|coba\s+jawab|coba\s+sebutkan|cari|search|googling|carikan|info\s+tentang|informasi\s+tentang|berikan\s+informasi\s+tentang|mohon\s+jelaskan|siapakah|apakah\s+kamu\s+tahu|apakah\s+anda\s+tahu|apa\s+itu|jelaskan\s+tentang|jelaskan|sebutkan|beritahu|kasih\s+tahu|kapan|siapa|apa)\s+/i;
     let changed = true;
     while (changed) {
       const next = result.replace(prefixRegex, '');
@@ -113,6 +113,25 @@ export class QueryPlanner {
         queries.push(normalized);
       }
     };
+
+    // Pattern -1: AI & Tech History (e.g. "kapan ai diciptakan pertama kali", "sejarah ai")
+    if (lowerRaw.includes('ai') || lowerRaw.includes('kecerdasan buatan') || lowerRaw.includes('artificial intelligence')) {
+      if (lowerRaw.includes('kapan') || lowerRaw.includes('sejarah') || lowerRaw.includes('cipta') || lowerRaw.includes('buat') || lowerRaw.includes('awal') || lowerRaw.includes('pertama') || lowerRaw.includes('temu') || lowerRaw.includes('bapak')) {
+        addQuery('Sejarah kecerdasan buatan');
+        addQuery('Kecerdasan buatan');
+        addQuery('Konferensi Dartmouth');
+      }
+    }
+
+    if (lowerRaw.includes('internet') && (lowerRaw.includes('kapan') || lowerRaw.includes('sejarah') || lowerRaw.includes('siapa') || lowerRaw.includes('awal') || lowerRaw.includes('buat') || lowerRaw.includes('cipta'))) {
+      addQuery('Sejarah Internet');
+      addQuery('ARPANET');
+    }
+
+    if (lowerRaw.includes('komputer') && (lowerRaw.includes('kapan') || lowerRaw.includes('sejarah') || lowerRaw.includes('penemu') || lowerRaw.includes('siapa') || lowerRaw.includes('awal') || lowerRaw.includes('cipta'))) {
+      addQuery('Sejarah komputer');
+      addQuery('Charles Babbage');
+    }
 
     if (cleaned) {
       addQuery(cleaned);

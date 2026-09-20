@@ -87,6 +87,157 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Kitab suci umat Khonghucu adalah **Si Shu Wu Jing**.";
   }
 
+  // 1f. Sejarah AI, Komputasi & Teknologi
+  if (
+    (lower.includes('ai') || lower.includes('kecerdasan buatan') || lower.includes('artificial intelligence')) &&
+    (lower.includes('kapan') || lower.includes('sejarah') || lower.includes('diciptakan') || lower.includes('dibuat') || lower.includes('ditemukan') || lower.includes('pertama kali') || lower.includes('awal mula') || lower.includes('siapa penemu') || lower.includes('bapak ai'))
+  ) {
+    if (lower.includes('bapak ai') || lower.includes('penemu ai') || lower.includes('siapa pencetus') || lower.includes('siapa penemu')) {
+      return "**John McCarthy** dijuluki sebagai 'Bapak AI' karena beliaulah yang mencetuskan istilah *Artificial Intelligence* pada Konferensi Dartmouth tahun 1956. Selain itu, **Alan Turing** diakui secara luas sebagai pelopor utama konsep kecerdasan mesin lewat *Turing Test* (1950).";
+    }
+    return "Kecerdasan Buatan (AI) pertama kali dicetuskan secara resmi pada tahun **1956** dalam **Konferensi Dartmouth (*Dartmouth Summer Research Project on Artificial Intelligence*)** oleh **John McCarthy**, Marvin Minsky, Nathaniel Rochester, dan Claude Shannon.\n\nFondasi teoritisnya telah dirintis sebelumnya oleh **Alan Turing** pada tahun **1950** lewat makalah *'Computing Machinery and Intelligence'* yang memperkenalkan konsep **Turing Test**.";
+  }
+
+  if (lower.includes('turing test') || lower.includes('tes turing')) {
+    return "**Turing Test** adalah tes yang digagas oleh **Alan Turing** pada tahun 1950 untuk menguji apakah suatu mesin atau kecerdasan buatan memiliki kemampuan berpikir dan berkomunikasi yang tidak dapat dibedakan dari manusia.";
+  }
+
+  if (
+    (lower.includes('komputer') && (lower.includes('penemu') || lower.includes('bapak') || lower.includes('diciptakan') || lower.includes('sejarah'))) ||
+    lower.includes('siapa penemu komputer') ||
+    lower.includes('penemu komputer pertama')
+  ) {
+    return "**Charles Babbage** dikenal sebagai 'Bapak Komputer' karena merancang *Difference Engine* dan *Analytical Engine* (konsep komputer mekanik pertama) pada abad ke-19. Sementara programmer pertama di dunia adalah **Ada Lovelace**.";
+  }
+
+  if (
+    (lower.includes('internet') && (lower.includes('kapan') || lower.includes('sejarah') || lower.includes('diciptakan') || lower.includes('dimulai') || lower.includes('penemu'))) ||
+    lower.includes('sejarah internet') ||
+    lower.includes('kapan internet diciptakan')
+  ) {
+    return "Internet berawal pada tahun **1969** melalui proyek **ARPANET** (*Advanced Research Projects Agency Network*) oleh Departemen Pertahanan AS. Protokol TCP/IP distandarisasi pada tahun **1983**, dan **World Wide Web (WWW)** diciptakan oleh **Tim Berners-Lee** pada tahun **1989**.";
+  }
+
+  if (lower.includes('www') || lower.includes('world wide web') || lower.includes('penemu web')) {
+    return "World Wide Web (WWW) diciptakan oleh ilmuwan komputer asal Inggris, **Sir Tim Berners-Lee**, pada tahun **1989** di CERN.";
+  }
+
+  // 1g. Pendiri Perusahaan Teknologi Besar
+  if (lower.includes('pendiri google') || lower.includes('siapa yang mendirikan google') || lower.includes('pembuat google')) {
+    return "Google didirikan oleh **Larry Page** dan **Sergey Brin** pada September 1998 saat mereka menempuh studi doktoral di Universitas Stanford.";
+  }
+  if (lower.includes('pendiri microsoft') || lower.includes('pembuat microsoft')) {
+    return "Microsoft didirikan oleh **Bill Gates** dan **Paul Allen** pada 4 April 1975.";
+  }
+  if (lower.includes('pendiri apple') || lower.includes('pembuat apple')) {
+    return "Apple didirikan oleh **Steve Jobs**, **Steve Wozniak**, dan **Ronald Wayne** pada 1 April 1976.";
+  }
+  if (lower.includes('pendiri openai') || lower.includes('pendiri open ai') || lower.includes('pembuat chatgpt')) {
+    return "OpenAI didirikan pada Desember 2015 oleh **Sam Altman**, **Elon Musk**, **Greg Brockman**, **Ilya Sutskever**, Wojciech Zaremba, dan John Schulman.";
+  }
+  if (lower.includes('pendiri meta') || lower.includes('pendiri facebook')) {
+    return "Facebook (kini Meta) didirikan oleh **Mark Zuckerberg** bersama teman sekamarnya (Eduardo Saverin, Andrew McCollum, Dustin Moskovitz, dan Chris Hughes) pada tahun 2004.";
+  }
+
+  // 1h. Sains, Fisika & Astronomi
+  if (lower.includes('kecepatan cahaya') || lower.includes('berapa kecepatan cahaya')) {
+    return "Kecepatan cahaya di ruang hampa adalah **299.792.458 meter per detik** (atau sekitar **300.000 km/detik**).";
+  }
+
+  if (lower.includes('jarak bumi ke matahari') || lower.includes('jarak bumi dan matahari') || lower.includes('jarak matahari ke bumi')) {
+    return "Jarak rata-rata Bumi ke Matahari adalah sekitar **149,6 juta kilometer** (setara dengan 1 Satuan Astronomi / 1 AU).";
+  }
+
+  if (lower.includes('planet terbesar') && (lower.includes('tata surya') || lower.includes('semesta') || lower.includes('kita'))) {
+    return "Planet terbesar di Tata Surya adalah **Jupiter**, dengan diameter sekitar 142.984 km (lebih dari 11 kali ukuran diameter Bumi).";
+  }
+
+  if (lower.includes('planet terkecil') && (lower.includes('tata surya') || lower.includes('kita'))) {
+    return "Planet terkecil di Tata Surya adalah **Merkurius**.";
+  }
+
+  if (lower.includes('planet terdekat ke matahari') || lower.includes('planet terdekat dari matahari')) {
+    return "Planet terdekat dari Matahari adalah **Merkurius** (jarak rata-rata ~57,9 juta km).";
+  }
+
+  if (lower.includes('planet bercincin') || lower.includes('planet yang punya cincin')) {
+    return "Planet dengan sistem cincin paling spektakuler dan terkenal adalah **Saturnus** (meskipun Jupiter, Uranus, dan Neptunus juga memiliki cincin tipis).";
+  }
+
+  if (lower.includes('gravitasi') && (lower.includes('penemu') || lower.includes('hukum') || lower.includes('siapa'))) {
+    return "Hukum Gravitasi Universal dirumuskan oleh **Sir Isaac Newton** pada tahun 1687, dan kemudian disempurnakan oleh Teori Relativitas Umum karya **Albert Einstein** pada tahun 1915.";
+  }
+
+  if (lower.includes('struktur dna') || lower.includes('penemu dna') || lower.includes('heliks ganda')) {
+    return "Struktur heliks ganda (*double helix*) DNA ditemukan oleh **James Watson** dan **Francis Crick** pada tahun 1953, didukung oleh data penting difraksi sinar-X dari **Rosalind Franklin**.";
+  }
+
+  if (lower.includes('unsur paling banyak di alam semesta') || lower.includes('unsur terbanyak di alam semesta')) {
+    return "Unsur paling melimpah di alam semesta adalah **Hidrogen (H)** (sekitar 75% massa unsur alam semesta), diikuti oleh **Helium (He)** (sekitar 24%).";
+  }
+
+  if (lower.includes('gas terbanyak di atmosfer') || lower.includes('gas paling banyak di atmosfer') || lower.includes('unsur terbanyak di atmosfer')) {
+    return "Gas paling banyak di atmosfer Bumi adalah **Nitrogen ($N_2$)** (~78%), diikuti oleh **Oksigen ($O_2$)** (~21%) dan Argon (~0,93%).";
+  }
+
+  // 1i. Geografi Dunia & Sejarah Global
+  if (lower.includes('gunung tertinggi di dunia') || lower.includes('gunung paling tinggi di dunia')) {
+    return "Gunung tertinggi di dunia di atas permukaan laut adalah **Gunung Everest** di Pegunungan Himalaya (perbatasan Nepal dan Tibet) dengan ketinggian **8.848,86 meter**.";
+  }
+
+  if (lower.includes('sungai terpanjang di dunia') || lower.includes('sungai paling panjang di dunia')) {
+    return "Sungai terpanjang di dunia adalah **Sungai Nil** di Afrika (panjang ~6.650 km), dengan pesaing utama **Sungai Amazon** di Amerika Selatan (~6.400 km).";
+  }
+
+  if (lower.includes('samudra terbesar') || lower.includes('laut terbesar')) {
+    return "Samudra terbesar di dunia adalah **Samudra Pasifik**, yang menutupi lebih dari 30% total luas permukaan Bumi.";
+  }
+
+  if (lower.includes('negara terluas di dunia') || lower.includes('negara terbesar di dunia')) {
+    return "Negara dengan wilayah terluas di dunia adalah **Rusia**, dengan luas sekitar 17,1 juta kilometer persegi.";
+  }
+
+  if (lower.includes('negara penduduk terbanyak') || lower.includes('negara dengan populasi terbanyak') || lower.includes('negara terpadat')) {
+    return "Negara dengan jumlah penduduk terbanyak di dunia saat ini adalah **India** (sekitar 1,43 miliar jiwa), melampaui **Tiongkok (China)**.";
+  }
+
+  if (lower.includes('perang dunia 1') || lower.includes('perang dunia i') || lower.includes('perang dunia pertama')) {
+    return "Perang Dunia I berlangsung dari **28 Juli 1914 hingga 11 November 1918**.";
+  }
+
+  if (lower.includes('perang dunia 2') || lower.includes('perang dunia ii') || lower.includes('perang dunia kedua')) {
+    return "Perang Dunia II berlangsung dari **1 September 1939 hingga 2 September 1945**.";
+  }
+
+  if ((lower.includes('pbb') || lower.includes('perserikatan bangsa-bangsa') || lower.includes('united nations')) && (lower.includes('kapan') || lower.includes('berdiri') || lower.includes('didirikan') || lower.includes('sejarah'))) {
+    return "Perserikatan Bangsa-Bangsa (PBB) didirikan pada **24 Oktober 1945** setelah berakhirnya Perang Dunia II untuk memelihara perdamaian dan keamanan internasional.";
+  }
+
+  if (lower.includes('mendarat di bulan') || lower.includes('manusia pertama di bulan') || lower.includes('orang pertama di bulan')) {
+    return "Manusia pertama yang mendarat dan berjalan di Bulan adalah astronaut AS **Neil Armstrong** (misi Apollo 11) pada tanggal **20 Juli 1969**.";
+  }
+
+  // 1j. Konsep Esensial (Ekonomi & Komputasi)
+  if (lower.includes('apa itu inflasi') || lower.includes('pengertian inflasi')) {
+    return "**Inflasi** adalah kenaikan harga barang dan jasa secara umum dan terus-menerus dalam jangka waktu tertentu, yang menyebabkan penurunan nilai atau daya beli mata uang.";
+  }
+
+  if (lower.includes('apa itu algoritma') || lower.includes('pengertian algoritma')) {
+    return "**Algoritma** adalah urutan langkah-langkah logis dan sistematis yang terdefinisi dengan jelas untuk memecahkan suatu masalah atau menyelesaikan suatu instruksi komputasi.";
+  }
+
+  if (lower.includes('apa itu machine learning') || lower.includes('pengertian machine learning')) {
+    return "**Machine Learning (ML)** adalah cabang dari kecerdasan buatan (AI) yang memungkinkan sistem komputer untuk belajar dan meningkatkan kinerjanya secara otomatis dari data tanpa harus diprogram secara eksplisit.";
+  }
+
+  if (lower.includes('apa itu deep learning') || lower.includes('pengertian deep learning')) {
+    return "**Deep Learning** adalah bagian dari Machine Learning yang menggunakan jaringan saraf tiruan berlapis banyak (*deep neural networks*) untuk memproses data kompleks seperti citra gambar, suara, dan teks bahasa alami.";
+  }
+
+  if (lower.includes('apa itu blockchain') || lower.includes('pengertian blockchain')) {
+    return "**Blockchain** adalah teknologi buku besar terdistribusi (*distributed ledger*) yang mencatat transaksi secara terdesentralisasi, aman, transparan, dan tidak dapat diubah (*immutable*).";
+  }
+
   // 2. Math / Arithmetic Calculations
   const mathResult = tryEvaluateMath(text);
   if (mathResult !== null) {
