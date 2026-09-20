@@ -588,27 +588,71 @@ export function createDefaultToolRegistry({ now = () => new Date() } = {}) {
     },
     execute: async ({ query }) => {
       try {
-        const url = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&utf8=1`;
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 6000);
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'VarisAI/2.0' },
-          signal: controller.signal,
-        }).finally(() => clearTimeout(timer));
+        const results = [];
+        const cleanQuery = query.trim();
 
-        if (!res.ok) throw new Error(`Search provider returned HTTP ${res.status}`);
-        const data = await res.json();
-        const results = (data?.query?.search || []).slice(0, 3).map(r => ({
-          title: r.title,
-          snippet: r.snippet.replace(/<[^>]+>/g, '').trim(),
-          source: `https://id.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/\s+/g, '_'))}`,
-        }));
+        // 1. DuckDuckGo Instant Answer / Knowledge Graph
+        try {
+          const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
+          const ddgController = new AbortController();
+          const ddgTimer = setTimeout(() => ddgController.abort(), 4000);
+          const ddgRes = await fetch(ddgUrl, {
+            headers: { 'User-Agent': 'VarisAI/2.0' },
+            signal: ddgController.signal,
+          }).finally(() => clearTimeout(ddgTimer));
+
+          if (ddgRes.ok) {
+            const ddgData = await ddgRes.json();
+            if (ddgData.AbstractText) {
+              results.push({
+                title: ddgData.Heading || cleanQuery,
+                snippet: ddgData.AbstractText,
+                source: ddgData.AbstractURL || 'https://duckduckgo.com/?q=' + encodeURIComponent(cleanQuery),
+                type: 'direct_answer',
+              });
+            }
+            if (Array.isArray(ddgData.RelatedTopics)) {
+              for (const topic of ddgData.RelatedTopics.slice(0, 2)) {
+                if (topic.Text && topic.FirstURL) {
+                  results.push({
+                    title: topic.Text.split(' - ')[0] || cleanQuery,
+                    snippet: topic.Text,
+                    source: topic.FirstURL,
+                    type: 'web_result',
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {}
+
+        // 2. Wikipedia Encyclopedic Search (Indonesian + Global)
+        try {
+          const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+          const wikiController = new AbortController();
+          const wikiTimer = setTimeout(() => wikiController.abort(), 4000);
+          const wikiRes = await fetch(wikiUrl, {
+            headers: { 'User-Agent': 'VarisAI/2.0' },
+            signal: wikiController.signal,
+          }).finally(() => clearTimeout(wikiTimer));
+
+          if (wikiRes.ok) {
+            const wikiData = await wikiRes.json();
+            const wikiItems = (wikiData?.query?.search || []).slice(0, 3).map(r => ({
+              title: r.title,
+              snippet: r.snippet.replace(/<[^>]+>/g, '').trim(),
+              source: `https://id.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/\s+/g, '_'))}`,
+              type: 'encyclopedic',
+            }));
+            results.push(...wikiItems);
+          }
+        } catch (e) {}
 
         if (results.length === 0) {
-          return { query, results: [], message: 'No search results found.' };
+          return { query: cleanQuery, results: [], message: `No direct web search results found for "${cleanQuery}".` };
         }
 
-        return { query, results };
+        return { query: cleanQuery, total_results: results.length, results: results.slice(0, 5) };
       } catch (err) {
         throw Object.assign(new Error(`Web search failed: ${err.message}`), { code: 'SEARCH_FAILED' });
       }

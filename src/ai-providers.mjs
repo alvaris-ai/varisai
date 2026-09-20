@@ -443,12 +443,13 @@ export function createGroqProvider({
 
       const candidateModels = [
         targetModel,
-        'llama-3.3-70b-versatile',
         'llama-3.1-8b-instant',
-        'llama3-70b-8192',
-        'llama3-8b-8192',
+        'llama-3.3-70b-versatile',
+        'llama-3.2-3b-preview',
+        'llama-3.2-1b-preview',
         'mixtral-8x7b-32768',
-      ].filter((v, i, a) => a.indexOf(v) === i);
+        'gemma2-9b-it',
+      ].filter((v, i, a) => a.indexOf(v) === i && !v.includes('llama3-8b') && !v.includes('llama3-70b-8192'));
 
       let lastErr = null;
       for (const candidate of candidateModels) {
@@ -495,8 +496,8 @@ export function createGroqProvider({
           return { text, toolCalls: [], model: candidate, usage: completion.usage ?? null };
         } catch (err) {
           lastErr = err;
-          if (err?.status === 404 || err?.message?.includes('does not exist') || err?.message?.includes('model')) {
-            continue; // Try next candidate Groq model
+          if (err?.status === 404 || err?.status === 400 || err?.message?.includes('decommissioned') || err?.message?.includes('does not exist') || err?.message?.includes('model')) {
+            continue; // Try next active candidate Groq model
           }
           if (err?.name === 'AbortError') throw timeoutError(timeoutMs, 'Groq');
           throw err;
@@ -522,11 +523,12 @@ export function createGroqProvider({
 
       const candidateModels = [
         targetModel,
-        'llama-3.3-70b-versatile',
         'llama-3.1-8b-instant',
-        'llama3-70b-8192',
-        'llama3-8b-8192',
-      ].filter((v, i, a) => a.indexOf(v) === i);
+        'llama-3.3-70b-versatile',
+        'llama-3.2-3b-preview',
+        'llama-3.2-1b-preview',
+        'mixtral-8x7b-32768',
+      ].filter((v, i, a) => a.indexOf(v) === i && !v.includes('llama3-8b') && !v.includes('llama3-70b-8192'));
 
       let lastErr = null;
       for (const candidate of candidateModels) {
@@ -553,8 +555,8 @@ export function createGroqProvider({
           };
         } catch (err) {
           lastErr = err;
-          if (err?.status === 404 || err?.message?.includes('does not exist') || err?.message?.includes('model')) {
-            continue; // Try next candidate Groq model
+          if (err?.status === 404 || err?.status === 400 || err?.message?.includes('decommissioned') || err?.message?.includes('does not exist') || err?.message?.includes('model')) {
+            continue; // Try next active candidate Groq model
           }
           throw err;
         }

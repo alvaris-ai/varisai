@@ -14129,12 +14129,13 @@ function createGroqProvider({
       })) : void 0;
       const candidateModels = [
         targetModel,
-        "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
-        "llama3-70b-8192",
-        "llama3-8b-8192",
-        "mixtral-8x7b-32768"
-      ].filter((v, i, a) => a.indexOf(v) === i);
+        "llama-3.3-70b-versatile",
+        "llama-3.2-3b-preview",
+        "llama-3.2-1b-preview",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
+      ].filter((v, i, a) => a.indexOf(v) === i && !v.includes("llama3-8b") && !v.includes("llama3-70b-8192"));
       let lastErr = null;
       for (const candidate of candidateModels) {
         const controller = new AbortController();
@@ -14177,7 +14178,7 @@ function createGroqProvider({
           return { text, toolCalls: [], model: candidate, usage: completion.usage ?? null };
         } catch (err) {
           lastErr = err;
-          if (err?.status === 404 || err?.message?.includes("does not exist") || err?.message?.includes("model")) {
+          if (err?.status === 404 || err?.status === 400 || err?.message?.includes("decommissioned") || err?.message?.includes("does not exist") || err?.message?.includes("model")) {
             continue;
           }
           if (err?.name === "AbortError") throw timeoutError(timeoutMs, "Groq");
@@ -14201,11 +14202,12 @@ function createGroqProvider({
       ];
       const candidateModels = [
         targetModel,
-        "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
-        "llama3-70b-8192",
-        "llama3-8b-8192"
-      ].filter((v, i, a) => a.indexOf(v) === i);
+        "llama-3.3-70b-versatile",
+        "llama-3.2-3b-preview",
+        "llama-3.2-1b-preview",
+        "mixtral-8x7b-32768"
+      ].filter((v, i, a) => a.indexOf(v) === i && !v.includes("llama3-8b") && !v.includes("llama3-70b-8192"));
       let lastErr = null;
       for (const candidate of candidateModels) {
         try {
@@ -14229,7 +14231,7 @@ function createGroqProvider({
           };
         } catch (err) {
           lastErr = err;
-          if (err?.status === 404 || err?.message?.includes("does not exist") || err?.message?.includes("model")) {
+          if (err?.status === 404 || err?.status === 400 || err?.message?.includes("decommissioned") || err?.message?.includes("does not exist") || err?.message?.includes("model")) {
             continue;
           }
           throw err;
@@ -15043,24 +15045,65 @@ function createDefaultToolRegistry({ now = () => /* @__PURE__ */ new Date() } = 
     },
     execute: async ({ query }) => {
       try {
-        const url = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&utf8=1`;
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 6e3);
-        const res = await fetch(url, {
-          headers: { "User-Agent": "VarisAI/2.0" },
-          signal: controller.signal
-        }).finally(() => clearTimeout(timer));
-        if (!res.ok) throw new Error(`Search provider returned HTTP ${res.status}`);
-        const data = await res.json();
-        const results = (data?.query?.search || []).slice(0, 3).map((r) => ({
-          title: r.title,
-          snippet: r.snippet.replace(/<[^>]+>/g, "").trim(),
-          source: `https://id.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/\s+/g, "_"))}`
-        }));
-        if (results.length === 0) {
-          return { query, results: [], message: "No search results found." };
+        const results = [];
+        const cleanQuery = query.trim();
+        try {
+          const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
+          const ddgController = new AbortController();
+          const ddgTimer = setTimeout(() => ddgController.abort(), 4e3);
+          const ddgRes = await fetch(ddgUrl, {
+            headers: { "User-Agent": "VarisAI/2.0" },
+            signal: ddgController.signal
+          }).finally(() => clearTimeout(ddgTimer));
+          if (ddgRes.ok) {
+            const ddgData = await ddgRes.json();
+            if (ddgData.AbstractText) {
+              results.push({
+                title: ddgData.Heading || cleanQuery,
+                snippet: ddgData.AbstractText,
+                source: ddgData.AbstractURL || "https://duckduckgo.com/?q=" + encodeURIComponent(cleanQuery),
+                type: "direct_answer"
+              });
+            }
+            if (Array.isArray(ddgData.RelatedTopics)) {
+              for (const topic of ddgData.RelatedTopics.slice(0, 2)) {
+                if (topic.Text && topic.FirstURL) {
+                  results.push({
+                    title: topic.Text.split(" - ")[0] || cleanQuery,
+                    snippet: topic.Text,
+                    source: topic.FirstURL,
+                    type: "web_result"
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
         }
-        return { query, results };
+        try {
+          const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+          const wikiController = new AbortController();
+          const wikiTimer = setTimeout(() => wikiController.abort(), 4e3);
+          const wikiRes = await fetch(wikiUrl, {
+            headers: { "User-Agent": "VarisAI/2.0" },
+            signal: wikiController.signal
+          }).finally(() => clearTimeout(wikiTimer));
+          if (wikiRes.ok) {
+            const wikiData = await wikiRes.json();
+            const wikiItems = (wikiData?.query?.search || []).slice(0, 3).map((r) => ({
+              title: r.title,
+              snippet: r.snippet.replace(/<[^>]+>/g, "").trim(),
+              source: `https://id.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/\s+/g, "_"))}`,
+              type: "encyclopedic"
+            }));
+            results.push(...wikiItems);
+          }
+        } catch (e) {
+        }
+        if (results.length === 0) {
+          return { query: cleanQuery, results: [], message: `No direct web search results found for "${cleanQuery}".` };
+        }
+        return { query: cleanQuery, total_results: results.length, results: results.slice(0, 5) };
       } catch (err) {
         throw Object.assign(new Error(`Web search failed: ${err.message}`), { code: "SEARCH_FAILED" });
       }
