@@ -42,6 +42,10 @@ let voiceAnimId = null;
 
 function switchMainView(viewName) {
     activeMainView = viewName;
+    try {
+        localStorage.setItem('varis_main_view', viewName);
+    } catch (e) {}
+
     const views = {
         landing: document.getElementById('view-landing'),
         auth: document.getElementById('view-auth'),
@@ -61,11 +65,31 @@ function switchMainView(viewName) {
 
     if (viewName === 'app') {
         renderUserData();
+        const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+        const savedTab = localStorage.getItem('varis_active_tab') || activeTab || 'home';
+        const targetTab = ['home', 'chat', 'voice', 'projects', 'profile'].includes(hash) ? hash : (['home', 'chat', 'voice', 'projects', 'profile'].includes(savedTab) ? savedTab : 'home');
+        switchTab(targetTab);
+    } else if (viewName === 'auth') {
+        const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+        if (hash !== 'auth' && hash !== 'login' && hash !== 'register') {
+            window.history.replaceState(null, '', isRegisterMode ? '#register' : '#auth');
+        }
+    } else if (viewName === 'landing') {
+        const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+        if (hash && hash !== 'landing') {
+            window.history.replaceState(null, '', window.location.pathname);
+        }
     }
 }
 
 function switchTab(tabName) {
     activeTab = tabName;
+    try {
+        localStorage.setItem('varis_active_tab', tabName);
+        if (activeMainView === 'app') {
+            window.history.replaceState(null, '', '#' + tabName);
+        }
+    } catch (e) {}
 
     // 1. Hide/Show Tab Pages
     const tabMap = {
@@ -201,6 +225,37 @@ function renderUserData() {
     if (sidePlan) sidePlan.textContent = 'Unlimited Access';
 }
 
+function initSessionAndRouting() {
+    let savedUser = null;
+    try {
+        const raw = localStorage.getItem('varis_user');
+        if (raw) savedUser = JSON.parse(raw);
+    } catch (e) {}
+
+    const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+    const savedTab = localStorage.getItem('varis_active_tab') || 'home';
+    const targetTab = ['home', 'chat', 'voice', 'projects', 'profile'].includes(hash) ? hash : (['home', 'chat', 'voice', 'projects', 'profile'].includes(savedTab) ? savedTab : 'home');
+
+    if (savedUser && (savedUser.id || savedUser.email)) {
+        currentUser = {
+            ...currentUser,
+            ...savedUser,
+            picture: savedUser.picture || savedUser.avatar_url || null,
+            avatar_url: savedUser.avatar_url || null,
+            credits: savedUser.credits !== undefined ? savedUser.credits : 999999,
+            plan: savedUser.plan || 'Unlimited Access'
+        };
+        switchMainView('app');
+        switchTab(targetTab);
+    } else if (hash === 'auth' || hash === 'login' || hash === 'register') {
+        isRegisterMode = hash === 'register';
+        if (typeof updateAuthUI === 'function') updateAuthUI();
+        switchMainView('auth');
+    } else {
+        switchMainView('landing');
+    }
+}
+
 async function fetchCurrentUser() {
     try {
         const res = await fetch('/api/auth/me');
@@ -212,18 +267,31 @@ async function fetchCurrentUser() {
                     ...data.user,
                     picture: data.user.avatar_url || data.user.picture || null,
                     avatar_url: data.user.avatar_url || null,
-                    credits: (data.subscription && data.subscription.credits_balance !== undefined) ? data.subscription.credits_balance : (data.user.credits !== undefined ? data.user.credits : 2450),
-                    plan: data.subscription?.plan_name || (data.user.tier ? (data.user.tier.charAt(0).toUpperCase() + data.user.tier.slice(1) + ' Tier') : 'Free Tier')
+                    credits: (data.subscription && data.subscription.credits_balance !== undefined) ? data.subscription.credits_balance : (data.user.credits !== undefined ? data.user.credits : 999999),
+                    plan: data.subscription?.plan_name || (data.user.tier ? (data.user.tier.charAt(0).toUpperCase() + data.user.tier.slice(1) + ' Tier') : 'Unlimited Access')
                 };
-                switchMainView('app');
+                try {
+                    localStorage.setItem('varis_user', JSON.stringify(currentUser));
+                } catch (e) {}
+
+                if (activeMainView !== 'app') {
+                    const savedTab = localStorage.getItem('varis_active_tab') || 'home';
+                    switchMainView('app');
+                    switchTab(savedTab);
+                } else {
+                    renderUserData();
+                }
                 return;
+            }
+        } else if (res.status === 401) {
+            const raw = localStorage.getItem('varis_user');
+            if (!raw) {
+                switchMainView('landing');
             }
         }
     } catch (e) {
         console.warn('Authentication check notice:', e);
     }
-    // Default to Landing if not authenticated
-    switchMainView('landing');
 }
 
 // ==========================================================
@@ -267,8 +335,13 @@ async function handleGoogleCredentialResponse(response) {
                 ...userData,
                 picture: userData.avatar_url || userData.picture || null,
                 avatar_url: userData.avatar_url || null,
-                credits: userData.credits !== undefined ? userData.credits : 2450
+                credits: userData.credits !== undefined ? userData.credits : 999999,
+                plan: userData.plan || 'Unlimited Access'
             };
+            try {
+                localStorage.setItem('varis_user', JSON.stringify(currentUser));
+                localStorage.setItem('varis_active_tab', 'home');
+            } catch (e) {}
             showToast(`Welcome, ${currentUser.name || 'User'}!`);
             switchMainView('app');
             switchTab('home');
@@ -865,13 +938,16 @@ function closeModal(id) {
 // ==========================================================
 // 6.5. LIVING ROBOT ENGINE & LUXURY PARTICLES SYSTEM
 // ==========================================================
-function initLivingRobot() {
-    const stage = document.getElementById('hero-robot-stage');
-    const rig = document.getElementById('robot-3d-rig');
-    const canvas = document.getElementById('robot-sparkles-canvas');
-    const speechBubble = document.getElementById('robot-speech-bubble');
-    const btnChat = document.getElementById('robot-btn-start-chat');
-    const btnVoice = document.getElementById('robot-btn-start-voice');
+// 6.5. LIVING ROBOT ENGINE & LUXURY PARTICLES SYSTEM
+// ==========================================================
+
+function setupRobotEngine(stageId, rigId, canvasId, options = {}) {
+    const stage = document.getElementById(stageId);
+    const rig = document.getElementById(rigId);
+    const canvas = document.getElementById(canvasId);
+    const speechBubble = options.speechBubbleId ? document.getElementById(options.speechBubbleId) : null;
+    const btnChat = options.btnChatId ? document.getElementById(options.btnChatId) : null;
+    const btnVoice = options.btnVoiceId ? document.getElementById(options.btnVoiceId) : null;
 
     if (!stage || !rig || !canvas) return;
 
@@ -883,6 +959,7 @@ function initLivingRobot() {
 
     function handlePointerMove(e) {
         const rect = stage.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
         const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : rect.left + rect.width / 2);
         const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : rect.top + rect.height / 2);
 
@@ -894,14 +971,11 @@ function initLivingRobot() {
     }
 
     stage.addEventListener('mousemove', handlePointerMove);
-
     stage.addEventListener('mouseleave', () => {
         targetRotateX = 0;
         targetRotateY = 0;
     });
-
     stage.addEventListener('touchmove', handlePointerMove, { passive: true });
-
     stage.addEventListener('touchend', () => {
         targetRotateX = 0;
         targetRotateY = 0;
@@ -918,17 +992,17 @@ function initLivingRobot() {
 
     // 2. Luxury Golden Sparkle & Cyan Ambient Embers Particle System
     const ctx = canvas.getContext('2d');
-    let width = (canvas.width = stage.offsetWidth + 80);
-    let height = (canvas.height = stage.offsetHeight + 80);
+    let width = (canvas.width = (stage.offsetWidth || 340) + 80);
+    let height = (canvas.height = (stage.offsetHeight || 380) + 80);
 
     window.addEventListener('resize', () => {
-        if (!stage) return;
+        if (!stage || stage.offsetWidth === 0) return;
         width = canvas.width = stage.offsetWidth + 80;
         height = canvas.height = stage.offsetHeight + 80;
     });
 
     const particles = [];
-    const MAX_PARTICLES = 36;
+    const MAX_PARTICLES = options.maxParticles || 36;
 
     class Particle {
         constructor(isBurst = false) {
@@ -1020,7 +1094,7 @@ function initLivingRobot() {
         }
     }
 
-    // 3. Interactive Speech Bubble & Click Reactions
+    // 3. Interactive Reactions
     const greetings = [
         "\"Halo! Saya VARIS, asisten AI cerdas Anda. Siap membantu proyek dan riset Anda!\"",
         "\"Satu workspace terintegrasi untuk mengakses model AI terbaik dunia (Gemini Pro, GPT-4o, Claude).\"",
@@ -1034,7 +1108,7 @@ function initLivingRobot() {
 
         if (speechBubble) {
             greetingIndex = (greetingIndex + 1) % greetings.length;
-            const textEl = document.getElementById('robot-speech-text');
+            const textEl = options.speechTextId ? document.getElementById(options.speechTextId) : null;
             if (textEl) textEl.textContent = greetings[greetingIndex];
             speechBubble.classList.remove('hidden');
 
@@ -1060,8 +1134,64 @@ function initLivingRobot() {
             switchTab('voice');
         };
     }
+}
 
-    // 4. Feature Cards Click Handlers
+function initLivingRobot() {
+    // 1. Landing Hero Robot
+    setupRobotEngine('hero-robot-stage', 'robot-3d-rig', 'robot-sparkles-canvas', {
+        speechBubbleId: 'robot-speech-bubble',
+        speechTextId: 'robot-speech-text',
+        btnChatId: 'robot-btn-start-chat',
+        btnVoiceId: 'robot-btn-start-voice'
+    });
+
+    // 2. Auth Showcase Robot
+    setupRobotEngine('auth-robot-stage', 'auth-robot-3d-rig', 'auth-robot-sparkles-canvas', {
+        maxParticles: 28
+    });
+}
+
+function updateAuthUI() {
+    clearAuthAlert();
+    const title = document.getElementById('auth-main-title');
+    const desc = document.getElementById('auth-main-desc');
+    const submitBtn = document.getElementById('auth-submit-btn');
+    const switchText = document.getElementById('auth-switch-text');
+    const switchBtn = document.getElementById('auth-switch-btn');
+    const nameGroup = document.getElementById('group-auth-name');
+
+    if (isRegisterMode) {
+        if (title) title.textContent = 'Create your account';
+        if (desc) desc.textContent = 'Join VARIS AI Intelligent Workspace.';
+        if (submitBtn) submitBtn.innerHTML = `<span>Sign Up</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+        if (switchText) switchText.textContent = 'Already have an account?';
+        if (switchBtn) switchBtn.textContent = 'Sign In';
+        if (nameGroup) nameGroup.classList.remove('hidden');
+    } else {
+        if (title) title.textContent = 'Welcome back';
+        if (desc) desc.textContent = 'Continue your intelligent workspace.';
+        if (submitBtn) submitBtn.innerHTML = `<span>Sign In</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+        if (switchText) switchText.textContent = "Don't have an account?";
+        if (switchBtn) switchBtn.textContent = 'Create account';
+        if (nameGroup) nameGroup.classList.add('hidden');
+    }
+}
+
+function initLandingFeatures() {
+    // Landing Action Buttons
+    const landingSignin = document.getElementById('landing-signin-btn');
+    if (landingSignin) landingSignin.onclick = () => { isRegisterMode = false; updateAuthUI(); switchMainView('auth'); };
+
+    const landingGetStarted = document.getElementById('landing-getstarted-btn');
+    if (landingGetStarted) landingGetStarted.onclick = () => { isRegisterMode = true; updateAuthUI(); switchMainView('auth'); };
+
+    const heroStart = document.getElementById('hero-start-btn');
+    if (heroStart) heroStart.onclick = () => { isRegisterMode = true; updateAuthUI(); switchMainView('auth'); };
+
+    const heroExplore = document.getElementById('hero-explore-btn');
+    if (heroExplore) heroExplore.onclick = () => { switchMainView('app'); switchTab('chat'); };
+
+    // Feature Cards
     const cardModels = document.getElementById('card-feat-models');
     if (cardModels) cardModels.onclick = () => { switchMainView('app'); openModal('modal-model-sheet'); };
 
@@ -1074,7 +1204,7 @@ function initLivingRobot() {
     const cardSecurity = document.getElementById('card-feat-security');
     if (cardSecurity) cardSecurity.onclick = () => { showToast('🔒 Enterprise encryption & zero-knowledge security active.'); };
 
-    // 5. Mobile Navigation Drawer Toggle
+    // Mobile Navigation Drawer Toggle
     const mobileMenuBtn = document.getElementById('btn-landing-mobile-menu');
     const mobileDrawer = document.getElementById('landing-mobile-drawer');
     if (mobileMenuBtn && mobileDrawer) {
@@ -1103,7 +1233,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authParam === 'success') {
         showToast('🎉 Berhasil masuk dengan akun Google!');
         window.history.replaceState({}, document.title, window.location.pathname);
-        fetchCurrentUser();
     } else if (errorParam === 'oauth_unavailable') {
         showAuthAlert('⚠️ Google OAuth Server Secret belum diset di Vercel Environment (GOOGLE_CLIENT_SECRET). Silakan Sign In atau Sign Up dengan Email & Password di bawah!', 'error');
         showToast('⚠️ Google OAuth belum aktif di server. Gunakan Email & Password.');
@@ -1119,30 +1248,23 @@ document.addEventListener('DOMContentLoaded', () => {
         switchMainView('auth');
     }
 
-    // 1. Check current session & Load available models
+    // 1. Immediate Session & Tab Hydration from localStorage
+    initSessionAndRouting();
+
+    // 2. Background Server Session Verification & Model Loading
     fetchCurrentUser();
     loadAIModels();
 
-    // 2. Initialize GIS Google Auth
+    // 3. Initialize GIS Google Auth
     setTimeout(initGoogleAuth, 600);
 
-    // 3. Initialize Living Robot Character Engine & Luxury Sparkles
+    // 4. Initialize Living Robot Engine for both Hero & Auth Stage
     initLivingRobot();
 
-    // 4. Landing Page Action Buttons
-    const landingSignin = document.getElementById('landing-signin-btn');
-    if (landingSignin) landingSignin.onclick = () => { isRegisterMode = false; updateAuthUI(); switchMainView('auth'); };
+    // 5. Initialize Landing Page Interactions
+    initLandingFeatures();
 
-    const landingGetStarted = document.getElementById('landing-getstarted-btn');
-    if (landingGetStarted) landingGetStarted.onclick = () => { isRegisterMode = true; updateAuthUI(); switchMainView('auth'); };
-
-    const heroStart = document.getElementById('hero-start-btn');
-    if (heroStart) heroStart.onclick = () => { isRegisterMode = true; updateAuthUI(); switchMainView('auth'); };
-
-    const heroExplore = document.getElementById('hero-explore-btn');
-    if (heroExplore) heroExplore.onclick = () => { switchMainView('app'); switchTab('chat'); };
-
-    // 4. Auth View Buttons
+    // 6. Auth View Controls & Toggle
     const authBack = document.getElementById('auth-back-to-landing');
     if (authBack) authBack.onclick = () => switchMainView('landing');
 
@@ -1152,32 +1274,6 @@ document.addEventListener('DOMContentLoaded', () => {
             isRegisterMode = !isRegisterMode;
             updateAuthUI();
         };
-    }
-
-    function updateAuthUI() {
-        clearAuthAlert();
-        const title = document.getElementById('auth-main-title');
-        const desc = document.getElementById('auth-main-desc');
-        const submitBtn = document.getElementById('auth-submit-btn');
-        const switchText = document.getElementById('auth-switch-text');
-        const switchBtn = document.getElementById('auth-switch-btn');
-        const nameGroup = document.getElementById('group-auth-name');
-
-        if (isRegisterMode) {
-            if (title) title.textContent = 'Create your account';
-            if (desc) desc.textContent = 'Join VARIS AI Intelligent Workspace.';
-            if (submitBtn) submitBtn.textContent = 'Sign Up';
-            if (switchText) switchText.textContent = 'Already have an account?';
-            if (switchBtn) switchBtn.textContent = 'Sign In';
-            if (nameGroup) nameGroup.classList.remove('hidden');
-        } else {
-            if (title) title.textContent = 'Welcome back';
-            if (desc) desc.textContent = 'Continue your intelligent workspace.';
-            if (submitBtn) submitBtn.textContent = 'Sign In';
-            if (switchText) switchText.textContent = "Don't have an account?";
-            if (switchBtn) switchBtn.textContent = 'Create account';
-            if (nameGroup) nameGroup.classList.add('hidden');
-        }
     }
 
     const btnGoogle = document.getElementById('btn-continue-google');
@@ -1221,8 +1317,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         ...userData,
                         picture: userData.avatar_url || userData.picture || null,
                         avatar_url: userData.avatar_url || null,
-                        credits: userData.credits !== undefined ? userData.credits : 2450
+                        credits: userData.credits !== undefined ? userData.credits : 999999,
+                        plan: userData.plan || 'Unlimited Access'
                     };
+                    try {
+                        localStorage.setItem('varis_user', JSON.stringify(currentUser));
+                        localStorage.setItem('varis_active_tab', 'home');
+                    } catch (e) {}
                     showToast(isRegisterMode ? 'Account created successfully!' : 'Signed in successfully!');
                     switchMainView('app');
                     switchTab('home');
@@ -1537,6 +1638,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 await fetch('/api/auth/logout', { method: 'POST' });
             } catch (e) {}
             currentUser = null;
+            try {
+                localStorage.removeItem('varis_user');
+                localStorage.removeItem('varis_active_tab');
+                localStorage.removeItem('varis_main_view');
+                window.history.replaceState(null, '', window.location.pathname);
+            } catch (e) {}
             showToast('Signed out of VARIS AI');
             switchMainView('landing');
         };

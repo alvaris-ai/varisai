@@ -246,81 +246,145 @@
          VIEW 1: AUTHENTICATION SCREEN (#view-auth)
          ======================================================== -->
     <section class="view-screen" id="view-auth">
+        <!-- Marble Luxury Texture Background -->
+        <div class="landing-marble-bg" aria-hidden="true"></div>
+        <div class="landing-gold-grid-overlay" aria-hidden="true"></div>
+
         <div class="auth-split-wrapper">
             <!-- Left Panel / Mobile Card -->
             <div class="auth-panel-main">
-                <div class="auth-header-bar">
-                    <button class="btn-icon-back" id="auth-back-to-landing" title="Back">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                    </button>
-                    <div class="auth-brand-badge">
-                        <div class="brand-badge-icon sm">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                        </div>
-                        <span class="auth-brand-name">VARIS</span>
-                    </div>
-                </div>
-
-                <div class="auth-box-inner">
-                    <h2 class="auth-heading" id="auth-main-title">Welcome back</h2>
-                    <p class="auth-subheading" id="auth-main-desc">Continue your intelligent workspace.</p>
-
-                    <!-- Alert message box -->
-                    <div class="auth-alert-box hidden" id="auth-alert-box"></div>
-
-                    <!-- Official Google OAuth Button -->
-                    <button class="btn-google-official" id="btn-continue-google">
-                        <svg class="google-g-icon" viewBox="0 0 24 24" width="20" height="20">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                        </svg>
-                        <span>Continue with Google</span>
-                    </button>
-
-                    <div class="auth-divider">
-                        <span>OR</span>
-                    </div>
-
-                    <!-- Email & Password Form -->
-                    <form class="auth-email-form" id="auth-email-form" autocomplete="on">
-                        <div class="form-group hidden" id="group-auth-name">
-                            <label for="auth-name-input">Full Name</label>
-                            <input type="text" id="auth-name-input" placeholder="Your name" autocomplete="name">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="auth-email-input">Email address</label>
-                            <input type="email" id="auth-email-input" placeholder="name@example.com" required autocomplete="email">
-                        </div>
-
-                        <div class="form-group">
-                            <div class="label-row">
-                                <label for="auth-pass-input">Password</label>
-                                <a href="#" class="link-forgot-pass" id="btn-forgot-password">Forgot password?</a>
-                            </div>
-                            <input type="password" id="auth-pass-input" placeholder="••••••••" required autocomplete="current-password">
-                        </div>
-
-                        <button type="submit" class="btn-auth-submit" id="auth-submit-btn">
-                            Sign In
+                <div class="auth-card-luxury">
+                    <div class="auth-header-bar">
+                        <button class="btn-icon-back" id="auth-back-to-landing" title="Back to Home">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                         </button>
-                    </form>
-
-                    <div class="auth-footer-switch">
-                        <span id="auth-switch-text">Don't have an account?</span>
-                        <button type="button" class="btn-text-link" id="auth-switch-btn">Create account</button>
+                        <div class="auth-brand-badge">
+                            <div class="brand-badge-icon sm">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            </div>
+                            <span class="auth-brand-name">VARIS AI</span>
+                        </div>
                     </div>
+
+                    <div class="auth-box-inner">
+                        <h2 class="auth-heading" id="auth-main-title">Welcome back</h2>
+                        <p class="auth-subheading" id="auth-main-desc">Continue your intelligent workspace.</p>
+
+                        <!-- Alert message box -->
+                        <div class="auth-alert-box hidden" id="auth-alert-box"></div>
+
+                        <!-- Official Google OAuth Button -->
+                        <button class="btn-google-official" id="btn-continue-google">
+                            <svg class="google-g-icon" viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                            </svg>
+                            <span>Continue with Google</span>
+                        </button>
+
+                        <div class="auth-divider">
+                            <span>OR</span>
+                        </div>
+
+                        <!-- Email & Password Form -->
+                        <form class="auth-email-form" id="auth-email-form" autocomplete="on">
+                            <div class="form-group hidden" id="group-auth-name">
+                                <label for="auth-name-input">Full Name</label>
+                                <input type="text" id="auth-name-input" placeholder="Your name" autocomplete="name">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="auth-email-input">Email address</label>
+                                <input type="email" id="auth-email-input" placeholder="name@example.com" required autocomplete="email">
+                            </div>
+
+                            <div class="form-group">
+                                <div class="label-row">
+                                    <label for="auth-pass-input">Password</label>
+                                    <a href="#" class="link-forgot-pass" id="btn-forgot-password">Forgot password?</a>
+                                </div>
+                                <input type="password" id="auth-pass-input" placeholder="••••••••" required autocomplete="current-password">
+                            </div>
+
+                            <button type="submit" class="btn-auth-submit" id="auth-submit-btn">
+                                <span>Sign In</span>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                            </button>
+                        </form>
+
+                        <div class="auth-footer-switch">
+                            <span id="auth-switch-text">Don't have an account?</span>
+                            <button type="button" class="btn-text-link" id="auth-switch-btn">Create account</button>
+                        </div>
+                    </div>
+                    <div class="card-gold-corner top-left"></div>
+                    <div class="card-gold-corner top-right"></div>
+                    <div class="card-gold-corner bottom-left"></div>
+                    <div class="card-gold-corner bottom-right"></div>
                 </div>
             </div>
 
-            <!-- Right Showcase Panel (Desktop) -->
+            <!-- Right Showcase Panel: Living Robot Character Stage -->
             <div class="auth-panel-showcase">
-                <div class="showcase-content-box">
-                    <div class="showcase-orb-mini"></div>
-                    <h3 class="showcase-title">Your Intelligent Workspace</h3>
-                    <p class="showcase-text">Access frontier AI models, smart agent automation, file intelligence, and voice conversation all in one seamless place.</p>
+                <div class="auth-showcase-inner">
+                    <div class="auth-robot-stage" id="auth-robot-stage">
+                        <!-- Canvas for Floating Gold Sparkles & Cyan Ambient Embers -->
+                        <canvas id="auth-robot-sparkles-canvas" class="robot-sparkles-canvas"></canvas>
+
+                        <!-- Ethereal Floor Glow & Ambient Shadow -->
+                        <div class="robot-ambient-backdrop"></div>
+                        <div class="robot-floor-glow"></div>
+
+                        <!-- 3D Interactive Gyroscopic Robot Rig -->
+                        <div class="robot-3d-rig" id="auth-robot-3d-rig">
+                            <!-- 3D Concentric Orbital Rings System -->
+                            <div class="orbital-system">
+                                <div class="orbital-ring ring-outer-gold"></div>
+                                <div class="orbital-ring ring-middle-cyan">
+                                    <span class="orbit-sat sat-1"></span>
+                                    <span class="orbit-sat sat-2"></span>
+                                    <span class="orbit-sat sat-3"></span>
+                                </div>
+                                <div class="orbital-ring ring-inner-gold"></div>
+                                <div class="orbital-ring ring-glow-pulse"></div>
+                            </div>
+
+                            <!-- Robot Character Body Container -->
+                            <div class="robot-character-box">
+                                <img 
+                                    src="/assets/varis-robot-welcoming.png" 
+                                    alt="VARIS AI Living Humanoid Robot Character" 
+                                    class="robot-portrait-img" 
+                                    loading="eager"
+                                />
+
+                                <!-- Glowing Cyan Core Pulse Overlay -->
+                                <div class="robot-glowing-core"></div>
+                                
+                                <!-- Glowing Luminescent Eyes Overlay -->
+                                <div class="robot-glowing-eyes"></div>
+
+                                <!-- Specular Metallic Light Sweep Shimmer -->
+                                <div class="robot-metallic-shimmer"></div>
+                            </div>
+                        </div>
+
+                        <!-- Live Status Pill Below Robot -->
+                        <div class="robot-status-pill-wrap">
+                            <div class="robot-status-pill">
+                                <span class="pulse-dot"></span>
+                                <span>VARIS AI Core • Online</span>
+                                <span class="sparkle-hint">Think. Create. Build. ✨</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="auth-showcase-text-wrap">
+                        <h3 class="auth-showcase-title">Your Intelligent AI Workspace</h3>
+                        <p class="auth-showcase-desc">Satu workspace terintegrasi untuk mengakses AI terbaik dunia, pencarian web real-time, manajemen proyek, dan interaksi suara cerdas.</p>
+                    </div>
                 </div>
             </div>
         </div>
