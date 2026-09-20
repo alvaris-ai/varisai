@@ -31,7 +31,7 @@ export default function handler(req, res) {
         const buffer = fs.readFileSync(filePath);
         res.writeHead(200, {
           'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=86400',
+          'Cache-Control': 'public, max-age=3600, must-revalidate',
         });
         return res.end(buffer);
       }

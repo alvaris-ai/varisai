@@ -653,36 +653,27 @@ html, body {
 /* Ambient Backdrops & Floor Glow */
 .robot-ambient-backdrop {
   position: absolute;
-  width: 380px;
-  height: 380px;
+  width: 400px;
+  height: 400px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(212, 175, 55, 0.12) 0%, rgba(37, 99, 235, 0.08) 50%, transparent 75%);
-  filter: blur(40px);
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.16) 0%, rgba(6, 182, 212, 0.1) 45%, transparent 72%);
+  filter: blur(36px);
   z-index: 1;
   animation: ambientAuraPulse 6s infinite alternate ease-in-out;
+  pointer-events: none;
 }
 
 .robot-floor-glow {
   position: absolute;
-  bottom: 10px;
-  width: 320px;
-  height: 60px;
+  bottom: 0px;
+  width: 340px;
+  height: 50px;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(6, 182, 212, 0.4) 0%, rgba(212, 175, 55, 0.25) 40%, transparent 75%);
-  filter: blur(20px);
+  background: radial-gradient(ellipse at center, rgba(6, 182, 212, 0.35) 0%, rgba(212, 175, 55, 0.22) 40%, transparent 72%);
+  filter: blur(14px);
   z-index: 2;
   animation: floorGlowPulse 4s infinite alternate ease-in-out;
-}
-
-.robot-ethereal-mist {
-  position: absolute;
-  bottom: 0;
-  width: 260px;
-  height: 35px;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.4) 50%, transparent 80%);
-  filter: blur(10px);
-  z-index: 3;
+  pointer-events: none;
 }
 
 /* 3D Rig */
@@ -821,15 +812,14 @@ html, body {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  mix-blend-mode: multiply;
-  -webkit-mask-image: radial-gradient(ellipse at 50% 50%, black 70%, transparent 98%);
-  mask-image: radial-gradient(ellipse at 50% 50%, black 70%, transparent 98%);
-  filter: drop-shadow(0 12px 24px rgba(212, 175, 55, 0.25)) contrast(1.08) brightness(1.02);
+  -webkit-mask-image: linear-gradient(to bottom, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 86%, transparent 100%);
+  filter: drop-shadow(0 14px 28px rgba(212, 175, 55, 0.32)) drop-shadow(0 4px 14px rgba(6, 182, 212, 0.25)) contrast(1.05) brightness(1.02);
   transition: transform var(--t-smooth), filter var(--t-smooth);
 }
 
 .hero-robot-stage:hover .robot-portrait-img {
-  filter: drop-shadow(0 16px 30px rgba(212, 175, 55, 0.45)) contrast(1.1) brightness(1.04);
+  filter: drop-shadow(0 18px 36px rgba(212, 175, 55, 0.48)) drop-shadow(0 6px 18px rgba(6, 182, 212, 0.35)) contrast(1.08) brightness(1.04);
 }
 
 /* Glowing Cyan Chest Core */
