@@ -5,14 +5,17 @@
 // ==========================================================
 
 // --- State Machine & Global Store ---
+const DEFAULT_AVATAR_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="default-avatar-svg"><rect width="48" height="48" fill="#E2E8F0"/><path d="M24 8C19.5817 8 16 11.5817 16 16C16 20.4183 19.5817 24 24 24C28.4183 24 32 20.4183 32 16C32 11.5817 28.4183 8 24 8Z" fill="#94A3B8"/><path d="M9 42C9 33.7157 15.7157 27 24 27C32.2843 27 39 33.7157 39 42V48H9V42Z" fill="#94A3B8"/></svg>`;
+
 let activeMainView = 'landing'; // 'landing', 'auth', 'app'
 let activeTab = 'home';         // 'home', 'chat', 'voice', 'projects', 'profile'
 let currentUser = {
     id: 'user-demo',
-    name: 'Alex Rivera',
-    email: 'alex.rivera@workspace.ai',
-    picture: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    plan: 'Pro Tier',
+    name: 'VARIS User',
+    email: '',
+    picture: null,
+    avatar_url: null,
+    plan: 'Free Tier',
     credits: 2450,
     creditsMax: 3000
 };
@@ -119,10 +122,8 @@ function switchTab(tabName) {
 function renderUserData() {
     if (!currentUser) return;
 
-    const firstName = currentUser.name ? currentUser.name.split(' ')[0] : 'there';
-    const initials = currentUser.name
-        ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-        : 'VR';
+    const firstName = currentUser.name ? currentUser.name.split(' ')[0] : 'User';
+    const photoUrl = currentUser.picture || currentUser.avatar_url || null;
 
     // 1. Home Tab Elements
     const homeName = document.getElementById('home-user-name');
@@ -146,10 +147,10 @@ function renderUserData() {
 
     // 3. Profile Tab Elements
     const profileName = document.getElementById('profile-display-name');
-    if (profileName) profileName.textContent = currentUser.name || 'Alex Rivera';
+    if (profileName) profileName.textContent = currentUser.name || 'VARIS User';
 
     const profileEmail = document.getElementById('profile-display-email');
-    if (profileEmail) profileEmail.textContent = currentUser.email || 'alex.rivera@workspace.ai';
+    if (profileEmail) profileEmail.textContent = currentUser.email || '';
 
     const profileCredits = document.getElementById('profile-credits-numbers');
     if (profileCredits) profileCredits.textContent = `${Number(currentUser.credits).toLocaleString()} / 10,000`;
@@ -159,28 +160,42 @@ function renderUserData() {
 
     const profilePhoto = document.getElementById('profile-user-photo');
     const profileFallback = document.getElementById('profile-avatar-fallback');
-    if (currentUser.picture && profilePhoto) {
-        profilePhoto.src = currentUser.picture;
+    if (photoUrl && profilePhoto) {
+        profilePhoto.src = photoUrl;
         profilePhoto.style.display = 'block';
         if (profileFallback) profileFallback.style.display = 'none';
-    } else if (profileFallback) {
+    } else {
         if (profilePhoto) profilePhoto.style.display = 'none';
-        profileFallback.textContent = initials;
-        profileFallback.style.display = 'flex';
+        if (profileFallback) {
+            profileFallback.innerHTML = DEFAULT_AVATAR_SVG;
+            profileFallback.style.display = 'flex';
+        }
     }
 
     // 4. Sidebar & Topbar Badges
     const topAvatar = document.getElementById('topbar-avatar-badge');
-    if (topAvatar) topAvatar.textContent = initials;
+    if (topAvatar) {
+        if (photoUrl) {
+            topAvatar.innerHTML = `<img src="${photoUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+            topAvatar.innerHTML = DEFAULT_AVATAR_SVG;
+        }
+    }
 
     const sideAvatar = document.getElementById('sidebar-user-avatar');
-    if (sideAvatar) sideAvatar.textContent = initials;
+    if (sideAvatar) {
+        if (photoUrl) {
+            sideAvatar.innerHTML = `<img src="${photoUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+            sideAvatar.innerHTML = DEFAULT_AVATAR_SVG;
+        }
+    }
 
     const sideName = document.getElementById('sidebar-user-name');
-    if (sideName) sideName.textContent = currentUser.name || 'Alex Rivera';
+    if (sideName) sideName.textContent = currentUser.name || 'VARIS User';
 
     const sidePlan = document.getElementById('sidebar-user-plan');
-    if (sidePlan) sidePlan.textContent = currentUser.plan || 'Pro Tier';
+    if (sidePlan) sidePlan.textContent = currentUser.plan || 'Free Tier';
 }
 
 async function fetchCurrentUser() {
@@ -192,8 +207,10 @@ async function fetchCurrentUser() {
                 currentUser = {
                     ...currentUser,
                     ...data.user,
+                    picture: data.user.avatar_url || data.user.picture || null,
+                    avatar_url: data.user.avatar_url || null,
                     credits: (data.subscription && data.subscription.credits_balance !== undefined) ? data.subscription.credits_balance : (data.user.credits !== undefined ? data.user.credits : 2450),
-                    plan: data.subscription?.plan_name || (data.user.tier ? (data.user.tier.charAt(0).toUpperCase() + data.user.tier.slice(1) + ' Tier') : 'Pro Tier')
+                    plan: data.subscription?.plan_name || (data.user.tier ? (data.user.tier.charAt(0).toUpperCase() + data.user.tier.slice(1) + ' Tier') : 'Free Tier')
                 };
                 switchMainView('app');
                 return;
@@ -245,6 +262,8 @@ async function handleGoogleCredentialResponse(response) {
             currentUser = {
                 ...currentUser,
                 ...userData,
+                picture: userData.avatar_url || userData.picture || null,
+                avatar_url: userData.avatar_url || null,
                 credits: userData.credits !== undefined ? userData.credits : 2450
             };
             showToast(`Welcome, ${currentUser.name || 'User'}!`);
@@ -608,6 +627,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentUser = {
                         ...currentUser,
                         ...userData,
+                        picture: userData.avatar_url || userData.picture || null,
+                        avatar_url: userData.avatar_url || null,
                         credits: userData.credits !== undefined ? userData.credits : 2450
                     };
                     showToast(isRegisterMode ? 'Account created successfully!' : 'Signed in successfully!');

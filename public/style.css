@@ -815,13 +815,13 @@ html, body {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--brand-royal);
-  color: #FFFFFF;
+  background: #E2E8F0;
+  color: #94A3B8;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 800;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -889,13 +889,14 @@ html, body {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--brand-royal);
-  color: #FFFFFF;
+  background: #E2E8F0;
+  color: #94A3B8;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.82rem;
-  font-weight: 800;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-subtle);
 }
 
 /* Tab Viewport & Page Transitions */
@@ -2115,6 +2116,7 @@ html, body {
   flex-shrink: 0;
   border: 2px solid #FFFFFF;
   box-shadow: var(--shadow-subtle);
+  background: #E2E8F0;
 }
 
 .profile-avatar-photo {
@@ -2126,13 +2128,18 @@ html, body {
 .profile-avatar-fallback {
   width: 100%;
   height: 100%;
-  background: var(--brand-royal);
-  color: #FFFFFF;
+  background: #E2E8F0;
+  color: #94A3B8;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.15rem;
-  font-weight: 800;
+  overflow: hidden;
+}
+
+.default-avatar-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .profile-name-group {
