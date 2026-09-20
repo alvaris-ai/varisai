@@ -7028,6 +7028,24 @@ function generateFreeSmartResponse(userMessage) {
     const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     return `Hari ini adalah ${dateStr}. Ada kegiatan penting hari ini?`;
   }
+  if (lower.includes("bahasa indonesia") || lower.includes("pake bahasa indonesia") || lower.includes("pakai bahasa indonesia") || lower.includes("gunakan bahasa indonesia")) {
+    return "Tentu! Mulai sekarang aku akan merespons sepenuhnya dalam Bahasa Indonesia. Apa yang ingin kamu tanyakan atau diskusikan?";
+  }
+  if (lower.includes("bahasa inggris") || lower.includes("speak english") || lower.includes("in english") || lower.includes("use english") || lower.includes("english please")) {
+    return "Of course! I will now respond in English. What would you like to explore or work on today?";
+  }
+  if (lower.includes("bahasa jepang") || lower.includes("nihongo") || lower.includes("japanese")) {
+    return "Hai, wakarimashita! Kore kara Nihongo de hanashimashou (\u306F\u3044\u3001\u5206\u304B\u308A\u307E\u3057\u305F\uFF01\u3053\u308C\u304B\u3089\u65E5\u672C\u8A9E\u3067\u8A71\u3057\u307E\u3057\u3087\u3046). Nanika tetsudaimashou ka?";
+  }
+  if (lower.includes("bahasa arab") || lower.includes("arabic")) {
+    return "Ahlan wa sahlan! Ana musta'idd li-musa'adatika bi-l-lughatil 'Arabiyyah (\u0623\u0647\u0644\u0627\u064B \u0648\u0633\u0647\u0644\u0627\u064B! \u0623\u0646\u0627 \u0645\u0633\u062A\u0639\u062F \u0644\u0645\u0633\u0627\u0639\u062F\u062A\u0643 \u0628\u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629). Kaifa yumkinuni an usa'idakal yaum?";
+  }
+  if (lower.includes("bahasa jawa") || lower.includes("basa jawa")) {
+    return "Inggih, kulo siap mbiyantu panjenengan migunakaken Basa Jawi. Wonten babagan punapa ingkang saget kulo biyantu?";
+  }
+  if (lower.includes("bahasa sunda") || lower.includes("basa sunda")) {
+    return "Mangga, simkuring siap ngabantos nganggo Basa Sunda. Aya perkawis naon anu tiasa dibantos dinten ieu?";
+  }
   if (/^(halo|hai|hey|hei|hello|hi|halo varis|hai varis)(\b|\s|$)/i.test(lower) || lower === "halo" || lower === "hai") {
     if (lower.includes("apa kabar") || lower.includes("gimana kabarmu") || lower.includes("kabarmu")) {
       return "Halo! Kabarku sangat baik dan siap membantumu. Bagaimana dengan kabarmu hari ini?";
@@ -14181,10 +14199,6 @@ function createMultiProviderOrchestrator({
 }
 function createAIProviderFromConfig(config, { logger } = {}) {
   const providers = [];
-  if (config.aiProvider === "free") {
-    providers.push(createSmartLocalProvider());
-    return createMultiProviderOrchestrator({ providers, logger });
-  }
   if (config.geminiApiKey) {
     providers.push(
       createGeminiProvider({
@@ -15171,21 +15185,27 @@ async function handler9(req, res) {
       return res.end(JSON.stringify({ error: { code: "INVALID_MESSAGE", message: "Message is required" } }));
     }
     let replyText = "";
+    let modelUsed = model;
     try {
       const agentRes = await agent.run({
         userMessage: message,
         userId: user.id,
-        modelId: model
+        model
       });
-      replyText = agentRes.answer;
-    } catch {
+      replyText = agentRes.text || agentRes.answer || agentRes.response || "";
+      modelUsed = agentRes.modelUsed || agentRes.model || model;
+    } catch (err) {
+      replyText = generateFreeSmartResponse(message);
+    }
+    if (!replyText || typeof replyText !== "string" || !replyText.trim()) {
       replyText = generateFreeSmartResponse(message);
     }
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       status: "success",
-      reply: replyText,
-      model,
+      reply: replyText.trim(),
+      response: replyText.trim(),
+      model: modelUsed,
       credits_used: 3,
       credits_remaining: 97
     }));

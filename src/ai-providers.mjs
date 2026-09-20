@@ -565,12 +565,6 @@ export function createMultiProviderOrchestrator({
 export function createAIProviderFromConfig(config, { logger } = {}) {
   const providers = [];
 
-  // If AI_PROVIDER=free, use smart local engine directly
-  if (config.aiProvider === 'free') {
-    providers.push(createSmartLocalProvider());
-    return createMultiProviderOrchestrator({ providers, logger });
-  }
-
   // Google Gemini (Primary high-context multi-modal)
   if (config.geminiApiKey) {
     providers.push(

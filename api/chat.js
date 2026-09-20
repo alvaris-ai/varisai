@@ -68,22 +68,29 @@ export default async function handler(req, res) {
     }
 
     let replyText = '';
+    let modelUsed = model;
     try {
       const agentRes = await agent.run({
         userMessage: message,
         userId: user.id,
-        modelId: model,
+        model: model,
       });
-      replyText = agentRes.answer;
-    } catch {
+      replyText = agentRes.text || agentRes.answer || agentRes.response || '';
+      modelUsed = agentRes.modelUsed || agentRes.model || model;
+    } catch (err) {
+      replyText = generateFreeSmartResponse(message);
+    }
+
+    if (!replyText || typeof replyText !== 'string' || !replyText.trim()) {
       replyText = generateFreeSmartResponse(message);
     }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'success',
-      reply: replyText,
-      model,
+      reply: replyText.trim(),
+      response: replyText.trim(),
+      model: modelUsed,
       credits_used: 3,
       credits_remaining: 97,
     }));

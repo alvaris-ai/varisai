@@ -28,7 +28,32 @@ export function generateFreeSmartResponse(userMessage) {
     return `Hari ini adalah ${dateStr}. Ada kegiatan penting hari ini?`;
   }
 
-  // 3. Greetings & Pleasantries
+  // 3. Language Directives & Instruction Following
+  if (lower.includes('bahasa indonesia') || lower.includes('pake bahasa indonesia') || lower.includes('pakai bahasa indonesia') || lower.includes('gunakan bahasa indonesia')) {
+    return "Tentu! Mulai sekarang aku akan merespons sepenuhnya dalam Bahasa Indonesia. Apa yang ingin kamu tanyakan atau diskusikan?";
+  }
+
+  if (lower.includes('bahasa inggris') || lower.includes('speak english') || lower.includes('in english') || lower.includes('use english') || lower.includes('english please')) {
+    return "Of course! I will now respond in English. What would you like to explore or work on today?";
+  }
+
+  if (lower.includes('bahasa jepang') || lower.includes('nihongo') || lower.includes('japanese')) {
+    return "Hai, wakarimashita! Kore kara Nihongo de hanashimashou (はい、分かりました！これから日本語で話しましょう). Nanika tetsudaimashou ka?";
+  }
+
+  if (lower.includes('bahasa arab') || lower.includes('arabic')) {
+    return "Ahlan wa sahlan! Ana musta'idd li-musa'adatika bi-l-lughatil 'Arabiyyah (أهلاً وسهلاً! أنا مستعد لمساعدتك باللغة العربية). Kaifa yumkinuni an usa'idakal yaum?";
+  }
+
+  if (lower.includes('bahasa jawa') || lower.includes('basa jawa')) {
+    return "Inggih, kulo siap mbiyantu panjenengan migunakaken Basa Jawi. Wonten babagan punapa ingkang saget kulo biyantu?";
+  }
+
+  if (lower.includes('bahasa sunda') || lower.includes('basa sunda')) {
+    return "Mangga, simkuring siap ngabantos nganggo Basa Sunda. Aya perkawis naon anu tiasa dibantos dinten ieu?";
+  }
+
+  // 4. Greetings & Pleasantries
   if (/^(halo|hai|hey|hei|hello|hi|halo varis|hai varis)(\b|\s|$)/i.test(lower) || lower === 'halo' || lower === 'hai') {
     if (lower.includes('apa kabar') || lower.includes('gimana kabarmu') || lower.includes('kabarmu')) {
       return "Halo! Kabarku sangat baik dan siap membantumu. Bagaimana dengan kabarmu hari ini?";
