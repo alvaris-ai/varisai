@@ -188,12 +188,12 @@ async function fetchCurrentUser() {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
             const data = await res.json();
-            if (data.authenticated && data.user) {
+            if (data.user) {
                 currentUser = {
                     ...currentUser,
                     ...data.user,
-                    credits: data.user.credits !== undefined ? data.user.credits : 2450,
-                    plan: data.user.tier ? (data.user.tier.charAt(0).toUpperCase() + data.user.tier.slice(1) + ' Tier') : 'Pro Tier'
+                    credits: (data.subscription && data.subscription.credits_balance !== undefined) ? data.subscription.credits_balance : (data.user.credits !== undefined ? data.user.credits : 2450),
+                    plan: data.subscription?.plan_name || (data.user.tier ? (data.user.tier.charAt(0).toUpperCase() + data.user.tier.slice(1) + ' Tier') : 'Pro Tier')
                 };
                 switchMainView('app');
                 return;
@@ -240,17 +240,19 @@ async function handleGoogleCredentialResponse(response) {
         });
 
         const data = await res.json();
-        if (res.ok && data.success) {
+        if (res.ok && (data.success || data.user)) {
+            const userData = data.user || data;
             currentUser = {
                 ...currentUser,
-                ...data.user,
-                credits: data.user.credits !== undefined ? data.user.credits : 2450
+                ...userData,
+                credits: userData.credits !== undefined ? userData.credits : 2450
             };
-            showToast(`Welcome, ${currentUser.name}!`);
+            showToast(`Welcome, ${currentUser.name || 'User'}!`);
             switchMainView('app');
             switchTab('home');
         } else {
-            showAuthAlert(data.error || 'Google authentication failed.', 'error');
+            const errorMsg = (typeof data.error === 'object' && data.error !== null ? (data.error.message || data.error.code) : data.error) || data.message || 'Google authentication failed.';
+            showAuthAlert(errorMsg, 'error');
         }
     } catch (err) {
         showAuthAlert('Error during Google authentication: ' + err.message, 'error');
@@ -260,7 +262,11 @@ async function handleGoogleCredentialResponse(response) {
 function showAuthAlert(msg, type = 'error') {
     const box = document.getElementById('auth-alert-box');
     if (!box) return;
-    box.textContent = msg;
+    let text = msg;
+    if (typeof msg === 'object' && msg !== null) {
+        text = msg.message || msg.code || JSON.stringify(msg);
+    }
+    box.textContent = text;
     box.className = `auth-alert-box ${type}`;
     box.classList.remove('hidden');
 }
@@ -391,7 +397,15 @@ async function handleSendMessage() {
 
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            bodyEl.innerHTML = `<p class="ai-text-para" style="color: #DC2626;">Error: ${errData.error || 'Server error occurred'}</p>`;
+            let errorMsg = 'Server error occurred';
+            if (typeof errData.error === 'object' && errData.error !== null) {
+                errorMsg = errData.error.message || errData.error.code || JSON.stringify(errData.error);
+            } else if (typeof errData.error === 'string') {
+                errorMsg = errData.error;
+            } else if (errData.message) {
+                errorMsg = errData.message;
+            }
+            bodyEl.innerHTML = `<p class="ai-text-para" style="color: #DC2626;">Error: ${errorMsg}</p>`;
             return;
         }
 
@@ -589,17 +603,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                if (res.ok && data.success) {
+                if (res.ok && (data.success || data.user)) {
+                    const userData = data.user || data;
                     currentUser = {
                         ...currentUser,
-                        ...data.user,
-                        credits: data.user.credits !== undefined ? data.user.credits : 2450
+                        ...userData,
+                        credits: userData.credits !== undefined ? userData.credits : 2450
                     };
                     showToast(isRegisterMode ? 'Account created successfully!' : 'Signed in successfully!');
                     switchMainView('app');
                     switchTab('home');
                 } else {
-                    showAuthAlert(data.error || 'Authentication error', 'error');
+                    const errorMsg = (typeof data.error === 'object' && data.error !== null ? (data.error.message || data.error.code) : data.error) || data.message || 'Authentication error';
+                    showAuthAlert(errorMsg, 'error');
                 }
             } catch (err) {
                 showAuthAlert('Network error: ' + err.message, 'error');

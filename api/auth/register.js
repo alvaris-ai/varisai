@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       'Content-Type': 'application/json',
       'Set-Cookie': `varis_session=${token}; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`,
     });
-    res.end(JSON.stringify({ user: publicUser(user) }));
+    res.end(JSON.stringify({ success: true, user: publicUser(user) }));
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { code: 'SERVER_ERROR', message: err.message } }));
