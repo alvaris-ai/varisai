@@ -1148,6 +1148,46 @@ print(f"Workspace Delight Index: {calculate_delight_score([4.5, 5.0, 4.8])}")</c
         </div>
     </div>
 
+    <!-- Forgot / Reset Password Modal Sheet -->
+    <div class="modal-backdrop hidden" id="modal-forgot-password">
+        <div class="bottom-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <h3 class="sheet-title">Reset Password</h3>
+                <button class="btn-sheet-close" id="btn-close-forgot-sheet">✕</button>
+            </div>
+
+            <div class="sheet-body-scroll">
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+                    Masukkan email akun Anda dan tentukan password baru untuk memulihkan akses ke akun VARIS AI Anda.
+                </p>
+
+                <div class="auth-alert-box hidden" id="forgot-alert-box"></div>
+
+                <form id="form-forgot-password" class="auth-email-form">
+                    <div class="form-group">
+                        <label for="forgot-email-input">Email Akun</label>
+                        <input type="email" id="forgot-email-input" placeholder="name@example.com" required autocomplete="email">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="forgot-newpass-input">Password Baru (min. 6 karakter)</label>
+                        <input type="password" id="forgot-newpass-input" placeholder="••••••••" required minlength="6" autocomplete="new-password">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="forgot-confirmpass-input">Konfirmasi Password Baru</label>
+                        <input type="password" id="forgot-confirmpass-input" placeholder="••••••••" required minlength="6" autocomplete="new-password">
+                    </div>
+
+                    <button type="submit" class="btn-auth-submit" id="btn-submit-forgot" style="margin-top: 12px;">
+                        Perbarui Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification Popup -->
     <div class="toast-popup hidden" id="global-toast">
         <span class="toast-message" id="toast-text">Notification</span>

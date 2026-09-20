@@ -297,6 +297,23 @@ function clearAuthAlert() {
     if (box) box.classList.add('hidden');
 }
 
+function showForgotAlert(msg, type = 'error') {
+    const box = document.getElementById('forgot-alert-box');
+    if (!box) return;
+    let text = msg;
+    if (typeof msg === 'object' && msg !== null) {
+        text = msg.message || msg.code || JSON.stringify(msg);
+    }
+    box.textContent = text;
+    box.className = `auth-alert-box ${type}`;
+    box.classList.remove('hidden');
+}
+
+function clearForgotAlert() {
+    const box = document.getElementById('forgot-alert-box');
+    if (box) box.classList.add('hidden');
+}
+
 // ==========================================================
 // 4. CHAT MESSAGING & STREAMING ENGINE
 // ==========================================================
@@ -835,6 +852,30 @@ function closeModal(id) {
 // ==========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 0. Check URL Parameters for OAuth Callbacks
+    const urlParams = new URLSearchParams(window.location.search);
+    const authParam = urlParams.get('auth');
+    const errorParam = urlParams.get('error');
+
+    if (authParam === 'success') {
+        showToast('🎉 Berhasil masuk dengan akun Google!');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        fetchCurrentUser();
+    } else if (errorParam === 'oauth_unavailable') {
+        showAuthAlert('⚠️ Google OAuth Server Secret belum diset di Vercel Environment (GOOGLE_CLIENT_SECRET). Silakan Sign In atau Sign Up dengan Email & Password di bawah!', 'error');
+        showToast('⚠️ Google OAuth belum aktif di server. Gunakan Email & Password.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        switchMainView('auth');
+    } else if (errorParam === 'auth_failed') {
+        showAuthAlert('Autentikasi Google gagal atau ditolak. Silakan coba lagi.', 'error');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        switchMainView('auth');
+    } else if (errorParam === 'cancelled') {
+        showAuthAlert('Login Google dibatalkan.', 'error');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        switchMainView('auth');
+    }
+
     // 1. Check current session & Load available models
     fetchCurrentUser();
     loadAIModels();
@@ -945,6 +986,66 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (err) {
                 showAuthAlert('Network error: ' + err.message, 'error');
+            }
+        };
+    }
+
+    // Forgot Password Button & Modal
+    const btnForgot = document.getElementById('btn-forgot-password');
+    if (btnForgot) {
+        btnForgot.onclick = (e) => {
+            e.preventDefault();
+            const currentEmail = document.getElementById('auth-email-input')?.value || '';
+            const forgotEmailInput = document.getElementById('forgot-email-input');
+            if (forgotEmailInput && currentEmail) forgotEmailInput.value = currentEmail;
+            clearForgotAlert();
+            openModal('modal-forgot-password');
+        };
+    }
+
+    const closeForgotSheet = document.getElementById('btn-close-forgot-sheet');
+    if (closeForgotSheet) closeForgotSheet.onclick = () => closeModal('modal-forgot-password');
+
+    const forgotForm = document.getElementById('form-forgot-password');
+    if (forgotForm) {
+        forgotForm.onsubmit = async (e) => {
+            e.preventDefault();
+            clearForgotAlert();
+            const email = document.getElementById('forgot-email-input').value.trim();
+            const newPass = document.getElementById('forgot-newpass-input').value;
+            const confirmPass = document.getElementById('forgot-confirmpass-input').value;
+
+            if (newPass !== confirmPass) {
+                showForgotAlert('Konfirmasi password tidak cocok dengan password baru.', 'error');
+                return;
+            }
+            if (newPass.length < 6) {
+                showForgotAlert('Password baru minimal 6 karakter.', 'error');
+                return;
+            }
+
+            try {
+                showForgotAlert('Memperbarui password...', 'success');
+                const res = await fetch('/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, newPassword: newPass })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast('Password berhasil diubah! Silakan login.');
+                    closeModal('modal-forgot-password');
+                    const authPassInput = document.getElementById('auth-pass-input');
+                    if (authPassInput) authPassInput.value = newPass;
+                    const authEmailInput = document.getElementById('auth-email-input');
+                    if (authEmailInput) authEmailInput.value = email;
+                    showAuthAlert('Password berhasil diperbarui. Silakan klik Sign In.', 'success');
+                } else {
+                    const errorMsg = (typeof data.error === 'object' && data.error !== null ? (data.error.message || data.error.code) : data.error) || data.message || 'Gagal mengubah password.';
+                    showForgotAlert(errorMsg, 'error');
+                }
+            } catch (err) {
+                showForgotAlert('Network error: ' + err.message, 'error');
             }
         };
     }

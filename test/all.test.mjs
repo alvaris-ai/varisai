@@ -11,5 +11,7 @@ import './multi-model.test.mjs';
 import './google-auth.test.mjs';
 import './web-research.test.mjs';
 import './research-chat.test.mjs';
+import './auth-persistence.test.mjs';
+
 
 

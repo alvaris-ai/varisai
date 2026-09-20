@@ -1,17 +1,13 @@
 import { processGoogleCredential } from '../../../src/google-auth.mjs';
-import { createRepositories } from '../../../src/repositories.mjs';
+import { getGlobalRepositories } from '../../../src/repositories.mjs';
 import { createSessionToken, hashSessionToken, publicUser } from '../../../src/security.mjs';
 import { loadConfig } from '../../../src/config.mjs';
 import { createPool } from '../../../src/db.mjs';
 
-let reposInstance = null;
 function getRepos() {
-  if (!reposInstance) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance = createRepositories(pool);
-  }
-  return reposInstance;
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
 }
 
 async function parseBody(req) {

@@ -1,4 +1,37 @@
 import { randomUUID } from 'crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+
+const isTestEnv = () => process.env.NODE_ENV === 'test' || process.env.IS_TEST === 'true' || process.argv.some(a => String(a).includes('test'));
+const STORE_PATH = process.env.VARIS_STORE_PATH || path.join(os.tmpdir(), 'varis_store.json');
+
+function loadDiskStore() {
+  if (isTestEnv()) return null;
+  try {
+    if (fs.existsSync(STORE_PATH)) {
+      const raw = fs.readFileSync(STORE_PATH, 'utf8');
+      return JSON.parse(raw);
+    }
+  } catch {}
+  return null;
+}
+
+function saveDiskStore(data) {
+  if (isTestEnv()) return;
+  try {
+    fs.writeFileSync(STORE_PATH, JSON.stringify(data, null, 2), 'utf8');
+  } catch {}
+}
+
+let globalRepoInstance = null;
+export function getGlobalRepositories(pool = null) {
+  if (!globalRepoInstance) {
+    globalRepoInstance = createRepositories(pool);
+  }
+  return globalRepoInstance;
+}
+
 
 export const DEFAULT_AI_MODELS = [
   {
@@ -255,40 +288,88 @@ const DEFAULT_FILES = [
 ];
 
 export function createRepositories(pool) {
-  // In-Memory Repository implementation
-  const users = [];
-  const sessions = [];
-  const conversations = [];
-  const messages = [];
-  const preferences = [];
-  const voiceProfiles = [];
-  const memoryItems = [];
+  // In-Memory & File-backed Persistent Repository implementation
+  const disk = loadDiskStore() || {};
+  const users = disk.users || [];
+  const sessions = disk.sessions || [];
+  const conversations = disk.conversations || [];
+  const messages = disk.messages || [];
+  const preferences = disk.preferences || [];
+  const voiceProfiles = disk.voiceProfiles || [];
+  const memoryItems = disk.memoryItems || [];
   
   // Multi-Model, Credits, Subscriptions, Projects, Files
-  const aiModels = DEFAULT_AI_MODELS.map(m => ({ ...m, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
-  const subscriptionPlans = DEFAULT_PLANS.map(p => ({ ...p, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
-  const projects = DEFAULT_PROJECTS.map(p => ({ ...p }));
-  const files = DEFAULT_FILES.map(f => ({ ...f }));
-  const userSubscriptions = [];
-  const userCredits = [];
-  const creditTransactions = [];
-  const usageLogs = [];
-  const researchSessions = [];
-  const searchResults = [];
-  const modelUsages = [];
+  const aiModels = disk.aiModels || DEFAULT_AI_MODELS.map(m => ({ ...m, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
+  const subscriptionPlans = disk.subscriptionPlans || DEFAULT_PLANS.map(p => ({ ...p, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
+  const projects = disk.projects || DEFAULT_PROJECTS.map(p => ({ ...p }));
+  const files = disk.files || DEFAULT_FILES.map(f => ({ ...f }));
+  const userSubscriptions = disk.userSubscriptions || [];
+  const userCredits = disk.userCredits || [];
+  const creditTransactions = disk.creditTransactions || [];
+  const usageLogs = disk.usageLogs || [];
+  const researchSessions = disk.researchSessions || [];
+  const searchResults = disk.searchResults || [];
+  const modelUsages = disk.modelUsages || [];
+
+  const syncFromDisk = () => {
+    const latest = loadDiskStore();
+    if (!latest) return;
+    if (latest.users) { users.length = 0; users.push(...latest.users); }
+    if (latest.sessions) { sessions.length = 0; sessions.push(...latest.sessions); }
+    if (latest.conversations) { conversations.length = 0; conversations.push(...latest.conversations); }
+    if (latest.messages) { messages.length = 0; messages.push(...latest.messages); }
+    if (latest.preferences) { preferences.length = 0; preferences.push(...latest.preferences); }
+    if (latest.voiceProfiles) { voiceProfiles.length = 0; voiceProfiles.push(...latest.voiceProfiles); }
+    if (latest.memoryItems) { memoryItems.length = 0; memoryItems.push(...latest.memoryItems); }
+    if (latest.userSubscriptions) { userSubscriptions.length = 0; userSubscriptions.push(...latest.userSubscriptions); }
+    if (latest.userCredits) { userCredits.length = 0; userCredits.push(...latest.userCredits); }
+    if (latest.creditTransactions) { creditTransactions.length = 0; creditTransactions.push(...latest.creditTransactions); }
+    if (latest.projects) { projects.length = 0; projects.push(...latest.projects); }
+    if (latest.files) { files.length = 0; files.push(...latest.files); }
+    if (latest.researchSessions) { researchSessions.length = 0; researchSessions.push(...latest.researchSessions); }
+    if (latest.searchResults) { searchResults.length = 0; searchResults.push(...latest.searchResults); }
+    if (latest.modelUsages) { modelUsages.length = 0; modelUsages.push(...latest.modelUsages); }
+  };
+
+  const persistToDisk = () => {
+    saveDiskStore({
+      users,
+      sessions,
+      conversations,
+      messages,
+      preferences,
+      voiceProfiles,
+      memoryItems,
+      aiModels,
+      subscriptionPlans,
+      projects,
+      files,
+      userSubscriptions,
+      userCredits,
+      creditTransactions,
+      usageLogs,
+      researchSessions,
+      searchResults,
+      modelUsages,
+    });
+  };
 
   const memRepo = {
     async findUserByEmail(email) {
-      return users.find(u => u.email === email) ?? null;
+      syncFromDisk();
+      return users.find(u => u.email === (email || '').trim().toLowerCase()) ?? null;
     },
     async findUserById(id) {
+      syncFromDisk();
       return users.find(u => u.id === id) ?? null;
     },
     async findUserByGoogleId(googleId) {
       if (!googleId) return null;
+      syncFromDisk();
       return users.find(u => u.google_id === googleId) ?? null;
     },
     async createUser({ name, email, passwordHash = null, googleId = null, avatarUrl = null, authProvider = 'local' }) {
+      syncFromDisk();
       const user = {
         id: randomUUID(),
         name,
@@ -335,6 +416,7 @@ export function createRepositories(pool) {
         created_at: new Date().toISOString(),
       });
 
+      persistToDisk();
       return user;
     },
     async createGoogleUser({ googleId, name, email, avatarUrl }) {
@@ -348,6 +430,7 @@ export function createRepositories(pool) {
       });
     },
     async linkGoogleAccount(userId, { googleId, avatarUrl }) {
+      syncFromDisk();
       const user = users.find(u => u.id === userId);
       if (!user) return null;
       user.google_id = googleId;
@@ -355,42 +438,63 @@ export function createRepositories(pool) {
       user.auth_provider = user.password_hash ? 'both' : 'google';
       user.updated_at = new Date().toISOString();
       user.last_login_at = new Date().toISOString();
+      persistToDisk();
       return user;
     },
     async updateUserLastLogin(userId) {
+      syncFromDisk();
       const user = users.find(u => u.id === userId);
       if (user) {
         user.last_login_at = new Date().toISOString();
         user.updated_at = new Date().toISOString();
+        persistToDisk();
       }
       return user;
     },
     async updateUserAvatar(userId, avatarUrl) {
+      syncFromDisk();
       const user = users.find(u => u.id === userId);
       if (user) {
         user.avatar_url = avatarUrl;
         user.updated_at = new Date().toISOString();
+        persistToDisk();
       }
       return user;
     },
     async updateUserName(userId, name) {
+      syncFromDisk();
       const user = users.find(u => u.id === userId);
       if (user) {
         user.name = name;
         user.updated_at = new Date().toISOString();
+        persistToDisk();
       }
       return user;
     },
     async updateUserPassword(userId, passwordHash) {
+      syncFromDisk();
       const user = users.find(u => u.id === userId);
       if (user) {
         user.password_hash = passwordHash;
         user.auth_provider = user.google_id ? 'both' : 'local';
         user.updated_at = new Date().toISOString();
+        persistToDisk();
       }
       return user;
     },
+    async resetPasswordByEmail(email, passwordHash) {
+      syncFromDisk();
+      const user = users.find(u => u.email === (email || '').trim().toLowerCase());
+      if (user) {
+        user.password_hash = passwordHash;
+        user.updated_at = new Date().toISOString();
+        persistToDisk();
+        return user;
+      }
+      return null;
+    },
     async createSession({ userId, tokenHash, expiresAt }) {
+      syncFromDisk();
       const user = users.find(u => u.id === userId);
       sessions.push({
         id: randomUUID(),
@@ -408,8 +512,10 @@ export function createRepositories(pool) {
         user_created_at: user?.created_at,
         user_updated_at: user?.updated_at
       });
+      persistToDisk();
     },
     async findSession(tokenHash) {
+      syncFromDisk();
       const s = sessions.find(s => s.token_hash === tokenHash && !s.revoked_at && new Date(s.expires_at) > new Date());
       return s ?? null;
     },
@@ -417,37 +523,57 @@ export function createRepositories(pool) {
       return memRepo.findSession(tokenHash);
     },
     async touchSession(id) {
+      syncFromDisk();
       const s = sessions.find(s => s.id === id);
-      if (s) s.last_seen_at = new Date().toISOString();
+      if (s) {
+        s.last_seen_at = new Date().toISOString();
+        persistToDisk();
+      }
     },
     async revokeSession(tokenHash) {
+      syncFromDisk();
       const s = sessions.find(s => s.token_hash === tokenHash);
-      if (s) s.revoked_at = new Date().toISOString();
+      if (s) {
+        s.revoked_at = new Date().toISOString();
+        persistToDisk();
+      }
     },
     async listConversations(userId) {
+      syncFromDisk();
       return conversations.filter(c => c.user_id === userId).sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
     },
     async createConversation(userId, title) {
+      syncFromDisk();
       const conv = { id: randomUUID(), user_id: userId, title, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
       conversations.push(conv);
+      persistToDisk();
       return conv;
     },
     async getConversation(userId, id) {
+      syncFromDisk();
       return conversations.find(c => c.id === id && c.user_id === userId) ?? null;
     },
     async deleteConversation(userId, id) {
+      syncFromDisk();
       const idx = conversations.findIndex(c => c.id === id && c.user_id === userId);
-      if (idx !== -1) { conversations.splice(idx, 1); return true; }
+      if (idx !== -1) {
+        conversations.splice(idx, 1);
+        persistToDisk();
+        return true;
+      }
       return false;
     },
     async listMessages(userId, conversationId) {
+      syncFromDisk();
       return messages.filter(m => m.conversation_id === conversationId && m.user_id === userId).sort((a,b) => a.sequence_no - b.sequence_no);
     },
     async listRecentMessages(userId, conversationId, limit = 20) {
+      syncFromDisk();
       const list = messages.filter(m => m.conversation_id === conversationId && m.user_id === userId).sort((a,b) => b.sequence_no - a.sequence_no).slice(0, limit);
       return list.reverse();
     },
     async createMessage(userId, conversationId, role, content, metadata = {}) {
+      syncFromDisk();
       const seq = messages.filter(m => m.conversation_id === conversationId).length + 1;
       const msg = {
         id: metadata.id || metadata.messageId || randomUUID(),
@@ -472,12 +598,15 @@ export function createRepositories(pool) {
       messages.push(msg);
       const conv = conversations.find(c => c.id === conversationId);
       if (conv) conv.updated_at = new Date().toISOString();
+      persistToDisk();
       return msg;
     },
     async getPreferences(userId) {
+      syncFromDisk();
       return preferences.find(p => p.user_id === userId) ?? null;
     },
     async upsertPreferences(userId, data) {
+      syncFromDisk();
       let pref = preferences.find(p => p.user_id === userId);
       if (!pref) {
         pref = { id: randomUUID(), user_id: userId, voice_profile_id: data.voice_profile_id ?? null, speaking_speed: data.speaking_speed, voice_style: data.voice_style ?? {}, language: data.language, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
@@ -489,54 +618,82 @@ export function createRepositories(pool) {
         pref.language = data.language;
         pref.updated_at = new Date().toISOString();
       }
+      persistToDisk();
       return pref;
     },
     async listVoiceProfiles(userId) {
+      syncFromDisk();
       return voiceProfiles.filter(v => v.user_id === userId && (v.status === 'active' || v.status === 'pending'));
     },
     async createVoiceProfile(userId, provider, providerVoiceId, name, status = 'active') {
+      syncFromDisk();
       const vp = { id: randomUUID(), user_id: userId, provider, provider_voice_id: providerVoiceId, name, status, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
       voiceProfiles.push(vp);
+      persistToDisk();
       return vp;
     },
     async getVoiceProfile(userId, id) {
+      syncFromDisk();
       return voiceProfiles.find(v => v.id === id && v.user_id === userId) ?? null;
     },
     async deleteVoiceProfile(userId, id) {
+      syncFromDisk();
       const vp = voiceProfiles.find(v => v.id === id && v.user_id === userId);
-      if (vp) { vp.status = 'deleted'; return true; }
+      if (vp) {
+        vp.status = 'deleted';
+        persistToDisk();
+        return true;
+      }
       return false;
     },
     async createMemory({ userId, text, kind = 'fact', confidence = 1.0, sensitivity = 'normal' }) {
+      syncFromDisk();
       const mem = { id: randomUUID(), user_id: userId, text, kind, confidence, sensitivity, created_at: new Date().toISOString() };
       memoryItems.push(mem);
+      persistToDisk();
       return mem;
     },
     async updateMemory(userId, memoryId, text) {
+      syncFromDisk();
       const mem = memoryItems.find(m => m.id === memoryId && m.user_id === userId);
-      if (mem) { mem.text = text; mem.updated_at = new Date().toISOString(); return mem; }
+      if (mem) {
+        mem.text = text;
+        mem.updated_at = new Date().toISOString();
+        persistToDisk();
+        return mem;
+      }
       return null;
     },
     async deleteMemory(userId, memoryId) {
+      syncFromDisk();
       const idx = memoryItems.findIndex(m => m.id === memoryId && m.user_id === userId);
-      if (idx !== -1) { memoryItems.splice(idx, 1); return true; }
+      if (idx !== -1) {
+        memoryItems.splice(idx, 1);
+        persistToDisk();
+        return true;
+      }
       return false;
     },
     async searchMemories(userId, embedding, limit = 5) {
+      syncFromDisk();
       return memoryItems.filter(m => m.user_id === userId).slice(0, limit).map(m => ({ ...m, similarity: 0.9 }));
     },
     async getMemory(userId, memoryId) {
+      syncFromDisk();
       return memoryItems.find(m => m.id === memoryId && m.user_id === userId) ?? null;
     },
 
     // ================= Multi-Model AI Repositories =================
     async listAIModels() {
+      syncFromDisk();
       return [...aiModels].sort((a,b) => a.sort_order - b.sort_order);
     },
     async getAIModel(id) {
+      syncFromDisk();
       return aiModels.find(m => m.id === id) ?? null;
     },
     async upsertAIModel(data) {
+      syncFromDisk();
       let m = aiModels.find(item => item.id === data.id);
       if (!m) {
         m = { ...data, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
@@ -545,13 +702,16 @@ export function createRepositories(pool) {
         Object.assign(m, data);
         m.updated_at = new Date().toISOString();
       }
+      persistToDisk();
       return m;
     },
     async updateAIModelStatus(id, status) {
+      syncFromDisk();
       const m = aiModels.find(item => item.id === id);
       if (m) {
         m.status = status;
         m.updated_at = new Date().toISOString();
+        persistToDisk();
         return m;
       }
       return null;
@@ -559,12 +719,15 @@ export function createRepositories(pool) {
 
     // ================= Subscription & Credit Repositories =================
     async listSubscriptionPlans() {
+      syncFromDisk();
       return [...subscriptionPlans];
     },
     async getSubscriptionPlan(id) {
+      syncFromDisk();
       return subscriptionPlans.find(p => p.id === id) ?? null;
     },
     async getUserSubscription(userId) {
+      syncFromDisk();
       let sub = userSubscriptions.find(s => s.user_id === userId);
       if (!sub) {
         sub = {
@@ -576,11 +739,13 @@ export function createRepositories(pool) {
           status: 'active',
         };
         userSubscriptions.push(sub);
+        persistToDisk();
       }
       const plan = subscriptionPlans.find(p => p.id === sub.plan_id) || subscriptionPlans[0];
       return { ...sub, plan };
     },
     async setUserSubscription(userId, planId) {
+      syncFromDisk();
       const plan = subscriptionPlans.find(p => p.id === planId) || subscriptionPlans[0];
       let sub = userSubscriptions.find(s => s.user_id === userId);
       if (!sub) {
@@ -616,9 +781,11 @@ export function createRepositories(pool) {
         cred.allocated_monthly = plan.monthly_credits;
         cred.updated_at = new Date().toISOString();
       }
+      persistToDisk();
       return { ...sub, plan };
     },
     async getUserCredits(userId) {
+      syncFromDisk();
       let cred = userCredits.find(c => c.user_id === userId);
       if (!cred) {
         cred = {
@@ -631,10 +798,12 @@ export function createRepositories(pool) {
           updated_at: new Date().toISOString(),
         };
         userCredits.push(cred);
+        persistToDisk();
       }
       return { ...cred };
     },
     async reserveCredits(userId, amount) {
+      syncFromDisk();
       let cred = userCredits.find(c => c.user_id === userId);
       if (!cred) {
         cred = { id: randomUUID(), user_id: userId, balance: 100, allocated_monthly: 100, reserved: 0, last_reset_at: new Date().toISOString(), updated_at: new Date().toISOString() };
@@ -646,10 +815,12 @@ export function createRepositories(pool) {
       }
       cred.reserved = (cred.reserved || 0) + amount;
       cred.updated_at = new Date().toISOString();
+      persistToDisk();
       const reservationId = randomUUID();
       return { ok: true, reservationId, reservedAmount: amount, available: cred.balance - cred.reserved };
     },
     async settleCredits({ userId, reservedAmount = 0, actualAmount = 0, modelId = 'auto', provider = 'system', conversationId = null, messageId = null, inputTokens = 0, outputTokens = 0, details = {} }) {
+      syncFromDisk();
       let cred = userCredits.find(c => c.user_id === userId);
       if (!cred) {
         cred = { id: randomUUID(), user_id: userId, balance: 100, allocated_monthly: 100, reserved: 0, last_reset_at: new Date().toISOString(), updated_at: new Date().toISOString() };
@@ -688,10 +859,12 @@ export function createRepositories(pool) {
         duration_ms: details.durationMs || 0,
         created_at: new Date().toISOString(),
       });
+      persistToDisk();
 
       return { ok: true, balance: cred.balance, deducted: actualAmount, transactionId: tx.id };
     },
     async refundCredits({ userId, reservedAmount = 0, reason = 'Request failed' }) {
+      syncFromDisk();
       let cred = userCredits.find(c => c.user_id === userId);
       if (cred && reservedAmount > 0) {
         cred.reserved = Math.max(0, (cred.reserved || 0) - reservedAmount);
@@ -993,6 +1166,10 @@ export function createRepositories(pool) {
     updateUserPassword: async (userId, passwordHash) => {
       const r = await q(`update public.users set password_hash = $1, auth_provider = case when google_id is not null then 'both' else 'local' end, updated_at = now() where id = $2 returning *`, [passwordHash, userId]);
       return r.rows[0] ?? null;
+    },
+    resetPasswordByEmail: async (email, passwordHash) => {
+      const r = await q(`update public.users set password_hash = $1, updated_at = now() where email = $2 returning *`, [passwordHash, (email || '').trim().toLowerCase()]);
+      return r.rows[0] ?? memRepo.resetPasswordByEmail(email, passwordHash);
     },
     createSession: async ({ userId, tokenHash, expiresAt }) => {
       await q('insert into public.auth_sessions (user_id, token_hash, expires_at) values ($1, $2, $3)', [userId, tokenHash, expiresAt]);
