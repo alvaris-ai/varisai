@@ -273,6 +273,9 @@ export function createRepositories(pool) {
   const userCredits = [];
   const creditTransactions = [];
   const usageLogs = [];
+  const researchSessions = [];
+  const searchResults = [];
+  const modelUsages = [];
 
   const memRepo = {
     async findUserByEmail(email) {
@@ -444,9 +447,28 @@ export function createRepositories(pool) {
       const list = messages.filter(m => m.conversation_id === conversationId && m.user_id === userId).sort((a,b) => b.sequence_no - a.sequence_no).slice(0, limit);
       return list.reverse();
     },
-    async createMessage(userId, conversationId, role, content) {
+    async createMessage(userId, conversationId, role, content, metadata = {}) {
       const seq = messages.filter(m => m.conversation_id === conversationId).length + 1;
-      const msg = { id: randomUUID(), conversation_id: conversationId, user_id: userId, role, content, sequence_no: seq, created_at: new Date().toISOString() };
+      const msg = {
+        id: metadata.id || metadata.messageId || randomUUID(),
+        conversation_id: conversationId,
+        user_id: userId,
+        role,
+        content,
+        sequence_no: seq,
+        provider: metadata.provider || null,
+        model: metadata.model || null,
+        input_tokens: metadata.inputTokens ?? null,
+        output_tokens: metadata.outputTokens ?? null,
+        total_tokens: (metadata.inputTokens != null && metadata.outputTokens != null) ? (metadata.inputTokens + metadata.outputTokens) : null,
+        latency_ms: metadata.latencyMs ?? null,
+        request_id: metadata.requestId ?? null,
+        research_session_id: metadata.researchSessionId ?? null,
+        source_ids: metadata.sourceIds ?? [],
+        sources: metadata.sources ?? [],
+        search_mode: metadata.searchMode ?? null,
+        created_at: new Date().toISOString(),
+      };
       messages.push(msg);
       const conv = conversations.find(c => c.id === conversationId);
       if (conv) conv.updated_at = new Date().toISOString();
@@ -825,6 +847,86 @@ export function createRepositories(pool) {
     // Subscription Upgrade
     async upgradeUserSubscription(userId, planId) {
       return memRepo.setUserSubscription(userId, planId);
+    },
+
+    // Research Sessions & Search Results
+    async createResearchSession({ userId, conversationId = null, query = '', searchMode = 'always' } = {}) {
+      const session = {
+        id: `rs_${randomUUID()}`,
+        user_id: userId,
+        conversation_id: conversationId,
+        query,
+        search_mode: searchMode,
+        status: 'in_progress',
+        sources_count: 0,
+        latency_ms: 0,
+        created_at: new Date().toISOString(),
+        completed_at: null,
+      };
+      researchSessions.unshift(session);
+      return session;
+    },
+    async completeResearchSession(id, { sourcesCount = 0, latencyMs = 0, status = 'completed', details = {} } = {}) {
+      const session = researchSessions.find(s => s.id === id);
+      if (session) {
+        session.sources_count = sourcesCount;
+        session.latency_ms = latencyMs;
+        session.status = status;
+        session.details = details;
+        session.completed_at = new Date().toISOString();
+        return session;
+      }
+      return null;
+    },
+    async getResearchSession(id) {
+      return researchSessions.find(s => s.id === id) ?? null;
+    },
+    async createSearchResults(sessionId, sources = []) {
+      const saved = [];
+      for (const src of sources) {
+        const item = {
+          id: src.id || `sr_${randomUUID()}`,
+          research_session_id: sessionId,
+          title: src.title,
+          url: src.url,
+          domain: src.domain,
+          snippet: src.snippet,
+          content: src.content || src.snippet,
+          relevance_score: src.relevanceScore || 0.85,
+          published_at: src.publishedAt || null,
+          created_at: new Date().toISOString(),
+        };
+        searchResults.push(item);
+        saved.push(item);
+      }
+      return saved;
+    },
+    async getSearchResults(sessionId) {
+      return searchResults.filter(s => s.research_session_id === sessionId);
+    },
+
+    // Model Usage Audit Logs
+    async recordModelUsage({ userId, conversationId = null, requestId = `req_${randomUUID()}`, modelId = 'auto', provider = 'system', inputTokens = 0, outputTokens = 0, latencyMs = 0, status = 'success', errorMessage = null } = {}) {
+      const usage = {
+        id: `usage_${randomUUID()}`,
+        user_id: userId,
+        conversation_id: conversationId,
+        request_id: requestId,
+        model_id: modelId,
+        provider,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        total_tokens: inputTokens + outputTokens,
+        latency_ms: latencyMs,
+        status,
+        error_message: errorMessage,
+        created_at: new Date().toISOString(),
+      };
+      modelUsages.push(usage);
+      return usage;
+    },
+    async getModelUsage(requestId) {
+      return modelUsages.find(u => u.request_id === requestId) ?? null;
     }
   };
 
@@ -1062,6 +1164,27 @@ export function createRepositories(pool) {
     },
     upgradeUserSubscription: async (userId, planId) => {
       return memRepo.upgradeUserSubscription(userId, planId);
+    },
+    createResearchSession: async (params) => {
+      return memRepo.createResearchSession(params);
+    },
+    completeResearchSession: async (id, params) => {
+      return memRepo.completeResearchSession(id, params);
+    },
+    getResearchSession: async (id) => {
+      return memRepo.getResearchSession(id);
+    },
+    createSearchResults: async (sessionId, sources) => {
+      return memRepo.createSearchResults(sessionId, sources);
+    },
+    getSearchResults: async (sessionId) => {
+      return memRepo.getSearchResults(sessionId);
+    },
+    recordModelUsage: async (params) => {
+      return memRepo.recordModelUsage(params);
+    },
+    getModelUsage: async (requestId) => {
+      return memRepo.getModelUsage(requestId);
     }
   };
 

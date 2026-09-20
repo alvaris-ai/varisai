@@ -86,6 +86,8 @@ export function createOpenAIProvider({
   return {
     name: 'openai',
     isConfigured: () => Boolean(apiKey || client),
+    countTokens: (text = '') => Math.ceil(text.length / 4),
+    validateModel: (modelId = '') => modelId.startsWith('gpt') || modelId.startsWith('o1') || modelId.startsWith('o3'),
     async healthCheck() {
       if (!apiKey && !client) return { status: 'not_configured', latencyMs: 0 };
       const start = Date.now();
@@ -95,6 +97,9 @@ export function createOpenAIProvider({
       } catch (err) {
         return { status: 'unavailable', error: err.message, latencyMs: Date.now() - start };
       }
+    },
+    async generate(params) {
+      return this.respond(params);
     },
     async respond(params) {
       const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
@@ -272,6 +277,8 @@ export function createGeminiProvider({
   return {
     name: 'gemini',
     isConfigured: () => Boolean(apiKey || client),
+    countTokens: (text = '') => Math.ceil(text.length / 4),
+    validateModel: (modelId = '') => modelId.startsWith('gemini'),
     async healthCheck() {
       if (!apiKey && !client) return { status: 'not_configured', latencyMs: 0 };
       const start = Date.now();
@@ -281,6 +288,9 @@ export function createGeminiProvider({
       } catch (err) {
         return { status: 'available', latencyMs: Date.now() - start }; // Gemini OpenAI compat models endpoint may vary
       }
+    },
+    async generate(params) {
+      return this.respond(params);
     },
     async respond(params) {
       if (!apiKey && !client) {
@@ -434,6 +444,8 @@ export function createGroqProvider({
   return {
     name: 'groq',
     isConfigured: () => Boolean(apiKey || client),
+    countTokens: (text = '') => Math.ceil(text.length / 4),
+    validateModel: (modelId = '') => modelId.startsWith('llama') || modelId.includes('groq') || modelId.includes('mixtral') || modelId.includes('gemma') || modelId.includes('deepseek'),
     async healthCheck() {
       if (!apiKey && !client) return { status: 'not_configured', latencyMs: 0 };
       const start = Date.now();
@@ -443,6 +455,9 @@ export function createGroqProvider({
       } catch (err) {
         return { status: 'unavailable', error: err.message, latencyMs: Date.now() - start };
       }
+    },
+    async generate(params) {
+      return this.respond(params);
     },
     async respond(params) {
       if (!apiKey && !client) {
@@ -612,8 +627,13 @@ export function createSmartLocalProvider() {
   return {
     name: 'smart_local',
     isConfigured: () => true,
+    countTokens: (text = '') => Math.ceil(text.length / 4),
+    validateModel: (modelId = '') => modelId === 'varis-smart-engine' || modelId === 'auto',
     async healthCheck() {
       return { status: 'available', latencyMs: 1 };
+    },
+    async generate(params) {
+      return this.respond(params);
     },
     async respond({ userMessage }) {
       const text = generateFreeSmartResponse(userMessage);
@@ -955,4 +975,107 @@ export function createAIProviderFromConfig(config, { logger } = {}) {
   providers.push(createSmartLocalProvider());
 
   return createMultiProviderOrchestrator({ providers, logger });
+}
+
+// 6. Provider Health Service
+export class ProviderHealthService {
+  constructor(providers = []) {
+    this.providers = providers;
+  }
+
+  async checkAll() {
+    const results = {};
+    for (const provider of this.providers) {
+      if (typeof provider.healthCheck === 'function') {
+        results[provider.name] = await provider.healthCheck();
+      } else {
+        results[provider.name] = { status: 'available', latencyMs: 0 };
+      }
+    }
+    return results;
+  }
+
+  async getHealth(providerName) {
+    const provider = this.providers.find(p => p.name === providerName || (providerName === 'google' && p.name === 'gemini'));
+    if (!provider) return { status: 'not_configured', latencyMs: 0 };
+    return typeof provider.healthCheck === 'function' ? await provider.healthCheck() : { status: 'available', latencyMs: 0 };
+  }
+}
+
+// 7. Model Router
+export class ModelRouter {
+  constructor(providers = []) {
+    this.providers = providers;
+  }
+
+  route({ model = 'auto', provider = null, message = '', userPlan = null, intent = {} } = {}) {
+    if (provider) {
+      const found = this.providers.find(p => p.name === provider || (provider === 'google' && p.name === 'gemini'));
+      if (found) {
+        return { provider: found, modelId: model === 'auto' ? 'default' : model };
+      }
+    }
+
+    if (model === 'auto') {
+      const auto = selectAutoModel({ userMessage: message, intent, userPlan, availableProviders: this.providers });
+      const target = this.providers.find(p => p.name === auto.providerName || (auto.providerName === 'google' && p.name === 'gemini')) || this.providers[0];
+      return { provider: target, modelId: auto.modelId };
+    }
+
+    if (model.startsWith('gemini')) {
+      const target = this.providers.find(p => p.name === 'gemini' || p.name === 'google');
+      return { provider: target || this.providers[0], modelId: model };
+    }
+
+    if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3')) {
+      const target = this.providers.find(p => p.name === 'openai');
+      return { provider: target || this.providers[0], modelId: model };
+    }
+
+    if (model.startsWith('llama') || model.includes('groq')) {
+      const target = this.providers.find(p => p.name === 'groq');
+      return { provider: target || this.providers[0], modelId: normalizeGroqModel(model) };
+    }
+
+    return { provider: this.providers[0], modelId: model };
+  }
+}
+
+// 8. Response Validator
+export class ResponseValidator {
+  static validate(response) {
+    if (!response) {
+      return { valid: false, error: 'Empty response' };
+    }
+    if (typeof response === 'string') {
+      return { valid: response.trim().length > 0, text: response };
+    }
+    if (response.toolCalls && response.toolCalls.length > 0) {
+      return { valid: true, toolCalls: response.toolCalls };
+    }
+    if (!response.text || typeof response.text !== 'string' || !response.text.trim()) {
+      return { valid: false, error: 'Response contains no text content' };
+    }
+    return { valid: true, text: response.text };
+  }
+
+  static checkGrounding(responseText = '', sources = []) {
+    if (!sources || sources.length === 0) return { grounded: true, citationsCount: 0 };
+    const hasNumberedCitations = /\[\d+\]/.test(responseText);
+    const hasMarkdownLinks = /\[[^\]]+\]\(https?:\/\/[^\)]+\)/.test(responseText);
+    let citedSources = 0;
+    for (const s of sources) {
+      if (s.title && responseText.toLowerCase().includes(s.title.toLowerCase())) {
+        citedSources++;
+      } else if (s.domain && responseText.toLowerCase().includes(s.domain.toLowerCase())) {
+        citedSources++;
+      }
+    }
+    return {
+      grounded: hasNumberedCitations || hasMarkdownLinks || citedSources > 0,
+      hasNumberedCitations,
+      hasMarkdownLinks,
+      citedSourcesCount: citedSources,
+    };
+  }
 }

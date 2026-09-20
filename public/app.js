@@ -551,7 +551,7 @@ async function handleSendMessage() {
     bodyEl.innerHTML = '<span class="streaming-cursor"></span>';
 
     try {
-        const res = await fetch('/api/chat', {
+        const res = await fetch('/api/ai/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -560,10 +560,12 @@ async function handleSendMessage() {
             body: JSON.stringify({
                 message: text,
                 model: currentModel,
+                conversationId: currentConversationId,
                 conversation_id: currentConversationId,
-                stream: true,
+                mode: currentSearchMode,
                 search_mode: currentSearchMode,
-                web_search: currentSearchMode !== 'offline'
+                web_search: currentSearchMode !== 'offline',
+                stream: true
             })
         });
 

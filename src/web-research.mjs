@@ -1,13 +1,20 @@
 // ==========================================================
-// VARIS AI — REAL WEB RESEARCH ENGINE
-// Multi-Source Live Retrieval, Query Planning, Credibility Ranking,
-// Anti-Hallucination Evidence Synthesis & Research Caching
+// VARIS AI — REAL RESEARCH AGENT SUBSYSTEM
+// Production-Ready Modular Web Research Agent Architecture:
+// ├── QueryPlanner
+// ├── SearchProvider (Wikipedia, DuckDuckGo)
+// ├── SourceRetriever
+// ├── SourceRanker
+// ├── SourceValidator
+// ├── ContentExtractor
+// ├── ResearchContextBuilder
+// └── CitationBuilder
 // ==========================================================
 
 import { URL } from 'node:url';
 
 // ----------------------------------------------------------
-// 1. IN-MEMORY RESEARCH CACHE WITH TTL
+// 1. IN-MEMORY RESEARCH CACHE WITH TTL & FRESHNESS POLICY
 // ----------------------------------------------------------
 export class ResearchCache {
   #store = new Map();
@@ -48,7 +55,6 @@ export class ResearchCache {
   }
 
   size() {
-    // Purge expired keys on size calculation
     const now = Date.now();
     for (const [k, v] of this.#store.entries()) {
       if (now > v.expiresAt) this.#store.delete(k);
@@ -58,7 +64,7 @@ export class ResearchCache {
 }
 
 // ----------------------------------------------------------
-// 2. QUERY ANALYZER & PLANNER
+// 2. QUERY PLANNER (ADAPTIVE 1–5 QUERIES)
 // ----------------------------------------------------------
 export class QueryPlanner {
   /**
@@ -84,7 +90,8 @@ export class QueryPlanner {
   }
 
   /**
-   * Analyzes user intent and builds 1 to 3 optimized web search queries
+   * Analyzes user intent, query complexity, and freshness policy
+   * Produces 1 query for simple topics, up to 2–5 queries for complex tasks.
    */
   static plan(userMessage, { recentContext = [] } = {}) {
     const raw = (userMessage || '').trim();
@@ -103,7 +110,6 @@ export class QueryPlanner {
       }
     };
 
-    // Primary cleaned query
     if (cleaned) {
       addQuery(cleaned);
     }
@@ -134,24 +140,276 @@ export class QueryPlanner {
       addQuery(`${cleaned} official documentation`);
     }
 
-    // Pattern 5: Recent News / Events
+    // Pattern 5: Recent News / Freshness Policy (news, stock, sports, events)
     if (/berita|terbaru|terkini|update|hari ini|skor|jadwal|gempa|cuaca/i.test(lowerRaw)) {
-      const date = new Date();
-      const currentYear = date.getFullYear();
+      const currentYear = new Date().getFullYear();
       addQuery(`${cleaned} berita terbaru ${currentYear}`);
     }
 
-    // Return at most 3 focused search queries
-    return queries.slice(0, 3);
+    // Adaptively bound query count: 1 to 4 max
+    return queries.slice(0, 4);
   }
 }
 
 // ----------------------------------------------------------
-// 3. SOURCE RANKER & CREDIBILITY EVALUATOR
+// 3. PLUGGABLE SEARCH PROVIDERS
+// ----------------------------------------------------------
+export class BaseSearchProvider {
+  constructor(name) {
+    this.name = name;
+  }
+
+  async search(query, options = {}) {
+    throw new Error('search() must be implemented by subclass');
+  }
+}
+
+export class WikipediaSearchProvider extends BaseSearchProvider {
+  constructor({ timeoutMs = 4500 } = {}) {
+    super('wikipedia');
+    this.timeoutMs = timeoutMs;
+  }
+
+  async search(query, { limit = 3 } = {}) {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return [];
+
+    const results = [];
+    const seenTitles = new Set();
+    const userAgent = 'VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)';
+
+    // 1. Indonesian Wikipedia
+    try {
+      const idUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      const res = await fetch(idUrl, {
+        headers: { 'User-Agent': userAgent },
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timer));
+
+      if (res.ok) {
+        const data = await res.json();
+        const searchItems = data?.query?.search || [];
+
+        for (const item of searchItems.slice(0, limit)) {
+          if (seenTitles.has(item.title.toLowerCase())) continue;
+          seenTitles.add(item.title.toLowerCase());
+
+          let snippet = (item.snippet || '').replace(/<[^>]+>/g, '').trim();
+          let fullContent = snippet;
+
+          try {
+            const sumController = new AbortController();
+            const sumTimer = setTimeout(() => sumController.abort(), 2500);
+            const sumRes = await fetch(
+              `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+              { headers: { 'User-Agent': userAgent }, signal: sumController.signal }
+            ).finally(() => clearTimeout(sumTimer));
+
+            if (sumRes.ok) {
+              const sumData = await sumRes.json();
+              if (sumData.extract) {
+                snippet = sumData.extract;
+                fullContent = sumData.extract;
+              }
+            }
+          } catch {}
+
+          results.push({
+            title: item.title,
+            url: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+            snippet,
+            content: fullContent,
+            source_name: 'Wikipedia (ID)',
+            domain: 'id.wikipedia.org',
+            publishedAt: item.timestamp ? item.timestamp.slice(0, 10) : new Date().toISOString().slice(0, 10),
+            retrievedAt: new Date().toISOString(),
+            type: 'encyclopedic_id',
+          });
+        }
+      }
+    } catch {}
+
+    // 2. Global English Wikipedia Fallback
+    if (results.length < limit) {
+      try {
+        const enUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        const res = await fetch(enUrl, {
+          headers: { 'User-Agent': userAgent },
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timer));
+
+        if (res.ok) {
+          const data = await res.json();
+          const searchItems = (data?.query?.search || []).slice(0, limit - results.length);
+
+          for (const item of searchItems) {
+            if (seenTitles.has(item.title.toLowerCase())) continue;
+            seenTitles.add(item.title.toLowerCase());
+
+            let snippet = (item.snippet || '').replace(/<[^>]+>/g, '').trim();
+            let fullContent = snippet;
+
+            try {
+              const sumController = new AbortController();
+              const sumTimer = setTimeout(() => sumController.abort(), 2500);
+              const sumRes = await fetch(
+                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+                { headers: { 'User-Agent': userAgent }, signal: sumController.signal }
+              ).finally(() => clearTimeout(sumTimer));
+
+              if (sumRes.ok) {
+                const sumData = await sumRes.json();
+                if (sumData.extract) {
+                  snippet = sumData.extract;
+                  fullContent = sumData.extract;
+                }
+              }
+            } catch {}
+
+            results.push({
+              title: item.title,
+              url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+              snippet,
+              content: fullContent,
+              source_name: 'Wikipedia (Global)',
+              domain: 'en.wikipedia.org',
+              publishedAt: item.timestamp ? item.timestamp.slice(0, 10) : new Date().toISOString().slice(0, 10),
+              retrievedAt: new Date().toISOString(),
+              type: 'encyclopedic_en',
+            });
+          }
+        }
+      } catch {}
+    }
+
+    return results;
+  }
+}
+
+export class DuckDuckGoSearchProvider extends BaseSearchProvider {
+  constructor({ timeoutMs = 4500 } = {}) {
+    super('duckduckgo');
+    this.timeoutMs = timeoutMs;
+  }
+
+  async search(query, { limit = 4 } = {}) {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return [];
+
+    const results = [];
+    const userAgent = 'VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)';
+
+    try {
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      const res = await fetch(url, {
+        headers: { 'User-Agent': userAgent },
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timer));
+
+      if (res.ok) {
+        const data = await res.json();
+        
+        if (data.AbstractText && data.AbstractURL) {
+          results.push({
+            title: data.Heading || cleanQuery,
+            url: data.AbstractURL,
+            snippet: data.AbstractText,
+            content: data.AbstractText,
+            source_name: data.AbstractSource || 'DuckDuckGo Knowledge',
+            publishedAt: new Date().toISOString().slice(0, 10),
+            retrievedAt: new Date().toISOString(),
+            type: 'direct_answer',
+          });
+        }
+
+        if (Array.isArray(data.RelatedTopics)) {
+          for (const topic of data.RelatedTopics) {
+            if (results.length >= limit) break;
+            if (topic.Text && topic.FirstURL) {
+              const title = topic.Text.split(' - ')[0] || cleanQuery;
+              results.push({
+                title,
+                url: topic.FirstURL,
+                snippet: topic.Text,
+                content: topic.Text,
+                source_name: 'DuckDuckGo Topic',
+                publishedAt: new Date().toISOString().slice(0, 10),
+                retrievedAt: new Date().toISOString(),
+                type: 'web_result',
+              });
+            } else if (Array.isArray(topic.Topics)) {
+              for (const subTopic of topic.Topics) {
+                if (results.length >= limit) break;
+                if (subTopic.Text && subTopic.FirstURL) {
+                  results.push({
+                    title: subTopic.Text.split(' - ')[0] || cleanQuery,
+                    url: subTopic.FirstURL,
+                    snippet: subTopic.Text,
+                    content: subTopic.Text,
+                    source_name: 'DuckDuckGo SubTopic',
+                    publishedAt: new Date().toISOString().slice(0, 10),
+                    retrievedAt: new Date().toISOString(),
+                    type: 'web_result',
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+
+    return results;
+  }
+}
+
+// ----------------------------------------------------------
+// 4. SOURCE RETRIEVER (PARALLEL MULTI-PROVIDER COORDINATOR)
+// ----------------------------------------------------------
+export class SourceRetriever {
+  constructor(providers = []) {
+    this.providers = providers.length > 0 ? providers : [
+      new WikipediaSearchProvider(),
+      new DuckDuckGoSearchProvider(),
+    ];
+  }
+
+  async retrieve(queries = [], options = {}) {
+    const rawResults = [];
+    const searchPromises = [];
+
+    for (const query of queries) {
+      for (const provider of this.providers) {
+        searchPromises.push(
+          provider.search(query, options)
+            .then(items => {
+              if (Array.isArray(items)) {
+                rawResults.push(...items);
+              }
+            })
+            .catch(() => {})
+        );
+      }
+    }
+
+    await Promise.all(searchPromises);
+    return rawResults;
+  }
+}
+
+// ----------------------------------------------------------
+// 5. SOURCE RANKER & CREDIBILITY EVALUATOR
 // ----------------------------------------------------------
 export class SourceRanker {
   /**
-   * Scores domain authority and credibility (0 - 100)
+   * Scores domain authority according to Section 38 hierarchy:
+   * Official/Gov (98) > Academic/Edu (95) > Docs (94) > Wikipedia (88) > Reputable News (85) > General (70)
    */
   static scoreDomain(rawUrl) {
     if (!rawUrl) return 50;
@@ -159,13 +417,13 @@ export class SourceRanker {
       const parsed = new URL(rawUrl);
       const host = parsed.hostname.toLowerCase();
 
-      // Indonesian Government & Global Government (Highest tier)
+      // 1. Indonesian & Global Government
       if (host.endsWith('.go.id') || host.endsWith('.gov') || host.endsWith('.mil')) return 98;
 
-      // Academic & Educational
+      // 2. Academic & Educational
       if (host.endsWith('.ac.id') || host.endsWith('.edu')) return 95;
 
-      // Official Tech Documentation & Verified Repos
+      // 3. Official Documentation & Verified Dev Platforms
       if (
         host === 'developer.mozilla.org' ||
         host === 'docs.python.org' ||
@@ -176,10 +434,10 @@ export class SourceRanker {
         host === 'w3.org'
       ) return 94;
 
-      // High-authority Encyclopedias
+      // 4. Encyclopedias
       if (host.includes('wikipedia.org') || host.includes('britannica.com')) return 88;
 
-      // Established Indonesian & International News Agencies
+      // 5. Reputable News & Industry Sources
       if (
         host.includes('antaranews.com') ||
         host.includes('reuters.com') ||
@@ -193,22 +451,17 @@ export class SourceRanker {
         host.includes('techcrunch.com')
       ) return 85;
 
-      // General reputable domains
       return 70;
     } catch {
       return 50;
     }
   }
 
-  /**
-   * Normalizes URL to prevent duplicates with tracking query parameters
-   */
   static normalizeUrl(rawUrl) {
     if (!rawUrl) return '';
     try {
       const parsed = new URL(rawUrl);
       parsed.hash = '';
-      // Remove common tracking search params
       ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid', 'ref'].forEach(p => {
         parsed.searchParams.delete(p);
       });
@@ -218,9 +471,6 @@ export class SourceRanker {
     }
   }
 
-  /**
-   * Ranks, deduplicates, and validates retrieved sources
-   */
   static rankAndFilter(sources = [], { targetQueries = [], maxSources = 6 } = {}) {
     if (!Array.isArray(sources) || sources.length === 0) return [];
 
@@ -245,7 +495,6 @@ export class SourceRanker {
       const snippetLength = (source.snippet || '').trim().length;
       const snippetScore = snippetLength > 80 ? 15 : snippetLength > 30 ? 10 : 5;
 
-      // Calculate title/snippet relevance to planned queries
       let queryMatchBonus = 0;
       const combinedText = `${source.title} ${source.snippet || ''}`.toLowerCase();
       for (const q of targetQueries) {
@@ -257,6 +506,7 @@ export class SourceRanker {
       }
 
       const totalScore = domainScore + snippetScore + queryMatchBonus;
+      const normalizedRelevance = Math.min(0.99, Number((totalScore / 130).toFixed(2)));
 
       let domain = '';
       try {
@@ -269,261 +519,119 @@ export class SourceRanker {
         id: source.id || `src-${ranked.length + 1}`,
         title: source.title.trim(),
         url: normalizedUrl,
-        snippet: (source.snippet || '').replace(/<[^>]+>/g, '').trim(),
-        source_name: source.source_name || domain,
         domain,
+        snippet: (source.snippet || '').replace(/<[^>]+>/g, '').trim(),
+        content: (source.content || source.snippet || '').replace(/<[^>]+>/g, '').trim(),
+        source_name: source.source_name || domain,
+        publishedAt: source.publishedAt || new Date().toISOString().slice(0, 10),
+        retrievedAt: source.retrievedAt || new Date().toISOString(),
+        relevanceScore: normalizedRelevance,
         score: Math.round(totalScore),
         type: source.type || 'web_result',
-        published_date: source.published_date || null,
       });
     }
 
-    // Sort descending by score
     ranked.sort((a, b) => b.score - a.score);
-
     return ranked.slice(0, maxSources);
   }
 }
 
 // ----------------------------------------------------------
-// 4. PLUGGABLE SEARCH PROVIDERS
+// 6. SOURCE VALIDATOR & CONTENT EXTRACTOR
 // ----------------------------------------------------------
-
-export class BaseWebSearchProvider {
-  constructor(name) {
-    this.name = name;
+export class SourceValidator {
+  static isValid(source) {
+    if (!source || typeof source !== 'object') return false;
+    if (!source.title || typeof source.title !== 'string' || source.title.length < 2) return false;
+    if (!source.url || typeof source.url !== 'string' || !source.url.startsWith('http')) return false;
+    if (!source.snippet && !source.content) return false;
+    return true;
   }
 
-  async search(query, options = {}) {
-    throw new Error('search() must be implemented by subclass');
+  static validateAll(sources = []) {
+    return (sources || []).filter(s => this.isValid(s));
   }
 }
 
-/**
- * Wikipedia Provider (Indonesian & Global English with full REST Summary extraction)
- */
-export class WikipediaSearchProvider extends BaseWebSearchProvider {
-  constructor({ timeoutMs = 4500 } = {}) {
-    super('wikipedia');
-    this.timeoutMs = timeoutMs;
+export class ContentExtractor {
+  static extract(source) {
+    return {
+      title: source.title.trim(),
+      url: source.url.trim(),
+      domain: source.domain || (source.url ? new URL(source.url).hostname.replace(/^www\./, '') : 'web'),
+      snippet: source.snippet || source.content || '',
+      content: source.content || source.snippet || '',
+      publishedAt: source.publishedAt || new Date().toISOString().slice(0, 10),
+      retrievedAt: source.retrievedAt || new Date().toISOString(),
+      relevanceScore: source.relevanceScore || 0.85,
+    };
   }
+}
 
-  async search(query, { limit = 3 } = {}) {
-    const cleanQuery = query.trim();
-    if (!cleanQuery) return [];
-
-    const results = [];
-    const seenTitles = new Set();
-
-    // 1. Query Indonesian Wikipedia
-    try {
-      const idUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-      const res = await fetch(idUrl, {
-        headers: { 'User-Agent': 'VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)' },
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timer));
-
-      if (res.ok) {
-        const data = await res.json();
-        const searchItems = data?.query?.search || [];
-
-        for (const item of searchItems.slice(0, limit)) {
-          if (seenTitles.has(item.title.toLowerCase())) continue;
-          seenTitles.add(item.title.toLowerCase());
-
-          let snippet = (item.snippet || '').replace(/<[^>]+>/g, '').trim();
-
-          // Fetch rich extract from REST summary API
-          try {
-            const sumController = new AbortController();
-            const sumTimer = setTimeout(() => sumController.abort(), 2500);
-            const sumRes = await fetch(
-              `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-              { headers: { 'User-Agent': 'VarisAI-Research/2.0' }, signal: sumController.signal }
-            ).finally(() => clearTimeout(sumTimer));
-
-            if (sumRes.ok) {
-              const sumData = await sumRes.json();
-              if (sumData.extract) {
-                snippet = sumData.extract;
-              }
-            }
-          } catch {}
-
-          results.push({
-            title: item.title,
-            url: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-            snippet,
-            source_name: 'Wikipedia (ID)',
-            domain: 'id.wikipedia.org',
-            type: 'encyclopedic_id',
-          });
-        }
-      }
-    } catch {}
-
-    // 2. Query English Wikipedia if results are few
-    if (results.length < limit) {
-      try {
-        const enUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-        const res = await fetch(enUrl, {
-          headers: { 'User-Agent': 'VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)' },
-          signal: controller.signal,
-        }).finally(() => clearTimeout(timer));
-
-        if (res.ok) {
-          const data = await res.json();
-          const searchItems = (data?.query?.search || []).slice(0, limit - results.length);
-
-          for (const item of searchItems) {
-            if (seenTitles.has(item.title.toLowerCase())) continue;
-            seenTitles.add(item.title.toLowerCase());
-
-            let snippet = (item.snippet || '').replace(/<[^>]+>/g, '').trim();
-            try {
-              const sumController = new AbortController();
-              const sumTimer = setTimeout(() => sumController.abort(), 2500);
-              const sumRes = await fetch(
-                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-                { headers: { 'User-Agent': 'VarisAI-Research/2.0' }, signal: sumController.signal }
-              ).finally(() => clearTimeout(sumTimer));
-
-              if (sumRes.ok) {
-                const sumData = await sumRes.json();
-                if (sumData.extract) snippet = sumData.extract;
-              }
-            } catch {}
-
-            results.push({
-              title: item.title,
-              url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-              snippet,
-              source_name: 'Wikipedia (Global)',
-              domain: 'en.wikipedia.org',
-              type: 'encyclopedic_en',
-            });
-          }
-        }
-      } catch {}
+// ----------------------------------------------------------
+// 7. RESEARCH CONTEXT & CITATION BUILDER
+// ----------------------------------------------------------
+export class ResearchContextBuilder {
+  static build(sources = [], userQuery = '') {
+    if (!Array.isArray(sources) || sources.length === 0) {
+      return '';
     }
 
-    return results;
+    const sourcesBlock = sources.map((s, idx) => {
+      const num = idx + 1;
+      return `SOURCE ${num}:
+Title: "${s.title}"
+URL: ${s.url}
+Domain: ${s.domain}
+Published: ${s.publishedAt || 'N/A'}
+Content: ${s.content || s.snippet}`;
+    }).join('\n\n');
+
+    return `HASIL RISET WEB REAL-TIME TERKINI (RESEARCH SOURCES):
+USER QUESTION:
+"${userQuery}"
+
+VERIFIED SOURCES (${sources.length} Sumber Terverifikasi):
+
+${sourcesBlock}
+
+INSTRUKSI PENGGUNAAN SUMBER (INSTRUCTIONS):
+1. Answer the user's question accurately using the research evidence above as the primary ground truth.
+2. Gunakan fakta terverifikasi dari sumber di atas untuk menyusun jawaban.
+3. Do not invent unsupported facts or imaginary URLs (Jangan mengarang fakta atau URL palsu).
+4. If sources disagree, explain the disagreement neutrally and objectively.
+5. Cite the sources used using explicit markdown citations like "[Source Name](URL)" or "[1]".`;
   }
 }
 
-/**
- * DuckDuckGo Instant Answer & Knowledge Graph Provider
- */
-export class DuckDuckGoSearchProvider extends BaseWebSearchProvider {
-  constructor({ timeoutMs = 4500 } = {}) {
-    super('duckduckgo');
-    this.timeoutMs = timeoutMs;
-  }
-
-  async search(query, { limit = 4 } = {}) {
-    const cleanQuery = query.trim();
-    if (!cleanQuery) return [];
-
-    const results = [];
-    try {
-      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)' },
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timer));
-
-      if (res.ok) {
-        const data = await res.json();
-        
-        // 1. Direct Abstract / Direct Answer
-        if (data.AbstractText && data.AbstractURL) {
-          results.push({
-            title: data.Heading || cleanQuery,
-            url: data.AbstractURL,
-            snippet: data.AbstractText,
-            source_name: data.AbstractSource || 'DuckDuckGo Knowledge',
-            type: 'direct_answer',
-          });
-        }
-
-        // 2. Related Topics
-        if (Array.isArray(data.RelatedTopics)) {
-          for (const topic of data.RelatedTopics) {
-            if (results.length >= limit) break;
-            if (topic.Text && topic.FirstURL) {
-              const title = topic.Text.split(' - ')[0] || cleanQuery;
-              results.push({
-                title,
-                url: topic.FirstURL,
-                snippet: topic.Text,
-                source_name: 'DuckDuckGo Topic',
-                type: 'web_result',
-              });
-            } else if (Array.isArray(topic.Topics)) {
-              for (const subTopic of topic.Topics) {
-                if (results.length >= limit) break;
-                if (subTopic.Text && subTopic.FirstURL) {
-                  results.push({
-                    title: subTopic.Text.split(' - ')[0] || cleanQuery,
-                    url: subTopic.FirstURL,
-                    snippet: subTopic.Text,
-                    source_name: 'DuckDuckGo SubTopic',
-                    type: 'web_result',
-                  });
-                }
-              }
-            }
-          }
-        }
-
-        // 3. Results field (if available)
-        if (Array.isArray(data.Results)) {
-          for (const item of data.Results) {
-            if (results.length >= limit) break;
-            if (item.FirstURL && item.Text) {
-              results.push({
-                title: item.Text.split(' - ')[0] || cleanQuery,
-                url: item.FirstURL,
-                snippet: item.Text,
-                source_name: 'DuckDuckGo Direct Link',
-                type: 'web_result',
-              });
-            }
-          }
-        }
-      }
-    } catch {}
-
-    return results;
+export class CitationBuilder {
+  static buildCitations(sources = []) {
+    return (sources || []).map((s, idx) => ({
+      index: idx + 1,
+      id: s.id || `src-${idx + 1}`,
+      title: s.title,
+      url: s.url,
+      domain: s.domain,
+      snippet: s.snippet,
+      relevanceScore: s.relevanceScore,
+    }));
   }
 }
 
 // ----------------------------------------------------------
-// 5. MULTI-SOURCE WEB RESEARCH ENGINE
+// 8. RESEARCH AGENT (MASTER FACADE)
 // ----------------------------------------------------------
-export class MultiWebSearchEngine {
+export class ResearchAgent {
   constructor({
     providers = [],
     cache = new ResearchCache(),
     maxSources = 5,
   } = {}) {
-    this.providers = providers.length > 0 ? providers : [
-      new WikipediaSearchProvider(),
-      new DuckDuckGoSearchProvider(),
-    ];
+    this.retriever = new SourceRetriever(providers);
     this.cache = cache;
     this.maxSources = maxSources;
   }
 
-  /**
-   * Executes multi-query parallel research workflow
-   */
   async research(userMessage, { maxSources = this.maxSources, bypassCache = false } = {}) {
     const raw = (userMessage || '').trim();
     if (!raw) {
@@ -533,6 +641,7 @@ export class MultiWebSearchEngine {
         sources: [],
         formatted_context: '',
         status: 'empty_query',
+        timestamp: Date.now(),
       };
     }
 
@@ -544,92 +653,61 @@ export class MultiWebSearchEngine {
       }
     }
 
-    // 1. Plan queries
+    // 1. QueryPlanner
     const plannedQueries = QueryPlanner.plan(raw);
     if (plannedQueries.length === 0) {
       plannedQueries.push(QueryPlanner.cleanQuery(raw) || raw);
     }
 
-    const rawCollectedSources = [];
+    // 2. SourceRetriever
+    const rawSources = await this.retriever.retrieve(plannedQueries, { limit: 3 });
 
-    // 2. Fetch from all providers for each planned query in parallel
-    const searchPromises = [];
-    for (const query of plannedQueries) {
-      for (const provider of this.providers) {
-        searchPromises.push(
-          provider.search(query, { limit: 3 })
-            .then(res => {
-              if (Array.isArray(res)) {
-                rawCollectedSources.push(...res);
-              }
-            })
-            .catch(() => {
-              // Silently absorb individual provider timeout/failure
-            })
-        );
-      }
-    }
+    // 3. SourceValidator
+    const validSources = SourceValidator.validateAll(rawSources);
 
-    await Promise.all(searchPromises);
-
-    // 3. Rank, deduplicate, and validate credibility
-    const rankedSources = SourceRanker.rankAndFilter(rawCollectedSources, {
+    // 4. SourceRanker
+    const rankedSources = SourceRanker.rankAndFilter(validSources, {
       targetQueries: plannedQueries,
       maxSources,
     });
 
-    // 4. Build Structured Research Context
-    const formattedContext = buildResearchContext(rankedSources, raw);
+    // 5. ContentExtractor
+    const extractedSources = rankedSources.map(s => ContentExtractor.extract(s));
+
+    // 6. ResearchContextBuilder & CitationBuilder
+    const formattedContext = ResearchContextBuilder.build(extractedSources, raw);
+    const citations = CitationBuilder.buildCitations(extractedSources);
 
     const result = {
       query: raw,
       planned_queries: plannedQueries,
-      total_sources_found: rawCollectedSources.length,
-      sources: rankedSources,
+      total_sources_found: rawSources.length,
+      sources: extractedSources,
+      citations,
       formatted_context: formattedContext,
-      status: rankedSources.length > 0 ? 'success' : 'no_sources_found',
+      status: extractedSources.length > 0 ? 'success' : 'no_sources_found',
       timestamp: Date.now(),
     };
 
-    // Save in cache (10 mins TTL)
     this.cache.set(cacheKey, result, 10 * 60 * 1000);
-
     return result;
   }
 }
 
-// ----------------------------------------------------------
-// 6. STRUCTURED RESEARCH CONTEXT BUILDER
-// ----------------------------------------------------------
-export function buildResearchContext(sources = [], userQuery = '') {
-  if (!Array.isArray(sources) || sources.length === 0) {
-    return '';
-  }
-
-  const citationsList = sources.map((s, idx) => {
-    const num = idx + 1;
-    return `[${num}] "${s.title}" (${s.source_name || s.domain})\nURL: ${s.url}\nRingkasan: ${s.snippet}`;
-  }).join('\n\n');
-
-  return `=== HASIL RISET WEB REAL-TIME TERKINI ===
-Topik/Pertanyaan: "${userQuery}"
-Jumlah Sumber Terverifikasi: ${sources.length}
-
-${citationsList}
-
-INSTRUKSI PENGGUNAAN SUMBER:
-1. Gunakan fakta di atas sebagai landasan utama jawaban yang akurat dan terkini.
-2. Cantumkan rujukan berupa tautan markdown langsung ke sumber asli, contoh: "[Nama Sumber](URL)" atau gunakan nomor rujukan seperti "[1]".
-3. Jangan pernah mengarang data atau URL fiktif di luar sumber yang terverifikasi.
-4. Jika ada perbedaan informasi antar sumber, jelaskan perbedaannya secara netral.`;
+// Backward Compatibility Aliases & Singleton
+export const MultiWebSearchEngine = ResearchAgent;
+export function buildResearchContext(sources, userQuery) {
+  return ResearchContextBuilder.build(sources, userQuery);
 }
 
-// Singleton Default Engine
-let defaultEngineInstance = null;
+let defaultAgentInstance = null;
+export function getDefaultResearchAgent() {
+  if (!defaultAgentInstance) {
+    defaultAgentInstance = new ResearchAgent();
+  }
+  return defaultAgentInstance;
+}
 
 export function getDefaultWebSearchEngine() {
-  if (!defaultEngineInstance) {
-    defaultEngineInstance = new MultiWebSearchEngine();
-  }
-  return defaultEngineInstance;
+  return getDefaultResearchAgent();
 }
