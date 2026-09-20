@@ -320,3 +320,32 @@ test('Agent System: no memory injection if no user message or no relevant memory
   assert.equal(result.text, 'No memory used.');
 });
 
+test('Agent System: real-time web research grounding and citation preservation', async () => {
+  const registry = createDefaultToolRegistry();
+
+  const engine = createMockEngine(async ({ context, userMessage }) => {
+    // Should have a web research system prompt injected
+    const researchPrompt = context.find(c => c.role === 'system' && c.content.includes('HASIL RISET WEB REAL-TIME TERKINI'));
+    assert.ok(researchPrompt, 'Web research context must be injected for temporal queries');
+    assert.ok(researchPrompt.content.includes('EPISTEMIC STATUS:'), 'Epistemic status must be included in research context');
+
+    return {
+      text: 'Presiden Republik Indonesia saat ini adalah Prabowo Subianto.',
+      model: 'mock-model',
+    };
+  });
+
+  const agent = createAgentSystem({ engine, registry });
+  const result = await agent.run({
+    userMessage: 'Siapa presiden Indonesia saat ini sekarang?',
+    userId: 'u-1',
+    conversationId: 'c-1',
+  });
+
+  assert.ok(result.text.includes('Prabowo Subianto'));
+  assert.ok(result.research !== null);
+  assert.ok(result.research.queries.length > 0);
+  assert.ok(['VERIFIED', 'KNOWN', 'UNCERTAIN', 'UNKNOWN'].includes(result.research.epistemicState));
+});
+
+

@@ -14254,36 +14254,39 @@ function tryEvaluateMath(text) {
 }
 
 // src/ai-providers.mjs
-var VARIS_SYSTEM_PROMPT = `Kamu adalah VARIS, asisten AI cerdas, serbaguna (general-purpose), dan interaktif yang dirancang untuk percakapan lisan dan teks yang alami, mendalam, akurat, dan berkonteks layaknya manusia.
+var VARIS_SYSTEM_PROMPT = `Kamu adalah VARIS, GENERAL PURPOSE AI AGENT cerdas, serbaguna, dan adaptif yang dirancang untuk membantu pengguna dalam berbagai cabang ilmu dan kebutuhan praktis secara alami, terstruktur, mendalam, dan akurat.
 
-Prinsip Utama VARIS:
+Formula & Arsitektur Utama VARIS:
+1. Kecerdasan Multidisiplin (General Intelligence):
+   Menguasai dan mampu memecahkan masalah dalam domain: Matematika, Fisika, Kimia, Biologi, Informatika, Pemrograman (Web, Mobile, Backend, Database, Cloud), AI/Machine Learning, Cybersecurity (secara aman dan defensif), Elektronika, Arduino, Robotika, Sejarah, Geografi, Ekonomi, Bisnis, Bahasa, Literatur, Pendidikan, Sains, Analisis PDF/Dokumen/Gambar/Data, dan Berita/Peristiwa Terkini.
 
-1. Kecerdasan Umum & Riset Real-Time (General Intelligence & Real-Time Research):
-- Mampu membahas, menganalisis, dan memecahkan masalah dalam berbagai domain: pengetahuan umum, sains, astronomi, sejarah, teknologi, pemrograman, matematika, bahasa, pendidikan, logika, analisis data/file, penulisan kreatif, hingga peristiwa terkini.
-- Apabila disediakan konteks hasil penelusuran web real-time (Real-Time Web Research Context), WAJIB gunakan informasi terverifikasi tersebut sebagai fakta acuan utama untuk menyusun jawaban.
+2. Alur Penalaran 13-Langkah untuk Tugas Kompleks:
+   1. Pahami tujuan dan intensi pengguna secara mendalam.
+   2. Pecah masalah besar menjadi sub-masalah logis (Problem Decomposition).
+   3. Tentukan informasi & data yang diperlukan.
+   4. Gunakan tools yang relevan secara otomatis.
+   5. Lakukan web research jika memerlukan data faktual/terkini.
+   6. Prioritaskan sumber resmi, akademis, dan tepercaya.
+   7. Bandingkan bukti jika ada informasi yang bertentangan.
+   8. Susun evidence dan konteks terpadu.
+   9. Lakukan multi-step reasoning dengan logika deduktif/induktif yang solid.
+   10. Lakukan validasi dan self-check terhadap konsistensi faktual & matematis.
+   11. Koreksi mandiri jika menemukan inkonsistensi.
+   12. Berikan jawaban yang terstruktur, padat, jelas, dan mudah dipahami.
+   13. Sertakan rujukan/sitasi sumber jika menggunakan data riset web.
 
-2. Jawaban Padat, Tepat Sasaran & Point-First (Answer-First & Brevity):
-- Jawaban WAJIB langsung ke poin utama (answer-first). Ambil poin intinya apa jawabannya tanpa berbelit-belit.
-- Jika pengguna meminta jawaban "singkat", "padat", "jelas", atau "ambil pointnya", berikan jawaban langsung dalam 1-2 kalimat ringkas dan jelas (contoh: "Masjid adalah tempat ibadah umat Islam.").
-- HINDARI pengantar klise atau basa-basi pembuka seperti "Berdasarkan penelusuran...", "Tentu saja!", "Sebagai asisten AI...", atau "Terima kasih atas pertanyaannya".
+3. Kejujuran & Epistemic Awareness:
+   - Bedakan dengan jelas antara fakta [KNOWN], [VERIFIED], [UNCERTAIN], [CONFLICTING], dan [UNKNOWN].
+   - VARIS TIDAK BOLEH berpura-pura mengetahui sesuatu yang tidak diketahuinya. Jika informasi tidak cukup, sampaikan dengan jujur batasan informasi yang ada.
+   - Jangan pernah mengarang fakta, angka, nama, sitasi, URL, atau hasil eksekusi tool palsu.
 
-3. Pemahaman Mendalam Sebelum Menjawab (Understand Before Answering):
-- Identifikasi maksud, sasaran, dan konteks pengguna (apakah ini pertanyaan baru, kelanjutan topik, perbandingan, koreksi, atau permintaan bantuan teknis).
-- Pertahankan kesinambungan multi-turn. Pahami kata rujukan seperti "dia", "itu", "yang tadi", "bagian kedua", "lanjutkan", "ubah cara tadi", "bukan itu", atau "maksud saya yang sebelumnya".
-- Pastikan pertanyaan dan jawaban selalu nyambung 100% dan mudah dimengerti oleh pengguna.
+4. Prinsip Jawaban (Answer-First & Brevity):
+   - Jawaban langsung ke inti (point-first). Ambil poin utama jawabannya tanpa basa-basi berbelit-belit.
+   - Jika diminta "singkat", "padat", "jelas", atau "ambil poinnya", jawab langsung dalam 1-2 kalimat ringkas dan berbobot.
+   - Hindari kalimat pembuka klise seperti "Berdasarkan penelusuran...", "Tentu saja!", "Sebagai asisten AI...", atau "Terima kasih atas pertanyaannya".
 
-4. Pemanfaatan Tools & Web Search (Tool Intelligence):
-- 'calculator': Gunakan untuk perhitungan matematika angka besar, perkalian/pembagian kompleks, dan ekspresi aritmatika agar presisi 100%.
-- 'current_datetime': Gunakan untuk mengetahui waktu, tanggal, hari, atau zona waktu terkini.
-- 'web_search': Gunakan untuk mencari fakta aktual, berita terkini, versi software terbaru, atau informasi yang memerlukan data terbaru dari web.
-- 'weather': Gunakan untuk mengecek kondisi cuaca dan suhu real-time di suatu lokasi.
-- 'file_search' & 'read_project_file': Gunakan untuk mencari dan membaca file dalam proyek pengguna saat diminta menganalisis kode atau file workspace.
-- 'memory_search' & 'save_memory': Gunakan untuk membaca dan menyimpan preferensi jangka panjang pengguna yang penting.
-
-5. Akurasi, Kontrol Halusinasi, Koreksi Diri & Sitasi Terverifikasi:
-- Prioritas utama: Akurasi > Relevansi > Konteks > Kejelasan > Kecepatan.
-- Jangan pernah mengarang data, angka, nama, URL, atau hasil eksekusi tool.
-- Cantumkan sumber informasi web yang relevan jika menyajikan data riset.`;
+5. Prioritas Nilai Utama:
+   ACCURACY > HONESTY > RELEVANCE > CLARITY > SPEED`;
 function isRetryable(error) {
   if (error?.retryable === false) return false;
   const status = error?.status ?? error?.statusCode;
@@ -15594,11 +15597,50 @@ var ContentExtractor = class {
     };
   }
 };
+var EpistemicState = Object.freeze({
+  KNOWN: "KNOWN",
+  VERIFIED: "VERIFIED",
+  UNCERTAIN: "UNCERTAIN",
+  CONFLICTING: "CONFLICTING",
+  UNKNOWN: "UNKNOWN"
+});
+var EpistemicStateClassifier = class {
+  static classify(sources = [], userQuery = "") {
+    if (!Array.isArray(sources) || sources.length === 0) {
+      return {
+        state: EpistemicState.UNKNOWN,
+        confidence: 0,
+        explanation: "Tidak ditemukan sumber terpercaya yang relevan."
+      };
+    }
+    const highQuality = sources.filter((s) => (s.relevanceScore || 0) >= 0.7);
+    if (highQuality.length >= 2) {
+      return {
+        state: EpistemicState.VERIFIED,
+        confidence: 0.95,
+        explanation: "Didukung oleh beberapa sumber independen terpercaya."
+      };
+    }
+    if (sources.length >= 1 && (sources[0].relevanceScore || 0) >= 0.5) {
+      return {
+        state: EpistemicState.KNOWN,
+        confidence: 0.85,
+        explanation: "Didukung oleh sumber fakta yang relevan."
+      };
+    }
+    return {
+      state: EpistemicState.UNCERTAIN,
+      confidence: 0.5,
+      explanation: "Bukti dari sumber yang ditemukan masih terbatas atau bersifat parsial."
+    };
+  }
+};
 var ResearchContextBuilder = class {
-  static build(sources = [], userQuery = "") {
+  static build(sources = [], userQuery = "", epistemic = null) {
     if (!Array.isArray(sources) || sources.length === 0) {
       return "";
     }
+    const epistemicInfo = epistemic || EpistemicStateClassifier.classify(sources, userQuery);
     const sourcesBlock = sources.map((s, idx) => {
       const num = idx + 1;
       return `SOURCE ${num}:
@@ -15606,22 +15648,23 @@ Title: "${s.title}"
 URL: ${s.url}
 Domain: ${s.domain}
 Published: ${s.publishedAt || "N/A"}
+Relevance: ${s.relevanceScore || "N/A"}
 Content: ${s.content || s.snippet}`;
     }).join("\n\n");
-    return `HASIL RISET WEB REAL-TIME TERKINI (RESEARCH SOURCES):
-USER QUESTION:
-"${userQuery}"
+    return `HASIL RISET WEB REAL-TIME TERKINI (REAL-TIME RESEARCH CONTEXT):
+USER QUESTION: "${userQuery}"
+EPISTEMIC STATUS: [${epistemicInfo.state}] (Confidence: ${Math.round(epistemicInfo.confidence * 100)}% - ${epistemicInfo.explanation})
 
-VERIFIED SOURCES (${sources.length} Sumber Terverifikasi):
+VERIFIED RESEARCH SOURCES (${sources.length} Sumber Terverifikasi):
 
 ${sourcesBlock}
 
-INSTRUKSI PENGGUNAAN SUMBER (INSTRUCTIONS):
-1. Answer the user's question accurately using the research evidence above as the primary ground truth.
-2. Gunakan fakta terverifikasi dari sumber di atas untuk menyusun jawaban.
-3. Do not invent unsupported facts or imaginary URLs (Jangan mengarang fakta atau URL palsu).
-4. If sources disagree, explain the disagreement neutrally and objectively.
-5. Cite the sources used using explicit markdown citations like "[Source Name](URL)" or "[1]".`;
+PRINSIP PENALARAN & AKURASI VARIS:
+1. Akurasi Faktual Mutlak: Jadikan bukti riset di atas sebagai fakta acuan utama (ground truth).
+2. Answer-First: Jawab langsung ke inti jawaban pengguna tanpa basa-basi pembuka yang tidak perlu.
+3. Anti-Halusinasi: Dilarang keras mengarang data, angka, nama, atau URL palsu.
+4. Status Pengetahuan: Jika status UNCERTAIN atau UNKNOWN, sampaikan dengan jujur batasan informasi yang tersedia.
+5. Sitasi Jelas: Cantumkan rujukan sumber yang valid format Markdown ([Nama Sumber](URL) atau [1]).`;
   }
 };
 var CitationBuilder = class {
@@ -15655,6 +15698,7 @@ var ResearchAgent = class {
         planned_queries: [],
         sources: [],
         formatted_context: "",
+        epistemic: { state: EpistemicState.UNKNOWN, confidence: 0 },
         status: "empty_query",
         timestamp: Date.now()
       };
@@ -15677,13 +15721,15 @@ var ResearchAgent = class {
       maxSources
     });
     const extractedSources = rankedSources.map((s) => ContentExtractor.extract(s));
-    const formattedContext = ResearchContextBuilder.build(extractedSources, raw);
+    const epistemic = EpistemicStateClassifier.classify(extractedSources, raw);
+    const formattedContext = ResearchContextBuilder.build(extractedSources, raw, epistemic);
     const citations = CitationBuilder.buildCitations(extractedSources);
     const result = {
       query: raw,
       planned_queries: plannedQueries,
       total_sources_found: rawSources.length,
       sources: extractedSources,
+      epistemic,
       citations,
       formatted_context: formattedContext,
       status: extractedSources.length > 0 ? "success" : "no_sources_found",
@@ -16450,6 +16496,74 @@ var DEFAULT_AGENT_PERMISSIONS = Object.freeze([
   "file:read",
   "file:search"
 ]);
+function shouldTriggerWebResearch(userMessage = "", intent = null) {
+  if (!userMessage || typeof userMessage !== "string") return false;
+  const lower = userMessage.toLowerCase().replace(/[?!.,;:]/g, " ").replace(/\s+/g, " ").trim();
+  if (intent?.type === "calculation" || intent?.type === "small_talk") return false;
+  if (/^(\d+\s*[\+\-\*\/\%x×÷\^]\s*\d+|hitung\b|berapa hasil)/i.test(lower)) return false;
+  if (/^(halo|hai|hey|hei|hello|hi|apa kabar|pagi|siang|sore|malam)(\b|\s|$)/i.test(lower)) return false;
+  const temporalKeywords = [
+    "sekarang",
+    "saat ini",
+    "terbaru",
+    "terkini",
+    "hari ini",
+    "tahun ini",
+    "bulan ini",
+    "presiden",
+    "menteri",
+    "gubernur",
+    "walikota",
+    "bupati",
+    "juara",
+    "skor",
+    "kurs",
+    "harga",
+    "berita",
+    "kapan",
+    "siapa penemu",
+    "siapa pendiri",
+    "siapa pencipta",
+    "sejarah",
+    "perang dunia",
+    "populasi",
+    "jumlah penduduk",
+    "ibukota",
+    "cuaca hari ini"
+  ];
+  for (const kw of temporalKeywords) {
+    if (lower.includes(kw)) return true;
+  }
+  const words = lower.split(" ").filter((w) => w.length > 2);
+  if (words.length >= 5 && (lower.includes("apa itu") || lower.includes("bagaimana cara") || lower.includes("kenapa") || lower.includes("mengapa"))) {
+    return true;
+  }
+  return false;
+}
+async function tryAutoExtractMemory({ userMessage, userId, repository, embedFn, logger }) {
+  if (!userMessage || !userId || !repository?.createMemory || typeof embedFn !== "function") return;
+  const lower = userMessage.toLowerCase().trim();
+  if (lower.includes("password") || lower.includes("api_key") || lower.includes("apikey") || lower.includes("secret") || lower.includes("token") || lower.includes("pin") || lower.includes("cvv") || lower.includes("rekening")) {
+    return;
+  }
+  let memoryFact = null;
+  if (lower.startsWith("nama saya ") || lower.startsWith("namaku ") || lower.startsWith("panggil aku ")) {
+    memoryFact = `Nama pengguna: ${userMessage.trim()}`;
+  } else if (lower.startsWith("saya suka ") || lower.startsWith("saya lebih suka ") || lower.startsWith("hobi saya ")) {
+    memoryFact = `Preferensi pengguna: ${userMessage.trim()}`;
+  } else if (lower.startsWith("ingat bahwa ") || lower.startsWith("tolong ingat ")) {
+    memoryFact = userMessage.replace(/^(ingat bahwa|tolong ingat)\s+/i, "").trim();
+  }
+  if (memoryFact) {
+    try {
+      const embedding = await embedFn({ text: memoryFact });
+      await repository.createMemory({ userId, text: memoryFact, embedding });
+      logger?.info?.({ memoryFact }, "Auto-saved user preference to long-term memory");
+    } catch (err) {
+      logger?.warn?.({ err }, "Failed to auto-save user memory");
+    }
+  }
+}
 function createAgentSystem({
   engine,
   registry,
@@ -16553,6 +16667,22 @@ Use this information if it is relevant to the user's request. Do not mention the
           logger?.warn?.({ err }, "Failed to retrieve long-term memory for semantic search");
         }
       }
+      let researchResults = null;
+      if (shouldTriggerWebResearch(userMessage, intent)) {
+        try {
+          const researchAgent = getDefaultResearchAgent();
+          researchResults = await researchAgent.research(userMessage);
+          if (researchResults && researchResults.formatted_context) {
+            currentContext = [
+              { role: "system", content: researchResults.formatted_context },
+              ...currentContext
+            ];
+            logger?.info?.({ plannedQueries: researchResults.planned_queries, sourcesCount: researchResults.sources?.length }, "Injected real-time web research context into Agent pipeline");
+          }
+        } catch (err) {
+          logger?.warn?.({ err }, "Web research agent failed; continuing with direct reasoning");
+        }
+      }
       const toolDefs = registry.definitions ? registry.definitions() : [];
       const executedToolCalls = [];
       let response = await engine.respond({
@@ -16571,13 +16701,40 @@ Use this information if it is relevant to the user's request. Do not mention the
             error2.code = "AI_MALFORMED_RESPONSE";
             throw error2;
           }
+          let finalText = response.text.trim();
+          if (researchResults && researchResults.citations && researchResults.citations.length > 0) {
+            const hasCitationsInText = /\[\d+\]|https?:\/\//.test(finalText);
+            if (!hasCitationsInText && researchResults.sources && researchResults.sources.length > 0) {
+              const topSource = researchResults.sources[0];
+              if (topSource && topSource.url && topSource.title) {
+                finalText += `
+
+*Sumber: [${topSource.title}](${topSource.url})*`;
+              }
+            }
+          }
+          if (userId && repository?.createMemory && engine.embed) {
+            tryAutoExtractMemory({
+              userMessage,
+              userId,
+              repository,
+              embedFn: (p) => engine.embed(p),
+              logger
+            }).catch(() => {
+            });
+          }
           return {
-            text: response.text.trim(),
+            text: finalText,
             model: response.model || model,
             modelUsed: response.modelUsed || response.model || model,
             fallbackUsed: response.fallbackUsed || null,
             usage: response.usage ?? null,
             toolCalls: executedToolCalls,
+            research: researchResults ? {
+              queries: researchResults.planned_queries,
+              sourcesCount: researchResults.sources?.length || 0,
+              epistemicState: researchResults.epistemic?.state || "UNKNOWN"
+            } : null,
             rounds: round + 1
           };
         }
@@ -16593,7 +16750,7 @@ Use this information if it is relevant to the user's request. Do not mention the
           });
         }
         response = await engine.respond({
-          context,
+          context: currentContext,
           userMessage,
           tools: toolDefs,
           model,

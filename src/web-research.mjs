@@ -642,13 +642,80 @@ export class ContentExtractor {
 }
 
 // ----------------------------------------------------------
-// 7. RESEARCH CONTEXT & CITATION BUILDER
+// 7. EPISTEMIC STATE & FACT-CHECKING ENGINE
+// ----------------------------------------------------------
+export const EpistemicState = Object.freeze({
+  KNOWN: 'KNOWN',
+  VERIFIED: 'VERIFIED',
+  UNCERTAIN: 'UNCERTAIN',
+  CONFLICTING: 'CONFLICTING',
+  UNKNOWN: 'UNKNOWN',
+});
+
+export class EpistemicStateClassifier {
+  static classify(sources = [], userQuery = '') {
+    if (!Array.isArray(sources) || sources.length === 0) {
+      return {
+        state: EpistemicState.UNKNOWN,
+        confidence: 0,
+        explanation: 'Tidak ditemukan sumber terpercaya yang relevan.',
+      };
+    }
+
+    const highQuality = sources.filter(s => (s.relevanceScore || 0) >= 0.7);
+    if (highQuality.length >= 2) {
+      return {
+        state: EpistemicState.VERIFIED,
+        confidence: 0.95,
+        explanation: 'Didukung oleh beberapa sumber independen terpercaya.',
+      };
+    }
+
+    if (sources.length >= 1 && (sources[0].relevanceScore || 0) >= 0.5) {
+      return {
+        state: EpistemicState.KNOWN,
+        confidence: 0.85,
+        explanation: 'Didukung oleh sumber fakta yang relevan.',
+      };
+    }
+
+    return {
+      state: EpistemicState.UNCERTAIN,
+      confidence: 0.5,
+      explanation: 'Bukti dari sumber yang ditemukan masih terbatas atau bersifat parsial.',
+    };
+  }
+}
+
+export class FactChecker {
+  static verifyEvidence(sources = [], claim = '') {
+    if (!claim || sources.length === 0) return { verified: false, score: 0 };
+    const lowerClaim = claim.toLowerCase();
+    const words = lowerClaim.split(/\s+/).filter(w => w.length > 3);
+    let matchCount = 0;
+    for (const s of sources) {
+      const text = `${s.title} ${s.snippet}`.toLowerCase();
+      const hits = words.filter(w => text.includes(w)).length;
+      if (hits > matchCount) matchCount = hits;
+    }
+    const ratio = words.length > 0 ? matchCount / words.length : 0;
+    return {
+      verified: ratio >= 0.5,
+      score: Number(ratio.toFixed(2)),
+    };
+  }
+}
+
+// ----------------------------------------------------------
+// 8. RESEARCH CONTEXT & CITATION BUILDER
 // ----------------------------------------------------------
 export class ResearchContextBuilder {
-  static build(sources = [], userQuery = '') {
+  static build(sources = [], userQuery = '', epistemic = null) {
     if (!Array.isArray(sources) || sources.length === 0) {
       return '';
     }
+
+    const epistemicInfo = epistemic || EpistemicStateClassifier.classify(sources, userQuery);
 
     const sourcesBlock = sources.map((s, idx) => {
       const num = idx + 1;
@@ -657,23 +724,24 @@ Title: "${s.title}"
 URL: ${s.url}
 Domain: ${s.domain}
 Published: ${s.publishedAt || 'N/A'}
+Relevance: ${s.relevanceScore || 'N/A'}
 Content: ${s.content || s.snippet}`;
     }).join('\n\n');
 
-    return `HASIL RISET WEB REAL-TIME TERKINI (RESEARCH SOURCES):
-USER QUESTION:
-"${userQuery}"
+    return `HASIL RISET WEB REAL-TIME TERKINI (REAL-TIME RESEARCH CONTEXT):
+USER QUESTION: "${userQuery}"
+EPISTEMIC STATUS: [${epistemicInfo.state}] (Confidence: ${Math.round(epistemicInfo.confidence * 100)}% - ${epistemicInfo.explanation})
 
-VERIFIED SOURCES (${sources.length} Sumber Terverifikasi):
+VERIFIED RESEARCH SOURCES (${sources.length} Sumber Terverifikasi):
 
 ${sourcesBlock}
 
-INSTRUKSI PENGGUNAAN SUMBER (INSTRUCTIONS):
-1. Answer the user's question accurately using the research evidence above as the primary ground truth.
-2. Gunakan fakta terverifikasi dari sumber di atas untuk menyusun jawaban.
-3. Do not invent unsupported facts or imaginary URLs (Jangan mengarang fakta atau URL palsu).
-4. If sources disagree, explain the disagreement neutrally and objectively.
-5. Cite the sources used using explicit markdown citations like "[Source Name](URL)" or "[1]".`;
+PRINSIP PENALARAN & AKURASI VARIS:
+1. Akurasi Faktual Mutlak: Jadikan bukti riset di atas sebagai fakta acuan utama (ground truth).
+2. Answer-First: Jawab langsung ke inti jawaban pengguna tanpa basa-basi pembuka yang tidak perlu.
+3. Anti-Halusinasi: Dilarang keras mengarang data, angka, nama, atau URL palsu.
+4. Status Pengetahuan: Jika status UNCERTAIN atau UNKNOWN, sampaikan dengan jujur batasan informasi yang tersedia.
+5. Sitasi Jelas: Cantumkan rujukan sumber yang valid format Markdown ([Nama Sumber](URL) atau [1]).`;
   }
 }
 
@@ -692,7 +760,7 @@ export class CitationBuilder {
 }
 
 // ----------------------------------------------------------
-// 8. RESEARCH AGENT (MASTER FACADE)
+// 9. RESEARCH AGENT (MASTER FACADE)
 // ----------------------------------------------------------
 export class ResearchAgent {
   constructor({
@@ -713,6 +781,7 @@ export class ResearchAgent {
         planned_queries: [],
         sources: [],
         formatted_context: '',
+        epistemic: { state: EpistemicState.UNKNOWN, confidence: 0 },
         status: 'empty_query',
         timestamp: Date.now(),
       };
@@ -747,8 +816,11 @@ export class ResearchAgent {
     // 5. ContentExtractor
     const extractedSources = rankedSources.map(s => ContentExtractor.extract(s));
 
-    // 6. ResearchContextBuilder & CitationBuilder
-    const formattedContext = ResearchContextBuilder.build(extractedSources, raw);
+    // 6. Epistemic Classification & Fact Verification
+    const epistemic = EpistemicStateClassifier.classify(extractedSources, raw);
+
+    // 7. ResearchContextBuilder & CitationBuilder
+    const formattedContext = ResearchContextBuilder.build(extractedSources, raw, epistemic);
     const citations = CitationBuilder.buildCitations(extractedSources);
 
     const result = {
@@ -756,6 +828,7 @@ export class ResearchAgent {
       planned_queries: plannedQueries,
       total_sources_found: rawSources.length,
       sources: extractedSources,
+      epistemic,
       citations,
       formatted_context: formattedContext,
       status: extractedSources.length > 0 ? 'success' : 'no_sources_found',

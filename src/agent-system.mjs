@@ -1,3 +1,5 @@
+import { getDefaultResearchAgent } from './web-research.mjs';
+
 export const DEFAULT_AGENT_PERMISSIONS = Object.freeze([
   'calculator:use',
   'datetime:read',
@@ -11,6 +13,82 @@ export const DEFAULT_AGENT_PERMISSIONS = Object.freeze([
   'file:read',
   'file:search',
 ]);
+
+/**
+ * Checks if a user message requires real-time web research grounding
+ */
+function shouldTriggerWebResearch(userMessage = '', intent = null) {
+  if (!userMessage || typeof userMessage !== 'string') return false;
+  const lower = userMessage.toLowerCase().replace(/[?!.,;:]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // Math calculations and small talk do not need web search
+  if (intent?.type === 'calculation' || intent?.type === 'small_talk') return false;
+  if (/^(\d+\s*[\+\-\*\/\%x×÷\^]\s*\d+|hitung\b|berapa hasil)/i.test(lower)) return false;
+  if (/^(halo|hai|hey|hei|hello|hi|apa kabar|pagi|siang|sore|malam)(\b|\s|$)/i.test(lower)) return false;
+
+  // Temporal & Fact Verification Trigger Words
+  const temporalKeywords = [
+    'sekarang', 'saat ini', 'terbaru', 'terkini', 'hari ini', 'tahun ini', 'bulan ini',
+    'presiden', 'menteri', 'gubernur', 'walikota', 'bupati', 'juara', 'skor', 'kurs',
+    'harga', 'berita', 'kapan', 'siapa penemu', 'siapa pendiri', 'siapa pencipta',
+    'sejarah', 'perang dunia', 'populasi', 'jumlah penduduk', 'ibukota', 'cuaca hari ini'
+  ];
+
+  for (const kw of temporalKeywords) {
+    if (lower.includes(kw)) return true;
+  }
+
+  // Complex knowledge questions with 4+ words often benefit from factual grounding
+  const words = lower.split(' ').filter(w => w.length > 2);
+  if (words.length >= 5 && (lower.includes('apa itu') || lower.includes('bagaimana cara') || lower.includes('kenapa') || lower.includes('mengapa'))) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Helper to extract and save safe user preferences into long-term memory
+ */
+async function tryAutoExtractMemory({ userMessage, userId, repository, embedFn, logger }) {
+  if (!userMessage || !userId || !repository?.createMemory || typeof embedFn !== 'function') return;
+
+  const lower = userMessage.toLowerCase().trim();
+
+  // Safety Guard: NEVER save passwords, tokens, API keys, or credentials
+  if (
+    lower.includes('password') ||
+    lower.includes('api_key') ||
+    lower.includes('apikey') ||
+    lower.includes('secret') ||
+    lower.includes('token') ||
+    lower.includes('pin') ||
+    lower.includes('cvv') ||
+    lower.includes('rekening')
+  ) {
+    return;
+  }
+
+  // Detect explicit self-introduction or preference statements
+  let memoryFact = null;
+  if (lower.startsWith('nama saya ') || lower.startsWith('namaku ') || lower.startsWith('panggil aku ')) {
+    memoryFact = `Nama pengguna: ${userMessage.trim()}`;
+  } else if (lower.startsWith('saya suka ') || lower.startsWith('saya lebih suka ') || lower.startsWith('hobi saya ')) {
+    memoryFact = `Preferensi pengguna: ${userMessage.trim()}`;
+  } else if (lower.startsWith('ingat bahwa ') || lower.startsWith('tolong ingat ')) {
+    memoryFact = userMessage.replace(/^(ingat bahwa|tolong ingat)\s+/i, '').trim();
+  }
+
+  if (memoryFact) {
+    try {
+      const embedding = await embedFn({ text: memoryFact });
+      await repository.createMemory({ userId, text: memoryFact, embedding });
+      logger?.info?.({ memoryFact }, 'Auto-saved user preference to long-term memory');
+    } catch (err) {
+      logger?.warn?.({ err }, 'Failed to auto-save user memory');
+    }
+  }
+}
 
 export function createAgentSystem({
   engine,
@@ -103,6 +181,7 @@ export function createAgentSystem({
 
       let currentContext = [...(initialContext || []), ...(context || [])];
 
+      // 1. Semantic Memory Retrieval (Long-Term Memory Integration)
       if (userMessage && userId && repository?.searchMemories && engine.embed) {
         try {
           const embedding = await engine.embed({ text: userMessage });
@@ -120,9 +199,28 @@ export function createAgentSystem({
         }
       }
 
+      // 2. Real-Time Web Research & Factual Grounding (NEED WEB?)
+      let researchResults = null;
+      if (shouldTriggerWebResearch(userMessage, intent)) {
+        try {
+          const researchAgent = getDefaultResearchAgent();
+          researchResults = await researchAgent.research(userMessage);
+          if (researchResults && researchResults.formatted_context) {
+            currentContext = [
+              { role: 'system', content: researchResults.formatted_context },
+              ...currentContext
+            ];
+            logger?.info?.({ plannedQueries: researchResults.planned_queries, sourcesCount: researchResults.sources?.length }, 'Injected real-time web research context into Agent pipeline');
+          }
+        } catch (err) {
+          logger?.warn?.({ err }, 'Web research agent failed; continuing with direct reasoning');
+        }
+      }
+
       const toolDefs = registry.definitions ? registry.definitions() : [];
       const executedToolCalls = [];
 
+      // 3. Multi-Step Reasoning & Tool Execution Loop
       let response = await engine.respond({
         context: currentContext,
         userMessage,
@@ -140,13 +238,44 @@ export function createAgentSystem({
             error.code = 'AI_MALFORMED_RESPONSE';
             throw error;
           }
+
+          let finalText = response.text.trim();
+
+          // 4. Self-Verification & Citation Grounding Check
+          if (researchResults && researchResults.citations && researchResults.citations.length > 0) {
+            const hasCitationsInText = /\[\d+\]|https?:\/\//.test(finalText);
+            // If the model did not append markdown sources and research was critical, ensure sources are available
+            if (!hasCitationsInText && researchResults.sources && researchResults.sources.length > 0) {
+              const topSource = researchResults.sources[0];
+              if (topSource && topSource.url && topSource.title) {
+                finalText += `\n\n*Sumber: [${topSource.title}](${topSource.url})*`;
+              }
+            }
+          }
+
+          // 5. Auto-Memory candidate extraction
+          if (userId && repository?.createMemory && engine.embed) {
+            tryAutoExtractMemory({
+              userMessage,
+              userId,
+              repository,
+              embedFn: (p) => engine.embed(p),
+              logger,
+            }).catch(() => {});
+          }
+
           return {
-            text: response.text.trim(),
+            text: finalText,
             model: response.model || model,
             modelUsed: response.modelUsed || response.model || model,
             fallbackUsed: response.fallbackUsed || null,
             usage: response.usage ?? null,
             toolCalls: executedToolCalls,
+            research: researchResults ? {
+              queries: researchResults.planned_queries,
+              sourcesCount: researchResults.sources?.length || 0,
+              epistemicState: researchResults.epistemic?.state || 'UNKNOWN',
+            } : null,
             rounds: round + 1,
           };
         }
@@ -164,7 +293,7 @@ export function createAgentSystem({
         }
 
         response = await engine.respond({
-          context,
+          context: currentContext,
           userMessage,
           tools: toolDefs,
           model,
@@ -181,5 +310,6 @@ export function createAgentSystem({
     },
   };
 }
+
 
 
