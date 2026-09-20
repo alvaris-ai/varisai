@@ -13956,6 +13956,17 @@ function createOpenAIProvider({
     }
   };
 }
+function normalizeGroqModel(model) {
+  if (!model || model === "auto") return "llama-3.3-70b-versatile";
+  if (model === "llama-3.3-70b" || model === "llama-3.3-70b-versatile" || model === "llama-70b") return "llama-3.3-70b-versatile";
+  if (model === "llama-3.1-8b" || model === "llama-3.1-8b-instant" || model === "llama-8b") return "llama-3.1-8b-instant";
+  if (model === "llama-3.2-3b" || model === "llama-3.2-3b-preview") return "llama-3.2-3b-preview";
+  if (model === "llama-3.2-1b" || model === "llama-3.2-1b-preview") return "llama-3.2-1b-preview";
+  if (model === "mixtral-8x7b" || model === "mixtral-8x7b-32768") return "mixtral-8x7b-32768";
+  if (model === "gemma2-9b" || model === "gemma2-9b-it") return "gemma2-9b-it";
+  if (model.includes("deepseek")) return "deepseek-r1-distill-llama-70b";
+  return model;
+}
 function createGeminiProvider({
   apiKey,
   model: defaultModel = "gemini-2.0-flash",
@@ -13984,13 +13995,29 @@ function createGeminiProvider({
       if (!apiKey && !client) {
         throw Object.assign(new Error("Google Gemini API Key is not configured"), { code: "AI_NOT_CONFIGURED", provider: "gemini" });
       }
-      const { context = [], userMessage, tools, model: requestedModel } = params;
+      const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
       const targetModel = requestedModel || defaultModel;
-      const messages = [
-        { role: "system", content: VARIS_SYSTEM_PROMPT },
-        ...context.map((m) => ({ role: m.role, content: m.content })),
-        { role: "user", content: userMessage }
-      ];
+      let messages;
+      if (continuation && toolResults?.length) {
+        const previousInput = continuation.previousInput ?? [];
+        const assistantToolCalls = continuation.toolCallItems ?? [];
+        const toolResultMessages = toolResults.map((r) => ({
+          role: "tool",
+          tool_call_id: r.callId,
+          content: typeof r.result === "string" ? r.result : JSON.stringify(r.result)
+        }));
+        messages = [
+          ...previousInput,
+          { role: "assistant", tool_calls: assistantToolCalls },
+          ...toolResultMessages
+        ];
+      } else {
+        messages = [
+          { role: "system", content: VARIS_SYSTEM_PROMPT },
+          ...context.map((m) => ({ role: m.role, content: m.content })),
+          { role: "user", content: userMessage }
+        ];
+      }
       const formattedTools = tools?.length ? tools.map((t) => ({
         type: "function",
         function: {
@@ -14112,13 +14139,29 @@ function createGroqProvider({
       if (!apiKey && !client) {
         throw Object.assign(new Error("Groq API Key is not configured"), { code: "AI_NOT_CONFIGURED", provider: "groq" });
       }
-      const { context = [], userMessage, tools, model: requestedModel } = params;
-      const targetModel = requestedModel || defaultModel;
-      const messages = [
-        { role: "system", content: VARIS_SYSTEM_PROMPT },
-        ...context.map((m) => ({ role: m.role, content: m.content })),
-        { role: "user", content: userMessage }
-      ];
+      const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
+      const targetModel = normalizeGroqModel(requestedModel || defaultModel);
+      let messages;
+      if (continuation && toolResults?.length) {
+        const previousInput = continuation.previousInput ?? [];
+        const assistantToolCalls = continuation.toolCallItems ?? [];
+        const toolResultMessages = toolResults.map((r) => ({
+          role: "tool",
+          tool_call_id: r.callId,
+          content: typeof r.result === "string" ? r.result : JSON.stringify(r.result)
+        }));
+        messages = [
+          ...previousInput,
+          { role: "assistant", tool_calls: assistantToolCalls },
+          ...toolResultMessages
+        ];
+      } else {
+        messages = [
+          { role: "system", content: VARIS_SYSTEM_PROMPT },
+          ...context.map((m) => ({ role: m.role, content: m.content })),
+          { role: "user", content: userMessage }
+        ];
+      }
       const formattedTools = tools?.length ? tools.map((t) => ({
         type: "function",
         function: {
@@ -14129,10 +14172,8 @@ function createGroqProvider({
       })) : void 0;
       const candidateModels = [
         targetModel,
-        "llama-3.1-8b-instant",
         "llama-3.3-70b-versatile",
-        "llama-3.2-3b-preview",
-        "llama-3.2-1b-preview",
+        "llama-3.1-8b-instant",
         "mixtral-8x7b-32768",
         "gemma2-9b-it"
       ].filter((v, i, a) => a.indexOf(v) === i && !v.includes("llama3-8b") && !v.includes("llama3-70b-8192"));
@@ -14194,7 +14235,7 @@ function createGroqProvider({
         throw Object.assign(new Error("Groq API Key is not configured"), { code: "AI_NOT_CONFIGURED", provider: "groq" });
       }
       const { context = [], userMessage, model: requestedModel } = params;
-      const targetModel = requestedModel || defaultModel;
+      const targetModel = normalizeGroqModel(requestedModel || defaultModel);
       const messages = [
         { role: "system", content: VARIS_SYSTEM_PROMPT },
         ...context.map((m) => ({ role: m.role, content: m.content })),
@@ -14202,11 +14243,10 @@ function createGroqProvider({
       ];
       const candidateModels = [
         targetModel,
-        "llama-3.1-8b-instant",
         "llama-3.3-70b-versatile",
-        "llama-3.2-3b-preview",
-        "llama-3.2-1b-preview",
-        "mixtral-8x7b-32768"
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
       ].filter((v, i, a) => a.indexOf(v) === i && !v.includes("llama3-8b") && !v.includes("llama3-70b-8192"));
       let lastErr = null;
       for (const candidate of candidateModels) {
@@ -14284,6 +14324,9 @@ function selectAutoModel({ userMessage = "", intent = {}, userPlan = null, avail
     if (providerNames.includes("google") || providerNames.includes("gemini")) {
       return { providerName: "gemini", modelId: "gemini-2.0-flash" };
     }
+    if (providerNames.includes("groq")) {
+      return { providerName: "groq", modelId: "llama-3.3-70b-versatile" };
+    }
     if (providerNames.includes("openai")) {
       return { providerName: "openai", modelId: "gpt-4o-mini" };
     }
@@ -14291,11 +14334,11 @@ function selectAutoModel({ userMessage = "", intent = {}, userPlan = null, avail
   if (providerNames.includes("google") || providerNames.includes("gemini")) {
     return { providerName: "gemini", modelId: "gemini-2.0-flash" };
   }
-  if (providerNames.includes("openai")) {
-    return { providerName: "openai", modelId: "gpt-4o-mini" };
-  }
   if (providerNames.includes("groq")) {
     return { providerName: "groq", modelId: "llama-3.3-70b-versatile" };
+  }
+  if (providerNames.includes("openai")) {
+    return { providerName: "openai", modelId: "gpt-4o-mini" };
   }
   return { providerName: "smart_local", modelId: "varis-smart-engine" };
 }
@@ -14330,7 +14373,8 @@ function createMultiProviderOrchestrator({
         "gpt-4o-mini": hasOpenAI ? "available" : "not_configured",
         "gpt-4o": hasOpenAI ? "available" : "not_configured",
         "o3-mini": hasOpenAI ? "available" : "not_configured",
-        "llama-3.3-70b": hasGroq ? "available" : "not_configured"
+        "llama-3.3-70b": hasGroq ? "available" : "not_configured",
+        "llama-3.1-8b": hasGroq ? "available" : "not_configured"
       };
     },
     async respond(params) {
@@ -14355,11 +14399,11 @@ function createMultiProviderOrchestrator({
         targetProvider = providerMap.get("openai");
       } else if (requestedModel.startsWith("llama") || requestedModel.includes("groq")) {
         targetProvider = providerMap.get("groq");
-        targetModelId = requestedModel === "llama-3.3-70b" ? "llama-3.3-70b-versatile" : requestedModel;
+        targetModelId = normalizeGroqModel(requestedModel);
       }
       if (!targetProvider || typeof targetProvider.isConfigured === "function" && !targetProvider.isConfigured()) {
         if (!allowFallback && requestedModel !== "auto") {
-          const providerDisplayName = requestedModel.startsWith("gemini") ? "Google Gemini" : requestedModel.startsWith("gpt") ? "OpenAI GPT" : "Requested AI Provider";
+          const providerDisplayName = requestedModel.startsWith("gemini") ? "Google Gemini" : requestedModel.startsWith("gpt") ? "OpenAI GPT" : requestedModel.startsWith("llama") ? "Groq LLaMA" : "Requested AI Provider";
           throw Object.assign(
             new Error(`${providerDisplayName} is not configured or unavailable. Please select an available model.`),
             { code: "AI_NOT_CONFIGURED", requestedModel }
@@ -14429,23 +14473,52 @@ function createMultiProviderOrchestrator({
         targetProvider = providerMap.get("openai");
       } else if (requestedModel.startsWith("llama") || requestedModel.includes("groq")) {
         targetProvider = providerMap.get("groq");
-        targetModelId = requestedModel === "llama-3.3-70b" ? "llama-3.3-70b-versatile" : requestedModel;
+        targetModelId = normalizeGroqModel(requestedModel);
       }
       if (!targetProvider || typeof targetProvider.isConfigured === "function" && !targetProvider.isConfigured()) {
         targetProvider = activeProviders[0];
       }
-      if (typeof targetProvider.stream === "function") {
-        return targetProvider.stream({ ...params, model: targetModelId }, onToken);
-      }
-      const result = await targetProvider.respond({ ...params, model: targetModelId });
-      const text = result.text || "";
-      if (onToken) {
-        const words = text.split(" ");
-        for (const word of words) {
-          onToken(word + " ");
+      try {
+        if (typeof targetProvider.stream === "function") {
+          return await targetProvider.stream({ ...params, model: targetModelId }, onToken);
         }
+        const result = await targetProvider.respond({ ...params, model: targetModelId });
+        const text = result.text || "";
+        if (onToken) {
+          const words = text.split(" ");
+          for (const word of words) {
+            onToken(word + " ");
+          }
+        }
+        return { ...result, modelUsed: targetModelId };
+      } catch (primaryErr) {
+        logger?.warn?.({ provider: targetProvider.name, err: primaryErr.message }, "Primary stream provider failed");
+        if (requestedModel !== "auto") {
+          throw primaryErr;
+        }
+        for (const backupProvider of activeProviders) {
+          if (backupProvider === targetProvider) continue;
+          if (typeof backupProvider.isConfigured === "function" && !backupProvider.isConfigured()) continue;
+          try {
+            logger?.info?.({ backup: backupProvider.name }, "Fallback stream provider executing");
+            if (typeof backupProvider.stream === "function") {
+              return await backupProvider.stream(params, onToken);
+            }
+            const result = await backupProvider.respond(params);
+            const text = result.text || "";
+            if (onToken) {
+              const words = text.split(" ");
+              for (const word of words) {
+                onToken(word + " ");
+              }
+            }
+            return { ...result, modelUsed: backupProvider.name };
+          } catch (backupErr) {
+            logger?.warn?.({ backup: backupProvider.name, err: backupErr.message }, "Backup stream provider failed");
+          }
+        }
+        throw primaryErr;
       }
-      return { ...result, modelUsed: targetModelId };
     },
     async embed(params) {
       for (const provider of activeProviders) {
@@ -14502,9 +14575,7 @@ function createAIProviderFromConfig(config, { logger } = {}) {
       })
     );
   }
-  if (config.nodeEnv === "test" || providers.length === 0) {
-    providers.push(createSmartLocalProvider());
-  }
+  providers.push(createSmartLocalProvider());
   return createMultiProviderOrchestrator({ providers, logger });
 }
 
@@ -15047,6 +15118,7 @@ function createDefaultToolRegistry({ now = () => /* @__PURE__ */ new Date() } = 
       try {
         const results = [];
         const cleanQuery = query.trim();
+        const seenTitles = /* @__PURE__ */ new Set();
         try {
           const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
           const ddgController = new AbortController();
@@ -15058,22 +15130,28 @@ function createDefaultToolRegistry({ now = () => /* @__PURE__ */ new Date() } = 
           if (ddgRes.ok) {
             const ddgData = await ddgRes.json();
             if (ddgData.AbstractText) {
+              const heading = ddgData.Heading || cleanQuery;
+              seenTitles.add(heading.toLowerCase());
               results.push({
-                title: ddgData.Heading || cleanQuery,
+                title: heading,
                 snippet: ddgData.AbstractText,
                 source: ddgData.AbstractURL || "https://duckduckgo.com/?q=" + encodeURIComponent(cleanQuery),
                 type: "direct_answer"
               });
             }
             if (Array.isArray(ddgData.RelatedTopics)) {
-              for (const topic of ddgData.RelatedTopics.slice(0, 2)) {
+              for (const topic of ddgData.RelatedTopics.slice(0, 3)) {
                 if (topic.Text && topic.FirstURL) {
-                  results.push({
-                    title: topic.Text.split(" - ")[0] || cleanQuery,
-                    snippet: topic.Text,
-                    source: topic.FirstURL,
-                    type: "web_result"
-                  });
+                  const title = topic.Text.split(" - ")[0] || cleanQuery;
+                  if (!seenTitles.has(title.toLowerCase())) {
+                    seenTitles.add(title.toLowerCase());
+                    results.push({
+                      title,
+                      snippet: topic.Text,
+                      source: topic.FirstURL,
+                      type: "web_result"
+                    });
+                  }
                 }
               }
             }
@@ -15083,22 +15161,82 @@ function createDefaultToolRegistry({ now = () => /* @__PURE__ */ new Date() } = 
         try {
           const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
           const wikiController = new AbortController();
-          const wikiTimer = setTimeout(() => wikiController.abort(), 4e3);
+          const wikiTimer = setTimeout(() => wikiController.abort(), 4500);
           const wikiRes = await fetch(wikiUrl, {
             headers: { "User-Agent": "VarisAI/2.0" },
             signal: wikiController.signal
           }).finally(() => clearTimeout(wikiTimer));
           if (wikiRes.ok) {
             const wikiData = await wikiRes.json();
-            const wikiItems = (wikiData?.query?.search || []).slice(0, 3).map((r) => ({
-              title: r.title,
-              snippet: r.snippet.replace(/<[^>]+>/g, "").trim(),
-              source: `https://id.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/\s+/g, "_"))}`,
-              type: "encyclopedic"
-            }));
-            results.push(...wikiItems);
+            const searchItems = wikiData?.query?.search || [];
+            for (const item of searchItems.slice(0, 3)) {
+              if (seenTitles.has(item.title.toLowerCase())) continue;
+              seenTitles.add(item.title.toLowerCase());
+              let richSnippet = item.snippet.replace(/<[^>]+>/g, "").trim();
+              try {
+                const sumController = new AbortController();
+                const sumTimer = setTimeout(() => sumController.abort(), 3e3);
+                const sumRes = await fetch(
+                  `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+                  { headers: { "User-Agent": "VarisAI/2.0" }, signal: sumController.signal }
+                ).finally(() => clearTimeout(sumTimer));
+                if (sumRes.ok) {
+                  const sumData = await sumRes.json();
+                  if (sumData.extract) {
+                    richSnippet = sumData.extract;
+                  }
+                }
+              } catch (e) {
+              }
+              results.push({
+                title: item.title,
+                snippet: richSnippet,
+                source: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+                type: "encyclopedic"
+              });
+            }
           }
         } catch (e) {
+        }
+        if (results.length < 2) {
+          try {
+            const enWikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+            const enController = new AbortController();
+            const enTimer = setTimeout(() => enController.abort(), 4500);
+            const enRes = await fetch(enWikiUrl, {
+              headers: { "User-Agent": "VarisAI/2.0" },
+              signal: enController.signal
+            }).finally(() => clearTimeout(enTimer));
+            if (enRes.ok) {
+              const enData = await enRes.json();
+              const enItems = (enData?.query?.search || []).slice(0, 2);
+              for (const item of enItems) {
+                if (seenTitles.has(item.title.toLowerCase())) continue;
+                seenTitles.add(item.title.toLowerCase());
+                let snippet = item.snippet.replace(/<[^>]+>/g, "").trim();
+                try {
+                  const sumController = new AbortController();
+                  const sumTimer = setTimeout(() => sumController.abort(), 3e3);
+                  const sumRes = await fetch(
+                    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+                    { headers: { "User-Agent": "VarisAI/2.0" }, signal: sumController.signal }
+                  ).finally(() => clearTimeout(sumTimer));
+                  if (sumRes.ok) {
+                    const sumData = await sumRes.json();
+                    if (sumData.extract) snippet = sumData.extract;
+                  }
+                } catch (e) {
+                }
+                results.push({
+                  title: item.title,
+                  snippet,
+                  source: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+                  type: "encyclopedic_global"
+                });
+              }
+            }
+          } catch (e) {
+          }
         }
         if (results.length === 0) {
           return { query: cleanQuery, results: [], message: `No direct web search results found for "${cleanQuery}".` };
@@ -15599,7 +15737,7 @@ async function handler9(req, res) {
       user = { id: "guest-session", name: "Guest User", email: "guest@varis.ai" };
     }
     const body = await parseBody4(req);
-    const { message, model = "auto", conversation_id = null, stream = false } = body;
+    const { message, model = "auto", conversation_id = null, stream = false, web_search = false } = body;
     const isStreamRequested = stream === true || req.headers.accept?.includes("text/event-stream");
     if (!message || typeof message !== "string" || !message.trim()) {
       res.writeHead(400, { "Content-Type": "application/json" });
@@ -15638,6 +15776,33 @@ async function handler9(req, res) {
         }
       }));
     }
+    let searchContext = null;
+    const shouldWebSearch = web_search === true || /^(siapa presiden|berita|kabar|info terbaru|terkini|cuaca|update|search|cari|harga saham|skor|jadwal|siapa pemenang|fakta|peristiwa)/i.test(trimmedMessage) || trimmedMessage.toLowerCase().includes("presiden indonesia") || trimmedMessage.toLowerCase().includes("terbaru") || trimmedMessage.toLowerCase().includes("terkini");
+    if (shouldWebSearch) {
+      try {
+        const registry = createDefaultToolRegistry();
+        const searchTool = registry.get("web_search");
+        if (searchTool) {
+          const searchData = await searchTool.execute({ query: trimmedMessage }, { permissions: /* @__PURE__ */ new Set(["web:search"]) });
+          if (searchData?.ok && searchData.result?.results?.length > 0) {
+            const formattedResults = searchData.result.results.map(
+              (r, i) => `[${i + 1}] ${r.title} (${r.source})
+${r.snippet}`
+            ).join("\n\n");
+            searchContext = {
+              role: "system",
+              content: `Berikut hasil penelusuran web real-time terkini untuk query pengguna:
+
+${formattedResults}
+
+Gunakan data di atas untuk menjawab secara akurat, faktual, dan sertakan rujukan URL/sumber bila bermanfaat bagi pengguna.`
+            };
+          }
+        }
+      } catch (err) {
+        console.warn("Web search pre-fetch warning:", err);
+      }
+    }
     if (isStreamRequested) {
       res.writeHead(200, {
         "Content-Type": "text/event-stream; charset=utf-8",
@@ -15647,8 +15812,9 @@ async function handler9(req, res) {
       });
       let fullGeneratedText = "";
       try {
+        const chatContext = searchContext ? [searchContext] : [];
         const streamResult = await engine.stream(
-          { userMessage: trimmedMessage, model, userPlan: sub?.plan },
+          { userMessage: trimmedMessage, model, userPlan: sub?.plan, context: chatContext },
           (chunk) => {
             fullGeneratedText += chunk;
             res.write(`event: token

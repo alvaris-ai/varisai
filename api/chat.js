@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     }
 
     const body = await parseBody(req);
-    const { message, model = 'auto', conversation_id = null, stream = false } = body;
+    const { message, model = 'auto', conversation_id = null, stream = false, web_search = false } = body;
     const isStreamRequested = stream === true || req.headers.accept?.includes('text/event-stream');
 
     if (!message || typeof message !== 'string' || !message.trim()) {
@@ -118,6 +118,35 @@ export default async function handler(req, res) {
       }));
     }
 
+    // Live Web Search Grounding (Google-like live retrieval)
+    let searchContext = null;
+    const shouldWebSearch = web_search === true || 
+      /^(siapa presiden|berita|kabar|info terbaru|terkini|cuaca|update|search|cari|harga saham|skor|jadwal|siapa pemenang|fakta|peristiwa)/i.test(trimmedMessage) ||
+      trimmedMessage.toLowerCase().includes('presiden indonesia') ||
+      trimmedMessage.toLowerCase().includes('terbaru') ||
+      trimmedMessage.toLowerCase().includes('terkini');
+
+    if (shouldWebSearch) {
+      try {
+        const registry = createDefaultToolRegistry();
+        const searchTool = registry.get('web_search');
+        if (searchTool) {
+          const searchData = await searchTool.execute({ query: trimmedMessage }, { permissions: new Set(['web:search']) });
+          if (searchData?.ok && searchData.result?.results?.length > 0) {
+            const formattedResults = searchData.result.results.map((r, i) => 
+              `[${i + 1}] ${r.title} (${r.source})\n${r.snippet}`
+            ).join('\n\n');
+            searchContext = {
+              role: 'system',
+              content: `Berikut hasil penelusuran web real-time terkini untuk query pengguna:\n\n${formattedResults}\n\nGunakan data di atas untuk menjawab secara akurat, faktual, dan sertakan rujukan URL/sumber bila bermanfaat bagi pengguna.`
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Web search pre-fetch warning:', err);
+      }
+    }
+
     // 4. Handle SSE Streaming Response
     if (isStreamRequested) {
       res.writeHead(200, {
@@ -129,8 +158,9 @@ export default async function handler(req, res) {
 
       let fullGeneratedText = '';
       try {
+        const chatContext = searchContext ? [searchContext] : [];
         const streamResult = await engine.stream(
-          { userMessage: trimmedMessage, model, userPlan: sub?.plan },
+          { userMessage: trimmedMessage, model, userPlan: sub?.plan, context: chatContext },
           (chunk) => {
             fullGeneratedText += chunk;
             res.write(`event: token\ndata: ${JSON.stringify({ text: chunk })}\n\n`);

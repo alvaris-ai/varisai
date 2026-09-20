@@ -568,7 +568,7 @@ export function createDefaultToolRegistry({ now = () => new Date() } = {}) {
     errorHandler: error => `Failed to retrieve current date and time: ${error.message}`,
   });
 
-  // 10. Web Search Tool (Wikipedia + Open search for factual accuracy)
+  // 10. Web Search Tool (Multi-source Google-like Live Information Engine)
   registry.register({
     name: 'web_search',
     description: 'Search the web for up-to-date facts, current leaders, recent events, and encyclopedic knowledge. Do NOT hallucinate recent information.',
@@ -590,6 +590,7 @@ export function createDefaultToolRegistry({ now = () => new Date() } = {}) {
       try {
         const results = [];
         const cleanQuery = query.trim();
+        const seenTitles = new Set();
 
         // 1. DuckDuckGo Instant Answer / Knowledge Graph
         try {
@@ -604,33 +605,39 @@ export function createDefaultToolRegistry({ now = () => new Date() } = {}) {
           if (ddgRes.ok) {
             const ddgData = await ddgRes.json();
             if (ddgData.AbstractText) {
+              const heading = ddgData.Heading || cleanQuery;
+              seenTitles.add(heading.toLowerCase());
               results.push({
-                title: ddgData.Heading || cleanQuery,
+                title: heading,
                 snippet: ddgData.AbstractText,
                 source: ddgData.AbstractURL || 'https://duckduckgo.com/?q=' + encodeURIComponent(cleanQuery),
                 type: 'direct_answer',
               });
             }
             if (Array.isArray(ddgData.RelatedTopics)) {
-              for (const topic of ddgData.RelatedTopics.slice(0, 2)) {
+              for (const topic of ddgData.RelatedTopics.slice(0, 3)) {
                 if (topic.Text && topic.FirstURL) {
-                  results.push({
-                    title: topic.Text.split(' - ')[0] || cleanQuery,
-                    snippet: topic.Text,
-                    source: topic.FirstURL,
-                    type: 'web_result',
-                  });
+                  const title = topic.Text.split(' - ')[0] || cleanQuery;
+                  if (!seenTitles.has(title.toLowerCase())) {
+                    seenTitles.add(title.toLowerCase());
+                    results.push({
+                      title,
+                      snippet: topic.Text,
+                      source: topic.FirstURL,
+                      type: 'web_result',
+                    });
+                  }
                 }
               }
             }
           }
         } catch (e) {}
 
-        // 2. Wikipedia Encyclopedic Search (Indonesian + Global)
+        // 2. Wikipedia Indonesian Search + Rich REST Extract
         try {
           const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
           const wikiController = new AbortController();
-          const wikiTimer = setTimeout(() => wikiController.abort(), 4000);
+          const wikiTimer = setTimeout(() => wikiController.abort(), 4500);
           const wikiRes = await fetch(wikiUrl, {
             headers: { 'User-Agent': 'VarisAI/2.0' },
             signal: wikiController.signal,
@@ -638,15 +645,84 @@ export function createDefaultToolRegistry({ now = () => new Date() } = {}) {
 
           if (wikiRes.ok) {
             const wikiData = await wikiRes.json();
-            const wikiItems = (wikiData?.query?.search || []).slice(0, 3).map(r => ({
-              title: r.title,
-              snippet: r.snippet.replace(/<[^>]+>/g, '').trim(),
-              source: `https://id.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/\s+/g, '_'))}`,
-              type: 'encyclopedic',
-            }));
-            results.push(...wikiItems);
+            const searchItems = wikiData?.query?.search || [];
+            
+            for (const item of searchItems.slice(0, 3)) {
+              if (seenTitles.has(item.title.toLowerCase())) continue;
+              seenTitles.add(item.title.toLowerCase());
+
+              let richSnippet = item.snippet.replace(/<[^>]+>/g, '').trim();
+              
+              // Attempt to fetch full paragraph extract
+              try {
+                const sumController = new AbortController();
+                const sumTimer = setTimeout(() => sumController.abort(), 3000);
+                const sumRes = await fetch(
+                  `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+                  { headers: { 'User-Agent': 'VarisAI/2.0' }, signal: sumController.signal }
+                ).finally(() => clearTimeout(sumTimer));
+
+                if (sumRes.ok) {
+                  const sumData = await sumRes.json();
+                  if (sumData.extract) {
+                    richSnippet = sumData.extract;
+                  }
+                }
+              } catch (e) {}
+
+              results.push({
+                title: item.title,
+                snippet: richSnippet,
+                source: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+                type: 'encyclopedic',
+              });
+            }
           }
         } catch (e) {}
+
+        // 3. English Wikipedia Fallback if few results
+        if (results.length < 2) {
+          try {
+            const enWikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+            const enController = new AbortController();
+            const enTimer = setTimeout(() => enController.abort(), 4500);
+            const enRes = await fetch(enWikiUrl, {
+              headers: { 'User-Agent': 'VarisAI/2.0' },
+              signal: enController.signal,
+            }).finally(() => clearTimeout(enTimer));
+
+            if (enRes.ok) {
+              const enData = await enRes.json();
+              const enItems = (enData?.query?.search || []).slice(0, 2);
+              for (const item of enItems) {
+                if (seenTitles.has(item.title.toLowerCase())) continue;
+                seenTitles.add(item.title.toLowerCase());
+
+                let snippet = item.snippet.replace(/<[^>]+>/g, '').trim();
+                try {
+                  const sumController = new AbortController();
+                  const sumTimer = setTimeout(() => sumController.abort(), 3000);
+                  const sumRes = await fetch(
+                    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+                    { headers: { 'User-Agent': 'VarisAI/2.0' }, signal: sumController.signal }
+                  ).finally(() => clearTimeout(sumTimer));
+
+                  if (sumRes.ok) {
+                    const sumData = await sumRes.json();
+                    if (sumData.extract) snippet = sumData.extract;
+                  }
+                } catch (e) {}
+
+                results.push({
+                  title: item.title,
+                  snippet,
+                  source: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+                  type: 'encyclopedic_global',
+                });
+              }
+            }
+          } catch (e) {}
+        }
 
         if (results.length === 0) {
           return { query: cleanQuery, results: [], message: `No direct web search results found for "${cleanQuery}".` };

@@ -244,6 +244,18 @@ export function createOpenAIProvider({
   };
 }
 
+export function normalizeGroqModel(model) {
+  if (!model || model === 'auto') return 'llama-3.3-70b-versatile';
+  if (model === 'llama-3.3-70b' || model === 'llama-3.3-70b-versatile' || model === 'llama-70b') return 'llama-3.3-70b-versatile';
+  if (model === 'llama-3.1-8b' || model === 'llama-3.1-8b-instant' || model === 'llama-8b') return 'llama-3.1-8b-instant';
+  if (model === 'llama-3.2-3b' || model === 'llama-3.2-3b-preview') return 'llama-3.2-3b-preview';
+  if (model === 'llama-3.2-1b' || model === 'llama-3.2-1b-preview') return 'llama-3.2-1b-preview';
+  if (model === 'mixtral-8x7b' || model === 'mixtral-8x7b-32768') return 'mixtral-8x7b-32768';
+  if (model === 'gemma2-9b' || model === 'gemma2-9b-it') return 'gemma2-9b-it';
+  if (model.includes('deepseek')) return 'deepseek-r1-distill-llama-70b';
+  return model;
+}
+
 // 2. Google Gemini Provider
 export function createGeminiProvider({
   apiKey,
@@ -275,14 +287,30 @@ export function createGeminiProvider({
         throw Object.assign(new Error('Google Gemini API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'gemini' });
       }
 
-      const { context = [], userMessage, tools, model: requestedModel } = params;
+      const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
       const targetModel = requestedModel || defaultModel;
 
-      const messages = [
-        { role: 'system', content: VARIS_SYSTEM_PROMPT },
-        ...context.map(m => ({ role: m.role, content: m.content })),
-        { role: 'user', content: userMessage },
-      ];
+      let messages;
+      if (continuation && toolResults?.length) {
+        const previousInput = continuation.previousInput ?? [];
+        const assistantToolCalls = continuation.toolCallItems ?? [];
+        const toolResultMessages = toolResults.map(r => ({
+          role: 'tool',
+          tool_call_id: r.callId,
+          content: typeof r.result === 'string' ? r.result : JSON.stringify(r.result),
+        }));
+        messages = [
+          ...previousInput,
+          { role: 'assistant', tool_calls: assistantToolCalls },
+          ...toolResultMessages,
+        ];
+      } else {
+        messages = [
+          { role: 'system', content: VARIS_SYSTEM_PROMPT },
+          ...context.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: userMessage },
+        ];
+      }
 
       const formattedTools = tools?.length
         ? tools.map(t => ({
@@ -421,14 +449,30 @@ export function createGroqProvider({
         throw Object.assign(new Error('Groq API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'groq' });
       }
 
-      const { context = [], userMessage, tools, model: requestedModel } = params;
-      const targetModel = requestedModel || defaultModel;
+      const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
+      const targetModel = normalizeGroqModel(requestedModel || defaultModel);
 
-      const messages = [
-        { role: 'system', content: VARIS_SYSTEM_PROMPT },
-        ...context.map(m => ({ role: m.role, content: m.content })),
-        { role: 'user', content: userMessage },
-      ];
+      let messages;
+      if (continuation && toolResults?.length) {
+        const previousInput = continuation.previousInput ?? [];
+        const assistantToolCalls = continuation.toolCallItems ?? [];
+        const toolResultMessages = toolResults.map(r => ({
+          role: 'tool',
+          tool_call_id: r.callId,
+          content: typeof r.result === 'string' ? r.result : JSON.stringify(r.result),
+        }));
+        messages = [
+          ...previousInput,
+          { role: 'assistant', tool_calls: assistantToolCalls },
+          ...toolResultMessages,
+        ];
+      } else {
+        messages = [
+          { role: 'system', content: VARIS_SYSTEM_PROMPT },
+          ...context.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: userMessage },
+        ];
+      }
 
       const formattedTools = tools?.length
         ? tools.map(t => ({
@@ -443,10 +487,8 @@ export function createGroqProvider({
 
       const candidateModels = [
         targetModel,
-        'llama-3.1-8b-instant',
         'llama-3.3-70b-versatile',
-        'llama-3.2-3b-preview',
-        'llama-3.2-1b-preview',
+        'llama-3.1-8b-instant',
         'mixtral-8x7b-32768',
         'gemma2-9b-it',
       ].filter((v, i, a) => a.indexOf(v) === i && !v.includes('llama3-8b') && !v.includes('llama3-70b-8192'));
@@ -513,7 +555,7 @@ export function createGroqProvider({
       }
 
       const { context = [], userMessage, model: requestedModel } = params;
-      const targetModel = requestedModel || defaultModel;
+      const targetModel = normalizeGroqModel(requestedModel || defaultModel);
 
       const messages = [
         { role: 'system', content: VARIS_SYSTEM_PROMPT },
@@ -523,11 +565,10 @@ export function createGroqProvider({
 
       const candidateModels = [
         targetModel,
-        'llama-3.1-8b-instant',
         'llama-3.3-70b-versatile',
-        'llama-3.2-3b-preview',
-        'llama-3.2-1b-preview',
+        'llama-3.1-8b-instant',
         'mixtral-8x7b-32768',
+        'gemma2-9b-it',
       ].filter((v, i, a) => a.indexOf(v) === i && !v.includes('llama3-8b') && !v.includes('llama3-70b-8192'));
 
       let lastErr = null;
@@ -614,6 +655,9 @@ export function selectAutoModel({ userMessage = '', intent = {}, userPlan = null
     if (providerNames.includes('google') || providerNames.includes('gemini')) {
       return { providerName: 'gemini', modelId: 'gemini-2.0-flash' };
     }
+    if (providerNames.includes('groq')) {
+      return { providerName: 'groq', modelId: 'llama-3.3-70b-versatile' };
+    }
     if (providerNames.includes('openai')) {
       return { providerName: 'openai', modelId: 'gpt-4o-mini' };
     }
@@ -623,11 +667,11 @@ export function selectAutoModel({ userMessage = '', intent = {}, userPlan = null
   if (providerNames.includes('google') || providerNames.includes('gemini')) {
     return { providerName: 'gemini', modelId: 'gemini-2.0-flash' };
   }
-  if (providerNames.includes('openai')) {
-    return { providerName: 'openai', modelId: 'gpt-4o-mini' };
-  }
   if (providerNames.includes('groq')) {
     return { providerName: 'groq', modelId: 'llama-3.3-70b-versatile' };
+  }
+  if (providerNames.includes('openai')) {
+    return { providerName: 'openai', modelId: 'gpt-4o-mini' };
   }
 
   return { providerName: 'smart_local', modelId: 'varis-smart-engine' };
@@ -669,6 +713,7 @@ export function createMultiProviderOrchestrator({
         'gpt-4o': hasOpenAI ? 'available' : 'not_configured',
         'o3-mini': hasOpenAI ? 'available' : 'not_configured',
         'llama-3.3-70b': hasGroq ? 'available' : 'not_configured',
+        'llama-3.1-8b': hasGroq ? 'available' : 'not_configured',
       };
     },
 
@@ -698,13 +743,13 @@ export function createMultiProviderOrchestrator({
         targetProvider = providerMap.get('openai');
       } else if (requestedModel.startsWith('llama') || requestedModel.includes('groq')) {
         targetProvider = providerMap.get('groq');
-        targetModelId = requestedModel === 'llama-3.3-70b' ? 'llama-3.3-70b-versatile' : requestedModel;
+        targetModelId = normalizeGroqModel(requestedModel);
       }
 
       // Strict Model Fidelity: If user specifically asked for a provider and it's missing
       if (!targetProvider || (typeof targetProvider.isConfigured === 'function' && !targetProvider.isConfigured())) {
         if (!allowFallback && requestedModel !== 'auto') {
-          const providerDisplayName = requestedModel.startsWith('gemini') ? 'Google Gemini' : requestedModel.startsWith('gpt') ? 'OpenAI GPT' : 'Requested AI Provider';
+          const providerDisplayName = requestedModel.startsWith('gemini') ? 'Google Gemini' : requestedModel.startsWith('gpt') ? 'OpenAI GPT' : requestedModel.startsWith('llama') ? 'Groq LLaMA' : 'Requested AI Provider';
           throw Object.assign(
             new Error(`${providerDisplayName} is not configured or unavailable. Please select an available model.`),
             { code: 'AI_NOT_CONFIGURED', requestedModel }
@@ -785,27 +830,61 @@ export function createMultiProviderOrchestrator({
         targetProvider = providerMap.get('openai');
       } else if (requestedModel.startsWith('llama') || requestedModel.includes('groq')) {
         targetProvider = providerMap.get('groq');
-        targetModelId = requestedModel === 'llama-3.3-70b' ? 'llama-3.3-70b-versatile' : requestedModel;
+        targetModelId = normalizeGroqModel(requestedModel);
       }
 
       if (!targetProvider || (typeof targetProvider.isConfigured === 'function' && !targetProvider.isConfigured())) {
         targetProvider = activeProviders[0];
       }
 
-      if (typeof targetProvider.stream === 'function') {
-        return targetProvider.stream({ ...params, model: targetModelId }, onToken);
-      }
-
-      // If provider only supports respond, simulate chunk delivery
-      const result = await targetProvider.respond({ ...params, model: targetModelId });
-      const text = result.text || '';
-      if (onToken) {
-        const words = text.split(' ');
-        for (const word of words) {
-          onToken(word + ' ');
+      // 1. Try Primary Provider Stream
+      try {
+        if (typeof targetProvider.stream === 'function') {
+          return await targetProvider.stream({ ...params, model: targetModelId }, onToken);
         }
+
+        const result = await targetProvider.respond({ ...params, model: targetModelId });
+        const text = result.text || '';
+        if (onToken) {
+          const words = text.split(' ');
+          for (const word of words) {
+            onToken(word + ' ');
+          }
+        }
+        return { ...result, modelUsed: targetModelId };
+      } catch (primaryErr) {
+        logger?.warn?.({ provider: targetProvider.name, err: primaryErr.message }, 'Primary stream provider failed');
+
+        if (requestedModel !== 'auto') {
+          throw primaryErr;
+        }
+
+        // 2. Transparent Fallback for Auto Mode
+        for (const backupProvider of activeProviders) {
+          if (backupProvider === targetProvider) continue;
+          if (typeof backupProvider.isConfigured === 'function' && !backupProvider.isConfigured()) continue;
+
+          try {
+            logger?.info?.({ backup: backupProvider.name }, 'Fallback stream provider executing');
+            if (typeof backupProvider.stream === 'function') {
+              return await backupProvider.stream(params, onToken);
+            }
+            const result = await backupProvider.respond(params);
+            const text = result.text || '';
+            if (onToken) {
+              const words = text.split(' ');
+              for (const word of words) {
+                onToken(word + ' ');
+              }
+            }
+            return { ...result, modelUsed: backupProvider.name };
+          } catch (backupErr) {
+            logger?.warn?.({ backup: backupProvider.name, err: backupErr.message }, 'Backup stream provider failed');
+          }
+        }
+
+        throw primaryErr;
       }
-      return { ...result, modelUsed: targetModelId };
     },
 
     async embed(params) {
@@ -872,10 +951,8 @@ export function createAIProviderFromConfig(config, { logger } = {}) {
     );
   }
 
-  // Append Smart Local Provider ONLY in test mode or explicit offline testing
-  if (config.nodeEnv === 'test' || providers.length === 0) {
-    providers.push(createSmartLocalProvider());
-  }
+  // Always append Smart Local Provider as safety net / offline fallback
+  providers.push(createSmartLocalProvider());
 
   return createMultiProviderOrchestrator({ providers, logger });
 }
