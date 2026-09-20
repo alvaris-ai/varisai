@@ -5418,8 +5418,8 @@ var DEFAULT_AI_MODELS = [
     speed: "Lightning",
     reasoning: "Advanced",
     context_window: "128k tokens",
-    tier_required: "pro",
-    credit_cost_per_request: 5,
+    tier_required: "free",
+    credit_cost_per_request: 3,
     status: "available",
     is_enabled: true,
     is_default: false,
@@ -14302,6 +14302,7 @@ function createMultiProviderOrchestrator({
         targetProvider = providerMap.get("openai");
       } else if (requestedModel.startsWith("llama") || requestedModel.includes("groq")) {
         targetProvider = providerMap.get("groq");
+        targetModelId = requestedModel === "llama-3.3-70b" ? "llama-3.3-70b-versatile" : requestedModel;
       }
       if (!targetProvider || typeof targetProvider.isConfigured === "function" && !targetProvider.isConfigured()) {
         if (!allowFallback && requestedModel !== "auto") {
@@ -14375,6 +14376,7 @@ function createMultiProviderOrchestrator({
         targetProvider = providerMap.get("openai");
       } else if (requestedModel.startsWith("llama") || requestedModel.includes("groq")) {
         targetProvider = providerMap.get("groq");
+        targetModelId = requestedModel === "llama-3.3-70b" ? "llama-3.3-70b-versatile" : requestedModel;
       }
       if (!targetProvider || typeof targetProvider.isConfigured === "function" && !targetProvider.isConfigured()) {
         targetProvider = activeProviders[0];

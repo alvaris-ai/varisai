@@ -659,6 +659,7 @@ export function createMultiProviderOrchestrator({
         targetProvider = providerMap.get('openai');
       } else if (requestedModel.startsWith('llama') || requestedModel.includes('groq')) {
         targetProvider = providerMap.get('groq');
+        targetModelId = requestedModel === 'llama-3.3-70b' ? 'llama-3.3-70b-versatile' : requestedModel;
       }
 
       // Strict Model Fidelity: If user specifically asked for a provider and it's missing
@@ -745,6 +746,7 @@ export function createMultiProviderOrchestrator({
         targetProvider = providerMap.get('openai');
       } else if (requestedModel.startsWith('llama') || requestedModel.includes('groq')) {
         targetProvider = providerMap.get('groq');
+        targetModelId = requestedModel === 'llama-3.3-70b' ? 'llama-3.3-70b-versatile' : requestedModel;
       }
 
       if (!targetProvider || (typeof targetProvider.isConfigured === 'function' && !targetProvider.isConfigured())) {
