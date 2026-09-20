@@ -9,13 +9,43 @@ export function generateFreeSmartResponse(userMessage, context = []) {
 
   const lower = text.toLowerCase().replace(/[?!.,;:]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // 1. Check if Context contains Real-Time Web Research Findings
-  const webResearchContext = extractWebResearchFromContext(context);
-  if (webResearchContext && webResearchContext.snippets.length > 0) {
-    const synthesizedAnswer = synthesizeWebResearch(text, lower, webResearchContext);
-    if (synthesizedAnswer) {
-      return synthesizedAnswer;
-    }
+  // 1. Direct Factual Matching (Highest Precision, Zero Boilerplate)
+
+  // 1a. Tempat Ibadah & Agama
+  if (lower.includes('masjid') && (lower.includes('ibadah') || lower.includes('agama') || lower.includes('umat') || lower.includes('siapa') || lower.includes('apa'))) {
+    return "Masjid adalah tempat ibadah umat **Islam (Muslim)**.";
+  }
+  if (lower.includes('gereja') && (lower.includes('ibadah') || lower.includes('agama') || lower.includes('umat') || lower.includes('siapa') || lower.includes('apa'))) {
+    return "Gereja adalah tempat ibadah umat **Kristen (Protestan dan Katolik)**.";
+  }
+  if (lower.includes('pura') && (lower.includes('ibadah') || lower.includes('agama') || lower.includes('umat') || lower.includes('siapa') || lower.includes('apa'))) {
+    return "Pura adalah tempat ibadah umat **Hindu**.";
+  }
+  if ((lower.includes('vihara') || lower.includes('wihara')) && (lower.includes('ibadah') || lower.includes('agama') || lower.includes('umat') || lower.includes('siapa') || lower.includes('apa'))) {
+    return "Vihara adalah tempat ibadah umat **Buddha**.";
+  }
+  if ((lower.includes('klenteng') || lower.includes('kelenteng') || lower.includes('litang')) && (lower.includes('ibadah') || lower.includes('agama') || lower.includes('umat') || lower.includes('siapa') || lower.includes('apa'))) {
+    return "Klenteng / Litang adalah tempat ibadah umat **Khonghucu**.";
+  }
+  if (lower.includes('sinagoge') || lower.includes('sinagoga')) {
+    return "Sinagoge adalah tempat ibadah umat **Yahudi (Yudaisme)**.";
+  }
+
+  // 1b. Kitab Suci
+  if ((lower.includes('kitab') || lower.includes('suci')) && (lower.includes('islam') || lower.includes('muslim') || lower.includes('al-quran') || lower.includes('alquran') || lower.includes('quran'))) {
+    return "Kitab suci umat Islam adalah **Al-Qur'an**.";
+  }
+  if ((lower.includes('kitab') || lower.includes('suci')) && (lower.includes('kristen') || lower.includes('katolik') || lower.includes('protestan') || lower.includes('alkitab') || lower.includes('injil'))) {
+    return "Kitab suci umat Kristen (Protestan dan Katolik) adalah **Alkitab**.";
+  }
+  if ((lower.includes('kitab') || lower.includes('suci')) && (lower.includes('hindu') || lower.includes('weda') || lower.includes('veda'))) {
+    return "Kitab suci umat Hindu adalah **Weda (Veda)**.";
+  }
+  if ((lower.includes('kitab') || lower.includes('suci')) && (lower.includes('buddha') || lower.includes('tripitaka'))) {
+    return "Kitab suci umat Buddha adalah **Tripitaka**.";
+  }
+  if ((lower.includes('kitab') || lower.includes('suci')) && (lower.includes('khonghucu') || lower.includes('si shu'))) {
+    return "Kitab suci umat Khonghucu adalah **Si Shu Wu Jing**.";
   }
 
   // 2. Math / Arithmetic Calculations
@@ -24,61 +54,69 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return mathResult;
   }
 
-  // 3. Specific Rich Domain Knowledge (Indonesia, Tech, Science, Culture)
+  // 3. Check if Context contains Real-Time Web Research Findings
+  const webResearchContext = extractWebResearchFromContext(context);
+  if (webResearchContext && webResearchContext.snippets.length > 0) {
+    const synthesizedAnswer = synthesizeWebResearch(text, lower, webResearchContext);
+    if (synthesizedAnswer) {
+      return synthesizedAnswer;
+    }
+  }
 
-  // 3a. Agama di Indonesia
+  // 4. Specific Rich Domain Knowledge (Indonesia, Tech, Science, Culture)
+
+  // 4a. Agama di Indonesia
   if (
     (lower.includes('agama') && (lower.includes('indonesia') || lower.includes('ada apa saja') || lower.includes('apa saja'))) ||
     lower.includes('agama di indonesia') ||
     lower.includes('agama resmi indonesia')
   ) {
     return `Di Indonesia, terdapat **6 agama yang diakui secara resmi** oleh pemerintah:\n\n` +
-      `1. **Islam**\n   • Tempat Ibadah: Masjid\n   • Kitab Suci: Al-Qur'an\n   • Hari Raya: Idulfitri, Iduladha\n\n` +
-      `2. **Kristen Protestan**\n   • Tempat Ibadah: Gereja\n   • Kitab Suci: Alkitab\n   • Hari Raya: Natal, Paskah\n\n` +
-      `3. **Kristen Katolik**\n   • Tempat Ibadah: Gereja Katolik / Katedral\n   • Kitab Suci: Alkitab\n   • Hari Raya: Natal, Paskah\n\n` +
-      `4. **Hindu**\n   • Tempat Ibadah: Pura\n   • Kitab Suci: Weda\n   • Hari Raya: Nyepi, Galungan\n\n` +
-      `5. **Buddha**\n   • Tempat Ibadah: Vihara\n   • Kitab Suci: Tripitaka\n   • Hari Raya: Waisak\n\n` +
-      `6. **Khonghucu**\n   • Tempat Ibadah: Klenteng / Litang\n   • Kitab Suci: Si Shu Wu Jing\n   • Hari Raya: Tahun Baru Imlek\n\n` +
-      `Selain 6 agama resmi di atas, Negara Indonesia juga mengakui dan melindungi hak penganut **Aliran Kepercayaan terhadap Tuhan Yang Maha Esa** sesuai putusan Mahkamah Konstitusi dan Undang-Undang Dasar 1945.`;
+      `1. **Islam** (Tempat Ibadah: Masjid, Kitab: Al-Qur'an)\n` +
+      `2. **Kristen Protestan** (Tempat Ibadah: Gereja, Kitab: Alkitab)\n` +
+      `3. **Kristen Katolik** (Tempat Ibadah: Gereja Katolik / Katedral, Kitab: Alkitab)\n` +
+      `4. **Hindu** (Tempat Ibadah: Pura, Kitab: Weda)\n` +
+      `5. **Buddha** (Tempat Ibadah: Vihara, Kitab: Tripitaka)\n` +
+      `6. **Khonghucu** (Tempat Ibadah: Klenteng / Litang, Kitab: Si Shu Wu Jing)\n\n` +
+      `Selain itu, Indonesia juga melindungi penganut **Aliran Kepercayaan terhadap Tuhan Yang Maha Esa**.`;
   }
 
-  // 3b. Programmer & AI
+  // 4b. Programmer & AI
   if (
     (lower.includes('programmer') || lower.includes('developer') || lower.includes('coder')) &&
     (lower.includes('ai') || lower.includes('menggunakan ai') || lower.includes('pakai ai'))
   ) {
-    return `Programmer banyak menggunakan AI dalam pekerjaan sehari-hari karena beberapa alasan utama:\n\n` +
-      `1. **Meningkatkan Kecepatan & Produktivitas**\n   AI membantu menulis kode template (*boilerplate*), fungsi utilitas, dan pola umum secara instan sehingga menghemat waktu.\n\n` +
-      `2. **Mempermudah Debugging & Analisis Error**\n   Saat terjadi error atau *bug*, AI dapat membaca pesan *error log* dan menjelaskan letak kesalahan beserta solusi perbaikannya.\n\n` +
-      `3. **Belajar Bahasa & Framework Baru Lebih Cepat**\n   Programmer bisa langsung bertanya cara implementasi suatu fitur baru tanpa harus membaca dokumentasi panjang satu per satu.\n\n` +
-      `4. **Refactoring & Optimasi Kode**\n   AI dapat memberikan saran penulisan kode yang lebih rapi (*clean code*), aman dari celah keamanan, dan efisien.\n\n` +
-      `5. **Otomasi Pembuatan Dokumen & Unit Test**\n   AI memudahkan pembuatan *test case* otomatis dan dokumentasi fungsi secara rapi.\n\n` +
-      `Dengan bantuan AI, programmer dapat lebih fokus pada perancangan logika bisnis dan arsitektur sistem tingkat tinggi.`;
+    return `Alasan utama programmer menggunakan AI:\n\n` +
+      `1. **Meningkatkan Produktivitas**: Membantu menulis kode boilerplate dan fungsi umum dengan cepat.\n` +
+      `2. **Mempercepat Debugging**: Menganalisis pesan error dan memberikan rekomendasi solusi.\n` +
+      `3. **Belajar Lebih Cepat**: Memahami sintaks atau framework baru secara instan.\n` +
+      `4. **Refactoring & Optimasi**: Memberikan saran perbaikan kode agar lebih rapi dan aman.\n` +
+      `5. **Otomasi Pengujian**: Membantu membuat unit test dan dokumentasi kode secara terstruktur.`;
   }
 
-  // 3c. Date & Time Queries
+  // 4c. Date & Time Queries
   if (lower.includes('jam berapa') || lower.includes('pukul berapa') || lower.includes('waktu sekarang') || lower.includes('sekarang jam')) {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    return `Sekarang pukul ${timeStr} WIB. Ada informasi lain yang ingin kamu tanyakan?`;
+    return `Sekarang pukul **${timeStr} WIB**.`;
   }
 
   if (lower.includes('hari apa') || lower.includes('tanggal berapa') || lower.includes('hari ini hari')) {
     const now = new Date();
     const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    return `Hari ini adalah ${dateStr}. Ada topik atau jadwal yang ingin kamu bahas?`;
+    return `Hari ini adalah **${dateStr}**.`;
   }
 
-  // 3d. Language Directives
+  // 4d. Language Directives
   if (lower.includes('bahasa indonesia') || lower.includes('pake bahasa indonesia') || lower.includes('pakai bahasa indonesia') || lower.includes('gunakan bahasa indonesia')) {
-    return "Tentu! Saya akan selalu merespons dalam Bahasa Indonesia yang jelas dan mudah dipahami. Silakan tanyakan apa saja!";
+    return "Tentu! Saya akan selalu merespons dalam Bahasa Indonesia yang singkat, padat, dan jelas.";
   }
 
   if (lower.includes('bahasa inggris') || lower.includes('speak english') || lower.includes('in english') || lower.includes('use english')) {
-    return "Certainly! I will respond in English. Feel free to ask any question!";
+    return "Certainly! I will respond concisely in English.";
   }
 
-  // 3e. Role, Identity, & Robot Distinction
+  // 4e. Role, Identity, & Robot Distinction
   if (
     lower.includes('peran mu') ||
     lower.includes('peran kamu') ||
@@ -90,9 +128,9 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     lower.includes('fungsi kamu')
   ) {
     if (lower.includes('robot')) {
-      return "Peranku di sini adalah sebagai asisten kecerdasan buatan (AI) berbasis perangkat lunak interaktif, bukan robot fisik mekanik. Aku bertugas membantu menjawab pertanyaan, mencari fakta di web, berhitung, dan berdiskusi denganmu!";
+      return "Peranku adalah asisten AI berbasis perangkat lunak digital (bukan robot fisik) untuk membantu menjawab pertanyaan, riset web, berhitung, dan coding.";
     }
-    return "Peranku di sini adalah sebagai VARIS AI, asisten cerdas yang siap membantumu menjawab berbagai pertanyaan, melakukan riset informasi di internet, berhitung, dan berdiskusi secara interaktif.";
+    return "Saya **VARIS AI**, asisten cerdas yang bertugas menjawab pertanyaan, melakukan riset internet, berhitung, dan membantu pekerjaan Anda.";
   }
 
   if (
@@ -101,28 +139,28 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     lower.includes('kamu robot') ||
     lower.includes('robot apa')
   ) {
-    return "Aku bukan robot fisik mekanik, melainkan asisten kecerdasan buatan berbasis software digital yang siap membantu menjawab pertanyaan dan mencari informasi kapan saja!";
+    return "Saya bukan robot fisik mekanik, melainkan asisten kecerdasan buatan (AI) berbasis software.";
   }
 
-  // 3f. Coding & Health Advice
+  // 4f. Coding & Health Advice
   if (lower.includes('belajar coding') || lower.includes('belajar pemrograman') || lower.includes('cara coding')) {
-    return "Untuk mulai belajar coding: mulailah dari bahasa ramah pemula seperti Python atau JavaScript, pahami konsep dasar (variabel, kondisi, perulangan, fungsi), dan langsung buat proyek latihan sederhana!";
+    return "Untuk mulai belajar coding: pilih bahasa pemula (seperti Python atau JavaScript), pelajari logika dasar (variabel, kondisi, loop, fungsi), dan langsung praktikkan dengan membuat proyek kecil.";
   }
 
   if (lower.includes('stres') || lower.includes('stress') || lower.includes('lelah') || lower.includes('capek')) {
-    return "Untuk meredakan stres: tarik napas dalam-dalam secara teratur, istirahatkan mata sejenak dari layar, minum air putih, lakukan peregangan tubuh, dan beristirahat yang cukup.";
+    return "Cara meredakan stres: tarik napas dalam-dalam, istirahatkan mata sejenak dari layar, minum air putih, lakukan peregangan ringan, dan tidur yang cukup.";
   }
 
-  // 3g. Greetings & Identity
+  // 4g. Greetings & Identity
   if (/^(halo|hai|hey|hei|hello|hi|halo varis|hai varis)(\b|\s|$)/i.test(lower) || lower === 'halo' || lower === 'hai') {
     if (lower.includes('apa kabar') || lower.includes('gimana kabarmu') || lower.includes('kabarmu')) {
-      return "Halo! Kabar saya sangat baik dan siap membantumu mencari informasi apapun di internet. Bagaimana kabarmu hari ini?";
+      return "Halo! Kabar saya sangat baik. Ada yang bisa saya bantu hari ini?";
     }
-    return "Halo! Saya **VARIS AI**, asisten pencari informasi cerdas Anda. Tanyakan apa saja yang ingin kamu ketahui, dan saya akan carikan jawabannya!";
+    return "Halo! Saya **VARIS AI**. Silakan ajukan pertanyaan yang ingin kamu ketahui.";
   }
 
   if (lower.includes('siapa kamu') || lower.includes('kamu siapa') || lower.includes('namamu siapa') || lower.includes('siapa namamu') || lower.includes('apa itu varis')) {
-    return "Saya **VARIS AI**, asisten kecerdasan buatan cerdas yang terhubung dengan pencarian informasi web secara langsung. Anda dapat menanyakan topik apapun (pengetahuan umum, sains, teknologi, berita, sejarah, matematika, pemrograman) dan saya akan menyusun jawaban yang akurat dan mudah dipahami!";
+    return "Saya **VARIS AI**, asisten kecerdasan buatan yang siap membantu Anda mencari informasi akurat dari web dan menjawab berbagai pertanyaan secara singkat, padat, dan jelas.";
   }
 
   if (lower.includes('presiden sekarang') || lower.includes('presiden saat ini') || lower.includes('presiden indonesia')) {
@@ -130,53 +168,48 @@ export function generateFreeSmartResponse(userMessage, context = []) {
   }
 
   if (lower.includes('presiden pertama')) {
-    return "Presiden pertama Republik Indonesia adalah **Ir. Soekarno**, didampingi oleh **Drs. Mohammad Hatta** sebagai wakil presiden pertama setelah proklamasi kemerdekaan 17 Agustus 1945.";
+    return "Presiden pertama Republik Indonesia adalah **Ir. Soekarno**, dengan wakil presiden **Drs. Mohammad Hatta**.";
   }
 
   if (lower.includes('ibukota indonesia') || lower.includes('ibu kota indonesia')) {
-    return "Ibu kota Indonesia saat ini adalah **DKI Jakarta**, dengan **Ibu Kota Nusantara (IKN)** di Penajam Paser Utara, Kalimantan Timur yang sedang dikembangkan dan dipersiapkan sebagai pusat pemerintahan baru Republik Indonesia.";
+    return "Ibu kota Indonesia saat ini adalah **DKI Jakarta**, dengan **Ibu Kota Nusantara (IKN)** di Kalimantan Timur sebagai pusat pemerintahan baru yang sedang dipersiapkan.";
   }
 
   if (lower.includes('kemerdekaan indonesia') || lower.includes('indonesia merdeka')) {
-    return "Indonesia memproklamasikan kemerdekaannya pada hari **Jumat, 17 Agustus 1945** di Pegangsaan Timur 56, Jakarta, yang dibacakan langsung oleh Ir. Soekarno dan Drs. Mohammad Hatta atas nama bangsa Indonesia.";
+    return "Indonesia merdeka pada hari **Jumat, 17 Agustus 1945** melalui proklamasi yang dibacakan oleh Ir. Soekarno didampingi Drs. Mohammad Hatta di Jakarta.";
   }
 
   if (lower.includes('kenapa langit biru') || lower.includes('mengapa langit biru') || lower.includes('langit berwarna biru')) {
-    return "Langit tampak biru karena fenomena ilmiah bernama **Hamburan Rayleigh (*Rayleigh Scattering*)**.\n\nCahaya matahari yang tampak putih sebenarnya tersusun dari berbagai warna gelombang. Ketika sinar matahari memasuki atmosfer Bumi, cahaya warna biru memiliki panjang gelombang yang lebih pendek dan energi lebih tinggi, sehingga dihamburkan ke segala arah oleh molekul gas di atmosfer jauh lebih banyak dibanding warna lainnya.";
+    return "Langit berwarna biru akibat **Hamburan Rayleigh (*Rayleigh Scattering*)**, di mana partikel di atmosfer Bumi menghamburkan cahaya biru matahari yang bergelombang pendek jauh lebih kuat dibanding warna lainnya.";
   }
 
   if (lower.includes('black hole') || lower.includes('lubang hitam')) {
-    return "**Lubang Hitam (*Black Hole*)** adalah wilayah di ruang angkasa dengan medan gravitasi yang sangat kuat luar biasa, sehingga tidak ada materi atau bahkan cahaya sekalipun yang dapat lolos darinya.\n\nLubang hitam terbentuk ketika bintang bermassa sangat masif kehabisan bahan bakar dan mengalami keruntuhan gravitasi total pada akhir siklus hidupnya.";
+    return "**Lubang Hitam (*Black Hole*)** adalah wilayah luar angkasa dengan gravitasi sangat kuat sehingga tidak ada materi atau cahaya yang dapat keluar darinya, terbentuk dari runtuhnya bintang bermassa besar.";
   }
 
   if (lower.includes('fotosintesis')) {
-    return "**Fotosintesis** adalah proses biokimia di mana tumbuhan hijau, alga, dan beberapa bakteri mengubah air ($H_2O$) dan karbon dioksida ($CO_2$) menjadi glukosa (energi) dan oksigen ($O_2$) dengan memanfaatkan energi cahaya matahari yang diserap oleh klorofil.";
+    return "**Fotosintesis** adalah proses tumbuhan hijau mengubah air ($H_2O$) dan karbon dioksida ($CO_2$) menjadi energi (glukosa) dan oksigen ($O_2$) menggunakan bantuan cahaya matahari dan klorofil.";
   }
 
   if (lower.includes('apa itu ai') || lower.includes('kecerdasan buatan')) {
-    return "**Kecerdasan Buatan (*Artificial Intelligence* / AI)** adalah teknologi komputasi yang memungkinkan mesin atau program untuk meniru kemampuan kognitif manusia, seperti belajar dari data, memahami bahasa alami (*Natural Language Processing*), mengenali pola, dan memecahkan masalah secara mandiri.";
+    return "**Kecerdasan Buatan (AI)** adalah teknologi komputer yang dirancang untuk meniru kemampuan berpikir manusia, seperti belajar, memproses bahasa, mengenali pola, dan memecahkan masalah.";
   }
 
   if (lower.includes('perbedaan php dan javascript') || (lower.includes('php') && lower.includes('javascript'))) {
-    return "Perbedaan utama antara **PHP** dan **JavaScript**:\n\n" +
-      "1. **PHP**: Bahasa pemrograman yang berjalan di sisi server (*Backend / Server-Side*), sangat populer untuk mengelola database dan sistem CMS seperti WordPress.\n" +
-      "2. **JavaScript**: Bahasa pemrograman serbaguna yang awalnya berjalan di browser (*Frontend / Client-Side*), namun kini juga dapat digunakan di backend menggunakan lingkungan Node.js.\n\n" +
-      "Keduanya sering digunakan bersamaan dalam pengembangan aplikasi web modern.";
+    return "Perbedaan utama:\n\n• **PHP**: Berjalan di sisi server (*Backend*) untuk logika database dan rendering web.\n• **JavaScript**: Berjalan di browser (*Frontend*) untuk interaktivitas, dan juga bisa di backend (*Node.js*).";
   }
 
   if (lower.includes('perbedaan php dan python') || (lower.includes('php') && lower.includes('python'))) {
-    return "Perbedaan antara **PHP** dan **Python**:\n\n" +
-      "• **PHP**: Dikhususkan untuk pengembangan web backend, pembuatan API, dan rendering HTML.\n" +
-      "• **Python**: Bahasa *general-purpose* dengan sintaks sangat bersih dan mudah dibaca, sangat dominan dalam bidang AI, Machine Learning, Data Science, serta otomatisasi (*scripting*).";
+    return "Perbedaan utama:\n\n• **PHP**: Dikhususkan untuk pengembangan web backend dan API.\n• **Python**: Bahasa umum (*general-purpose*) yang dominan untuk AI, Machine Learning, Data Science, dan otomatisasi.";
   }
 
-  // 4. Fallback Semantic Topic Answering (Clear & Easy to Understand)
+  // 5. Fallback Semantic Topic Answering (Direct & Clear)
   const contextualAnswer = tryGenerateContextualAnswer(text, lower);
   if (contextualAnswer) {
     return contextualAnswer;
   }
 
-  return `Mengenai pertanyaan Anda tentang **"${text}"**, informasi ini sangat menarik. Silakan sampaikan detail lebih spesifik atau topik lanjutan yang ingin Anda ketahui, dan saya akan bantu jelaskan secara mendalam!`;
+  return `Mengenai pertanyaan Anda tentang **"${text}"**, silakan sampaikan aspek spesifik yang ingin Anda ketahui lebih lanjut agar saya dapat menjawabnya secara tepat.`;
 }
 
 // ----------------------------------------------------------
@@ -222,32 +255,65 @@ function synthesizeWebResearch(query, lowerQuery, researchData) {
   const snippets = researchData.snippets || [];
   if (snippets.length === 0) return null;
 
-  // Filter out boilerplate sentences
-  const informativeSentences = [];
+  const isBrief = lowerQuery.includes('singkat') || 
+                  lowerQuery.includes('padat') || 
+                  lowerQuery.includes('jelas') || 
+                  lowerQuery.includes('poin') || 
+                  lowerQuery.includes('point') || 
+                  lowerQuery.includes('to the point') || 
+                  lowerQuery.includes('langsung') ||
+                  lowerQuery.includes('tempat ibadah') ||
+                  lowerQuery.includes('apa itu') ||
+                  lowerQuery.includes('siapa');
+
+  // Extract core keywords for semantic relevance scoring
+  const queryTerms = lowerQuery
+    .replace(/\b(jawab|dengan|singkat|padat|jelas|dan|yang|di|ke|dari|untuk|pada|adalah|apa|siapa|bagaimana|gimana|kenapa|mengapa|kapan|dimana|tolong|coba|sebutkan|ambil|poinnya|point|nya|tentang)\b/gi, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(t => t.length > 2);
+
+  const scoredSentences = [];
   for (const s of snippets) {
-    const text = s.snippet.replace(/\[\d+\]/g, '').replace(/https?:\/\/\S+/g, '');
-    const sentences = text.split(/(?<=[.!?])\s+/);
+    const cleanText = s.snippet.replace(/\[\d+\]/g, '').replace(/https?:\/\/\S+/g, '');
+    const sentences = cleanText.split(/(?<=[.!?])\s+/);
     for (const sent of sentences) {
       const clean = sent.trim();
-      if (clean.length > 25 && !informativeSentences.includes(clean)) {
-        informativeSentences.push(clean);
+      if (clean.length > 15 && !scoredSentences.some(it => it.text === clean)) {
+        const lowerSent = clean.toLowerCase();
+        let score = 0;
+        for (const term of queryTerms) {
+          if (lowerSent.includes(term)) score += 3;
+        }
+        scoredSentences.push({ text: clean, score });
       }
     }
   }
 
-  if (informativeSentences.length === 0) return null;
+  if (scoredSentences.length === 0) return null;
 
-  // Build a structured, natural answer
-  let answer = `Berdasarkan penelusuran informasi terkini untuk pertanyaan **"${query}"**:\n\n`;
+  // Sort by highest keyword relevance score
+  scoredSentences.sort((a, b) => b.score - a.score);
 
-  // Highlight points
-  const points = informativeSentences.slice(0, 4);
-  points.forEach((pt, idx) => {
-    answer += `• ${pt}\n\n`;
-  });
+  if (isBrief) {
+    // Deliver concise 1-2 sentence direct answer without preamble
+    const topSentences = scoredSentences.slice(0, 2).map(s => s.text);
+    return topSentences.join(' ');
+  }
 
-  answer += `Semoga informasi di atas membantu! Jika Anda memerlukan penjelasan lebih lanjut atau topik lainnya, silakan tanyakan langsung ke saya.`;
-  return answer;
+  // General questions: Return the primary point first, with bullet details
+  const topSentences = scoredSentences.slice(0, 3).map(s => s.text);
+  if (topSentences.length === 1) {
+    return topSentences[0];
+  }
+
+  let answer = `${topSentences[0]}\n\n`;
+  if (topSentences.length > 1) {
+    topSentences.slice(1).forEach(pt => {
+      answer += `• ${pt}\n\n`;
+    });
+  }
+  return answer.trim();
 }
 
 function tryGenerateContextualAnswer(rawText, lower) {

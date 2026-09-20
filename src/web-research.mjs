@@ -73,7 +73,11 @@ export class QueryPlanner {
   static cleanQuery(text) {
     if (!text || typeof text !== 'string') return '';
     let result = text.trim();
-    const prefixRegex = /^(tolong\s+carikan|tolong\s+cari|tolong\s+search|tolong|bisa\s+tolong|coba\s+carikan|coba\s+cari|cari|search|googling|carikan|info\s+tentang|informasi\s+tentang|berikan\s+informasi\s+tentang|mohon\s+jelaskan|siapakah|apakah\s+kamu\s+tahu|apakah\s+anda\s+tahu|apa\s+itu|jelaskan\s+tentang|jelaskan)\s+/i;
+    
+    // 1. Remove instruction prefixes & brevity modifiers
+    result = result.replace(/\b(jawab\s+dengan\s+singkat\s+padat\s+dan\s+jelas|jawab\s+dengan\s+singkat\s+padat\s+jelas|jawab\s+singkat\s+padat\s+jelas|jawab\s+dengan\s+singkat|jawab\s+singkat|secara\s+singkat|singkat\s+padat\s+jelas|singkat\s+jelas|singkat\s+saja|dengan\s+singkat|ambil\s+poinnya|ambil\s+point\s+nya|ambil\s+poin\s+nya|to\s+the\s+point)\b/gi, '');
+
+    const prefixRegex = /^(tolong\s+carikan|tolong\s+cari|tolong\s+search|tolong\s+jawab|tolong\s+sebutkan|tolong|bisa\s+tolong|coba\s+carikan|coba\s+cari|coba\s+jawab|coba\s+sebutkan|cari|search|googling|carikan|info\s+tentang|informasi\s+tentang|berikan\s+informasi\s+tentang|mohon\s+jelaskan|siapakah|apakah\s+kamu\s+tahu|apakah\s+anda\s+tahu|apa\s+itu|jelaskan\s+tentang|jelaskan|sebutkan|beritahu|kasih\s+tahu)\s+/i;
     let changed = true;
     while (changed) {
       const next = result.replace(prefixRegex, '');
