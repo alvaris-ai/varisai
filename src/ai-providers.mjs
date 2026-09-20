@@ -635,8 +635,8 @@ export function createSmartLocalProvider() {
     async generate(params) {
       return this.respond(params);
     },
-    async respond({ userMessage }) {
-      const text = generateFreeSmartResponse(userMessage);
+    async respond({ userMessage, context = [] }) {
+      const text = generateFreeSmartResponse(userMessage, context);
       return {
         text,
         toolCalls: [],
@@ -644,8 +644,8 @@ export function createSmartLocalProvider() {
         usage: { prompt_tokens: 20, completion_tokens: 40, total_tokens: 60 },
       };
     },
-    async stream({ userMessage }, onToken) {
-      const text = generateFreeSmartResponse(userMessage);
+    async stream({ userMessage, context = [] }, onToken) {
+      const text = generateFreeSmartResponse(userMessage, context);
       const words = text.split(' ');
       for (const word of words) {
         if (onToken) onToken(word + ' ');

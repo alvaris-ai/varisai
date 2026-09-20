@@ -20,14 +20,15 @@ let currentUser = {
     creditsMax: 999999
 };
 let currentModel = 'auto';
-let currentModelName = 'VARIS Auto';
+let currentModelName = 'VARIS AI';
 let currentSearchMode = 'always'; // 'always', 'smart', 'offline'
-let currentSearchModeName = 'Always Search';
+let currentSearchModeName = 'Web Research';
 let currentSearchModeIcon = '🌐';
 let currentConversationId = 'conv-' + Date.now();
 let isRegisterMode = false;
 let isVoiceMuted = false;
 let isWebSearchEnabled = true;
+let lastUserMessageText = '';
 
 // Voice Mode Web Audio State
 let audioCtx = null;
@@ -547,6 +548,7 @@ async function handleSendMessage() {
     const text = input.value.trim();
     if (!text) return;
 
+    lastUserMessageText = text;
     input.value = '';
     input.style.height = 'auto';
 
@@ -591,11 +593,9 @@ async function handleSendMessage() {
         // Error handling for non-stream error responses
         if (!res.ok && !contentType.includes('text/event-stream')) {
             const errData = await res.json().catch(() => ({}));
-            let errorMsg = 'AI service is temporarily unavailable.';
-            let errorCode = 'SERVER_ERROR';
+            let errorMsg = 'VARIS AI sedang memproses permintaan lain. Silakan coba kirim ulang.';
             if (typeof errData.error === 'object' && errData.error !== null) {
                 errorMsg = errData.error.message || errorMsg;
-                errorCode = errData.error.code || errorCode;
             } else if (typeof errData.error === 'string') {
                 errorMsg = errData.error;
             } else if (errData.message) {
@@ -606,11 +606,11 @@ async function handleSendMessage() {
                 <div class="chat-error-card">
                     <div class="chat-error-title">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        <span>${errorCode === 'AI_NOT_CONFIGURED' ? 'Model Belum Dikonfigurasi' : 'AI Service Unavailable'}</span>
+                        <span>Gagal Terhubung ke VARIS AI</span>
                     </div>
                     <p class="chat-error-msg">${errorMsg}</p>
                     <div class="chat-error-actions">
-                        <button class="btn-error-switch" onclick="openModal('modal-model-sheet')">Ganti Model AI</button>
+                        <button class="btn-error-switch" onclick="handleRetryLastMessage()">Coba Kirim Ulang 🔄</button>
                     </div>
                 </div>
             `;
@@ -709,11 +709,11 @@ async function handleSendMessage() {
                                     <div class="chat-error-card">
                                         <div class="chat-error-title">
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                                            <span>${parsed.code === 'AI_NOT_CONFIGURED' ? 'Model Belum Dikonfigurasi' : 'AI Service Unavailable'}</span>
+                                            <span>Gagal Terhubung ke VARIS AI</span>
                                         </div>
-                                        <p class="chat-error-msg">${parsed.message || 'Layanan AI sedang tidak tersedia.'}</p>
+                                        <p class="chat-error-msg">${parsed.message || 'Layanan AI sedang tidak tersedia. Silakan coba kirim ulang.'}</p>
                                         <div class="chat-error-actions">
-                                            <button class="btn-error-switch" onclick="openModal('modal-model-sheet')">Ganti Model AI</button>
+                                            <button class="btn-error-switch" onclick="handleRetryLastMessage()">Coba Kirim Ulang 🔄</button>
                                         </div>
                                     </div>
                                 `;
@@ -750,13 +750,28 @@ async function handleSendMessage() {
     } catch (err) {
         bodyEl.innerHTML = `
             <div class="chat-error-card">
-                <div class="chat-error-title">Connection Error</div>
-                <p class="chat-error-msg">${err.message || 'Gagal terhubung ke backend VARIS AI.'}</p>
+                <div class="chat-error-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Koneksi Terganggu</span>
+                </div>
+                <p class="chat-error-msg">${err.message || 'Gagal terhubung ke server VARIS AI. Silakan coba kirim ulang.'}</p>
+                <div class="chat-error-actions">
+                    <button class="btn-error-switch" onclick="handleRetryLastMessage()">Coba Kirim Ulang 🔄</button>
+                </div>
             </div>
         `;
         scrollChatToBottom();
     }
 }
+
+window.handleRetryLastMessage = function() {
+    if (!lastUserMessageText) return;
+    const input = document.getElementById('main-chat-input');
+    if (input) {
+        input.value = lastUserMessageText;
+        handleSendMessage();
+    }
+};
 
 // ==========================================================
 // 5. VOICE ENGINE & AUDIO SIMULATION

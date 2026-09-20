@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     const pathname = url.pathname.replace(/\/$/, '');
 
     if (pathname === '/api/models') return await modelsHandler(req, res);
-    if (pathname === '/api/chat') return await chatHandler(req, res);
+    if (pathname === '/api/chat' || pathname === '/api/ai/chat' || pathname === '/api/ai') return await chatHandler(req, res);
     if (pathname === '/api/auth/me') return await meHandler(req, res);
     if (pathname === '/api/auth/login') return await loginHandler(req, res);
     if (pathname === '/api/auth/register') return await registerHandler(req, res);
