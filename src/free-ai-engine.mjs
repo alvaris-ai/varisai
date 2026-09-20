@@ -9,9 +9,48 @@ export function generateFreeSmartResponse(userMessage, context = []) {
 
   const lower = text.toLowerCase().replace(/[?!.,;:]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // 1. Direct Factual Matching (Highest Precision, Zero Boilerplate)
+  // 1a. Demografi & Populasi Indonesia (e.g. "ada berapa juta orang di indonesia")
+  if (
+    ((lower.includes('orang') || lower.includes('penduduk') || lower.includes('populasi') || lower.includes('jiwa') || lower.includes('masyarakat')) &&
+     (lower.includes('indonesia') || lower.includes('negeri ini') || lower.includes('negara kita'))) ||
+    lower.includes('berapa juta orang') ||
+    lower.includes('berapa orang di indonesia') ||
+    lower.includes('jumlah penduduk indonesia')
+  ) {
+    return "Jumlah penduduk Indonesia saat ini diperkirakan mencapai sekitar **278 hingga 282 juta jiwa** (berdasarkan data resmi Badan Pusat Statistik / BPS dan Kementerian Dalam Negeri terbaru).";
+  }
 
-  // 1a. Tempat Ibadah & Agama
+  // 1b. Provinsi & Geografi Indonesia
+  if ((lower.includes('berapa provinsi') || lower.includes('jumlah provinsi') || lower.includes('ada berapa provinsi')) && lower.includes('indonesia')) {
+    return "Indonesia saat ini memiliki **38 provinsi** (termasuk 4 provinsi baru hasil pemekaran di Papua: Papua Selatan, Papua Tengah, Papua Pegunungan, dan Papua Barat Daya).";
+  }
+
+  if ((lower.includes('berapa pulau') || lower.includes('jumlah pulau') || lower.includes('ada berapa pulau')) && lower.includes('indonesia')) {
+    return "Indonesia memiliki lebih dari **17.000 pulau** (sekitar 17.508 pulau), dengan 5 pulau utama: Sumatra, Jawa, Kalimantan, Sulawesi, dan Papua.";
+  }
+
+  // 1c. Simbol & Identitas Nasional
+  if ((lower.includes('mata uang') || lower.includes('uang resmi')) && lower.includes('indonesia')) {
+    return "Mata uang resmi Indonesia adalah **Rupiah (IDR)**.";
+  }
+
+  if (lower.includes('lagu kebangsaan') && lower.includes('indonesia')) {
+    return "Lagu kebangsaan Indonesia adalah **Indonesia Raya**, yang diciptakan oleh **W.R. Supratman**.";
+  }
+
+  if (lower.includes('gunung tertinggi') && lower.includes('indonesia')) {
+    return "Gunung tertinggi di Indonesia adalah **Puncak Jaya (Carstensz Pyramid)** di Papua dengan ketinggian **4.884 mdpl**.";
+  }
+
+  if (lower.includes('danau terbesar') && lower.includes('indonesia')) {
+    return "Danau terbesar di Indonesia adalah **Danau Toba** di Sumatera Utara.";
+  }
+
+  if (lower.includes('sungai terpanjang') && lower.includes('indonesia')) {
+    return "Sungai terpanjang di Indonesia adalah **Sungai Kapuas** di Kalimantan Barat dengan panjang sekitar **1.143 km**.";
+  }
+
+  // 1d. Tempat Ibadah & Agama
   if (lower.includes('masjid') && (lower.includes('ibadah') || lower.includes('agama') || lower.includes('umat') || lower.includes('siapa') || lower.includes('apa'))) {
     return "Masjid adalah tempat ibadah umat **Islam (Muslim)**.";
   }
@@ -31,7 +70,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Sinagoge adalah tempat ibadah umat **Yahudi (Yudaisme)**.";
   }
 
-  // 1b. Kitab Suci
+  // 1e. Kitab Suci
   if ((lower.includes('kitab') || lower.includes('suci')) && (lower.includes('islam') || lower.includes('muslim') || lower.includes('al-quran') || lower.includes('alquran') || lower.includes('quran'))) {
     return "Kitab suci umat Islam adalah **Al-Qur'an**.";
   }
@@ -294,6 +333,11 @@ function synthesizeWebResearch(query, lowerQuery, researchData) {
 
   // Sort by highest keyword relevance score
   scoredSentences.sort((a, b) => b.score - a.score);
+
+  // If snippets have no keyword overlap with the question, do not use irrelevant text
+  if (scoredSentences[0].score <= 0 && queryTerms.length > 0) {
+    return null;
+  }
 
   if (isBrief) {
     // Deliver concise 1-2 sentence direct answer without preamble

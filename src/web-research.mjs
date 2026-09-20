@@ -118,6 +118,56 @@ export class QueryPlanner {
       addQuery(cleaned);
     }
 
+    // Pattern 0: Population & Demographics (e.g. "ada berapa juta orang di indonesia", "populasi indonesia")
+    if (
+      (lowerRaw.includes('orang') || lowerRaw.includes('penduduk') || lowerRaw.includes('populasi') || lowerRaw.includes('jiwa') || lowerRaw.includes('masyarakat')) &&
+      (lowerRaw.includes('indonesia') || lowerRaw.includes('negeri ini') || lowerRaw.includes('negara kita'))
+    ) {
+      addQuery('Demografi Indonesia');
+      addQuery('Jumlah penduduk Indonesia');
+      addQuery('Populasi Indonesia');
+    }
+
+    // Pattern 0b: Provinces & Geography
+    if ((lowerRaw.includes('provinsi') || lowerRaw.includes('propinsi')) && lowerRaw.includes('indonesia')) {
+      addQuery('Daftar provinsi di Indonesia');
+      addQuery('Provinsi di Indonesia');
+    }
+
+    if (lowerRaw.includes('pulau') && lowerRaw.includes('indonesia')) {
+      addQuery('Daftar pulau di Indonesia');
+      addQuery('Geografi Indonesia');
+    }
+
+    // Pattern 0c: National Symbols & Currency
+    if (lowerRaw.includes('mata uang') && lowerRaw.includes('indonesia')) {
+      addQuery('Rupiah');
+    }
+    if (lowerRaw.includes('lagu kebangsaan') && lowerRaw.includes('indonesia')) {
+      addQuery('Indonesia Raya');
+    }
+    if ((lowerRaw.includes('ibu kota') || lowerRaw.includes('ibukota')) && lowerRaw.includes('indonesia')) {
+      addQuery('Ibu kota Indonesia');
+      addQuery('Nusantara (kota terencana)');
+    }
+
+    // Pattern 0d: Places of Worship
+    if (lowerRaw.includes('masjid') && (lowerRaw.includes('ibadah') || lowerRaw.includes('umat') || lowerRaw.includes('agama'))) {
+      addQuery('Masjid');
+    }
+    if (lowerRaw.includes('gereja') && (lowerRaw.includes('ibadah') || lowerRaw.includes('umat') || lowerRaw.includes('agama'))) {
+      addQuery('Gereja');
+    }
+    if (lowerRaw.includes('pura') && (lowerRaw.includes('ibadah') || lowerRaw.includes('umat') || lowerRaw.includes('agama'))) {
+      addQuery('Pura (tempat ibadah)');
+    }
+    if ((lowerRaw.includes('vihara') || lowerRaw.includes('wihara')) && (lowerRaw.includes('ibadah') || lowerRaw.includes('umat') || lowerRaw.includes('agama'))) {
+      addQuery('Vihara');
+    }
+    if ((lowerRaw.includes('klenteng') || lowerRaw.includes('kelenteng') || lowerRaw.includes('litang')) && (lowerRaw.includes('ibadah') || lowerRaw.includes('umat') || lowerRaw.includes('agama'))) {
+      addQuery('Kelenteng');
+    }
+
     // Pattern 1: Comparisons (e.g. "RTX 5060 vs RTX 4060", "Python vs Go")
     const vsMatch = cleaned.match(/(.+?)\s+(?:vs|versus|dibandingkan dengan|dibanding|bandingkan)\s+(.+)/i);
     if (vsMatch) {

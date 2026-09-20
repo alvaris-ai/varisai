@@ -13881,6 +13881,30 @@ function generateFreeSmartResponse(userMessage, context = []) {
   const text = (userMessage || "").trim();
   if (!text) return "Halo! Saya VARIS AI. Ada yang ingin kamu tanyakan atau cari informasinya di internet?";
   const lower = text.toLowerCase().replace(/[?!.,;:]/g, " ").replace(/\s+/g, " ").trim();
+  if ((lower.includes("orang") || lower.includes("penduduk") || lower.includes("populasi") || lower.includes("jiwa") || lower.includes("masyarakat")) && (lower.includes("indonesia") || lower.includes("negeri ini") || lower.includes("negara kita")) || lower.includes("berapa juta orang") || lower.includes("berapa orang di indonesia") || lower.includes("jumlah penduduk indonesia")) {
+    return "Jumlah penduduk Indonesia saat ini diperkirakan mencapai sekitar **278 hingga 282 juta jiwa** (berdasarkan data resmi Badan Pusat Statistik / BPS dan Kementerian Dalam Negeri terbaru).";
+  }
+  if ((lower.includes("berapa provinsi") || lower.includes("jumlah provinsi") || lower.includes("ada berapa provinsi")) && lower.includes("indonesia")) {
+    return "Indonesia saat ini memiliki **38 provinsi** (termasuk 4 provinsi baru hasil pemekaran di Papua: Papua Selatan, Papua Tengah, Papua Pegunungan, dan Papua Barat Daya).";
+  }
+  if ((lower.includes("berapa pulau") || lower.includes("jumlah pulau") || lower.includes("ada berapa pulau")) && lower.includes("indonesia")) {
+    return "Indonesia memiliki lebih dari **17.000 pulau** (sekitar 17.508 pulau), dengan 5 pulau utama: Sumatra, Jawa, Kalimantan, Sulawesi, dan Papua.";
+  }
+  if ((lower.includes("mata uang") || lower.includes("uang resmi")) && lower.includes("indonesia")) {
+    return "Mata uang resmi Indonesia adalah **Rupiah (IDR)**.";
+  }
+  if (lower.includes("lagu kebangsaan") && lower.includes("indonesia")) {
+    return "Lagu kebangsaan Indonesia adalah **Indonesia Raya**, yang diciptakan oleh **W.R. Supratman**.";
+  }
+  if (lower.includes("gunung tertinggi") && lower.includes("indonesia")) {
+    return "Gunung tertinggi di Indonesia adalah **Puncak Jaya (Carstensz Pyramid)** di Papua dengan ketinggian **4.884 mdpl**.";
+  }
+  if (lower.includes("danau terbesar") && lower.includes("indonesia")) {
+    return "Danau terbesar di Indonesia adalah **Danau Toba** di Sumatera Utara.";
+  }
+  if (lower.includes("sungai terpanjang") && lower.includes("indonesia")) {
+    return "Sungai terpanjang di Indonesia adalah **Sungai Kapuas** di Kalimantan Barat dengan panjang sekitar **1.143 km**.";
+  }
   if (lower.includes("masjid") && (lower.includes("ibadah") || lower.includes("agama") || lower.includes("umat") || lower.includes("siapa") || lower.includes("apa"))) {
     return "Masjid adalah tempat ibadah umat **Islam (Muslim)**.";
   }
@@ -14070,6 +14094,9 @@ function synthesizeWebResearch(query, lowerQuery, researchData) {
   }
   if (scoredSentences.length === 0) return null;
   scoredSentences.sort((a, b) => b.score - a.score);
+  if (scoredSentences[0].score <= 0 && queryTerms.length > 0) {
+    return null;
+  }
   if (isBrief) {
     const topSentences2 = scoredSentences.slice(0, 2).map((s) => s.text);
     return topSentences2.join(" ");
@@ -15055,6 +15082,44 @@ var QueryPlanner = class {
     };
     if (cleaned) {
       addQuery(cleaned);
+    }
+    if ((lowerRaw.includes("orang") || lowerRaw.includes("penduduk") || lowerRaw.includes("populasi") || lowerRaw.includes("jiwa") || lowerRaw.includes("masyarakat")) && (lowerRaw.includes("indonesia") || lowerRaw.includes("negeri ini") || lowerRaw.includes("negara kita"))) {
+      addQuery("Demografi Indonesia");
+      addQuery("Jumlah penduduk Indonesia");
+      addQuery("Populasi Indonesia");
+    }
+    if ((lowerRaw.includes("provinsi") || lowerRaw.includes("propinsi")) && lowerRaw.includes("indonesia")) {
+      addQuery("Daftar provinsi di Indonesia");
+      addQuery("Provinsi di Indonesia");
+    }
+    if (lowerRaw.includes("pulau") && lowerRaw.includes("indonesia")) {
+      addQuery("Daftar pulau di Indonesia");
+      addQuery("Geografi Indonesia");
+    }
+    if (lowerRaw.includes("mata uang") && lowerRaw.includes("indonesia")) {
+      addQuery("Rupiah");
+    }
+    if (lowerRaw.includes("lagu kebangsaan") && lowerRaw.includes("indonesia")) {
+      addQuery("Indonesia Raya");
+    }
+    if ((lowerRaw.includes("ibu kota") || lowerRaw.includes("ibukota")) && lowerRaw.includes("indonesia")) {
+      addQuery("Ibu kota Indonesia");
+      addQuery("Nusantara (kota terencana)");
+    }
+    if (lowerRaw.includes("masjid") && (lowerRaw.includes("ibadah") || lowerRaw.includes("umat") || lowerRaw.includes("agama"))) {
+      addQuery("Masjid");
+    }
+    if (lowerRaw.includes("gereja") && (lowerRaw.includes("ibadah") || lowerRaw.includes("umat") || lowerRaw.includes("agama"))) {
+      addQuery("Gereja");
+    }
+    if (lowerRaw.includes("pura") && (lowerRaw.includes("ibadah") || lowerRaw.includes("umat") || lowerRaw.includes("agama"))) {
+      addQuery("Pura (tempat ibadah)");
+    }
+    if ((lowerRaw.includes("vihara") || lowerRaw.includes("wihara")) && (lowerRaw.includes("ibadah") || lowerRaw.includes("umat") || lowerRaw.includes("agama"))) {
+      addQuery("Vihara");
+    }
+    if ((lowerRaw.includes("klenteng") || lowerRaw.includes("kelenteng") || lowerRaw.includes("litang")) && (lowerRaw.includes("ibadah") || lowerRaw.includes("umat") || lowerRaw.includes("agama"))) {
+      addQuery("Kelenteng");
     }
     const vsMatch = cleaned.match(/(.+?)\s+(?:vs|versus|dibandingkan dengan|dibanding|bandingkan)\s+(.+)/i);
     if (vsMatch) {
