@@ -736,7 +736,7 @@ VERIFIED RESEARCH SOURCES (${sources.length} Sumber Terverifikasi):
 
 ${sourcesBlock}
 
-PRINSIP PENALARAN & AKURASI VARIS:
+INSTRUKSI PENGGUNAAN SUMBER (INSTRUCTIONS):
 1. Akurasi Faktual Mutlak: Jadikan bukti riset di atas sebagai fakta acuan utama (ground truth).
 2. Answer-First: Jawab langsung ke inti jawaban pengguna tanpa basa-basi pembuka yang tidak perlu.
 3. Anti-Halusinasi: Dilarang keras mengarang data, angka, nama, atau URL palsu.
