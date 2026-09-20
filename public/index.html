@@ -20,10 +20,26 @@
 <body>
 
     <!-- ========================================================
-         VIEW 0: LANDING PAGE (#view-landing)
+         VIEW 0: LUXURY LANDING PAGE (#view-landing)
          ======================================================== -->
     <section class="view-screen active" id="view-landing">
-        <!-- Landing Header -->
+        <!-- Marble Gold Ambient Decorative Lines (SVG) -->
+        <div class="marble-gold-accents" aria-hidden="true">
+            <svg class="gold-geom-lines top-left" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="0" y1="20" x2="160" y2="180" stroke="rgba(212,175,55,0.45)" stroke-width="1.2"/>
+                <line x1="0" y1="45" x2="135" y2="180" stroke="rgba(212,175,55,0.3)" stroke-width="0.8"/>
+                <line x1="0" y1="70" x2="110" y2="180" stroke="rgba(212,175,55,0.2)" stroke-width="0.8"/>
+                <line x1="50" y1="0" x2="190" y2="140" stroke="rgba(212,175,55,0.35)" stroke-width="1"/>
+            </svg>
+            <svg class="gold-geom-lines bottom-right" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="20" y1="200" x2="180" y2="40" stroke="rgba(212,175,55,0.45)" stroke-width="1.2"/>
+                <line x1="45" y1="200" x2="180" y2="65" stroke="rgba(212,175,55,0.3)" stroke-width="0.8"/>
+                <line x1="70" y1="200" x2="180" y2="90" stroke="rgba(212,175,55,0.2)" stroke-width="0.8"/>
+                <line x1="0" y1="150" x2="140" y2="10" stroke="rgba(212,175,55,0.35)" stroke-width="1"/>
+            </svg>
+        </div>
+
+        <!-- Floating Glassmorphic Header -->
         <header class="landing-header">
             <div class="landing-nav-container">
                 <a href="#home" class="brand-link" id="landing-brand-link">
@@ -33,7 +49,7 @@
                     <span class="brand-name-text">VARIS AI</span>
                 </a>
 
-                <nav class="landing-nav-links">
+                <nav class="landing-nav-links" id="landing-nav-links">
                     <a href="#features" class="nav-item">Features</a>
                     <a href="#models" class="nav-item">Models</a>
                     <a href="#pricing" class="nav-item">Pricing</a>
@@ -43,23 +59,39 @@
                 <div class="landing-nav-actions">
                     <button class="btn-ghost" id="landing-signin-btn">Sign In</button>
                     <button class="btn-primary-pill" id="landing-getstarted-btn">Get Started</button>
+                    <!-- Mobile Hamburger Menu Button -->
+                    <button class="btn-mobile-menu-toggle" id="btn-landing-mobile-menu" aria-label="Toggle Menu">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
                 </div>
+            </div>
+
+            <!-- Mobile Navigation Drawer Dropdown -->
+            <div class="landing-mobile-drawer hidden" id="landing-mobile-drawer">
+                <a href="#features" class="mobile-drawer-item">Features</a>
+                <a href="#models" class="mobile-drawer-item">Models</a>
+                <a href="#pricing" class="mobile-drawer-item">Pricing</a>
+                <a href="#about" class="mobile-drawer-item">About</a>
+                <div class="mobile-drawer-divider"></div>
+                <button class="btn-mobile-drawer-signin" id="btn-mobile-drawer-signin">Sign In</button>
+                <button class="btn-mobile-drawer-getstarted" id="btn-mobile-drawer-getstarted">Get Started</button>
             </div>
         </header>
 
         <!-- Landing Hero Section -->
         <main class="landing-hero-container">
             <div class="landing-hero-grid">
-                <!-- Left Column: Copy & CTAs -->
+                <!-- Left Column: Copy & CTAs & 2x2 Feature Cards -->
                 <div class="hero-content">
                     <div class="hero-badge">
                         <span class="hero-badge-dot"></span>
-                        <span>VARIS WORKSPACE</span>
+                        <span class="hero-badge-gold">✦</span>
+                        <span>INTELLIGENT AI WORKSPACE</span>
                     </div>
 
                     <h1 class="hero-headline">
                         Your Intelligent<br>
-                        <span class="gradient-text">AI Workspace</span>
+                        <span class="hero-headline-accent">AI Workspace</span>
                     </h1>
 
                     <p class="hero-subheadline">
@@ -67,58 +99,143 @@
                     </p>
 
                     <p class="hero-description">
-                        Satu workspace terintegrasi untuk mengakses model AI terbaik dunia (Gemini Pro, GPT-4o, Claude), kelola proyek, file kreatif, dan mode suara real-time.
+                        Satu workspace terintegrasi untuk mengakses AI terbaik dunia (Gemini Pro, GPT-4o, Claude), kelola proyek, file kreatif, dan mode suara real-time.
                     </p>
 
                     <div class="hero-cta-group">
-                        <button class="btn-primary-lg" id="hero-start-btn">Start with VARIS</button>
-                        <button class="btn-outline-lg" id="hero-explore-btn">Explore Models</button>
+                        <button class="btn-hero-primary" id="hero-start-btn">
+                            <span>Start with VARIS</span>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        </button>
+                        <button class="btn-hero-secondary" id="hero-explore-btn">
+                            <span>Explore Models</span>
+                        </button>
                     </div>
 
-                    <!-- 4 Core Feature Cards at Hero Bottom -->
-                    <div class="hero-features-row">
-                        <div class="feature-micro-card">
-                            <div class="feature-icon-box bg-purple">✨</div>
-                            <div class="feature-text">
-                                <strong>AI Models</strong>
-                                <span>Access best AI models from leading providers.</span>
+                    <!-- 2x2 Grid of Four Premium Frosted-Glass Feature Cards -->
+                    <div class="hero-features-grid-2x2">
+                        <!-- Card 1: Top-Left (Sparkle - AI Models) -->
+                        <div class="feature-luxury-card" id="card-feat-models">
+                            <div class="feature-luxury-icon-box gold-glow">
+                                <span class="feat-emoji">✨</span>
                             </div>
+                            <div class="feature-luxury-body">
+                                <h4 class="feat-title">AI Models</h4>
+                                <p class="feat-desc">Access best AI models in providers.</p>
+                            </div>
+                            <div class="card-gold-corner"></div>
                         </div>
 
-                        <div class="feature-micro-card">
-                            <div class="feature-icon-box bg-blue">⚡</div>
-                            <div class="feature-text">
-                                <strong>Powerful Tools</strong>
-                                <span>Boost productivity with advanced tools.</span>
+                        <!-- Card 2: Top-Right (Lightning - Powerful Tools) -->
+                        <div class="feature-luxury-card" id="card-feat-tools">
+                            <div class="feature-luxury-icon-box blue-glow">
+                                <span class="feat-emoji">⚡</span>
                             </div>
+                            <div class="feature-luxury-body">
+                                <h4 class="feat-title">Powerful Tools</h4>
+                                <p class="feat-desc">Boost productivity with advanced tools.</p>
+                            </div>
+                            <div class="card-gold-corner"></div>
                         </div>
 
-                        <div class="feature-micro-card">
-                            <div class="feature-icon-box bg-indigo">📁</div>
-                            <div class="feature-text">
-                                <strong>Smart Workspace</strong>
-                                <span>Organize ideas, projects and files.</span>
+                        <!-- Card 3: Bottom-Left (Folder - Smart Workspace) -->
+                        <div class="feature-luxury-card" id="card-feat-workspace">
+                            <div class="feature-luxury-icon-box gold-glow">
+                                <span class="feat-emoji">📁</span>
                             </div>
+                            <div class="feature-luxury-body">
+                                <h4 class="feat-title">Smart Workspace</h4>
+                                <p class="feat-desc">Organize projects, and finding and files.</p>
+                            </div>
+                            <div class="card-gold-corner"></div>
                         </div>
 
-                        <div class="feature-micro-card">
-                            <div class="feature-icon-box bg-slate">🔒</div>
-                            <div class="feature-text">
-                                <strong>Secure & Private</strong>
-                                <span>Your data is always protected and private.</span>
+                        <!-- Card 4: Bottom-Right (Lock - Secure & Private) -->
+                        <div class="feature-luxury-card" id="card-feat-security">
+                            <div class="feature-luxury-icon-box cyan-glow">
+                                <span class="feat-emoji">🔒</span>
                             </div>
+                            <div class="feature-luxury-body">
+                                <h4 class="feat-title">Secure & Private</h4>
+                                <p class="feat-desc">Your data always protected and private.</p>
+                            </div>
+                            <div class="card-gold-corner"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Right Column: 3D Orb Visual Representation -->
-                <div class="hero-visual">
-                    <div class="hero-orb-wrapper">
-                        <div class="hero-orb-glow"></div>
-                        <div class="hero-orb-ring ring-1"></div>
-                        <div class="hero-orb-ring ring-2"></div>
-                        <div class="hero-orb-sphere">
-                            <div class="orb-inner-light"></div>
+                <!-- Right Column: The Stunning "Living Robot" Interactive Character Stage -->
+                <div class="hero-robot-stage-wrapper">
+                    <div class="hero-robot-stage" id="hero-robot-stage" title="Click to interact with VARIS AI Robot">
+                        <!-- Canvas for Floating Gold Sparkles & Cyan Ambient Embers -->
+                        <canvas id="robot-sparkles-canvas" class="robot-sparkles-canvas"></canvas>
+
+                        <!-- Ethereal Floor Glow & Ambient Shadow -->
+                        <div class="robot-ambient-backdrop"></div>
+                        <div class="robot-floor-glow"></div>
+                        <div class="robot-ethereal-mist"></div>
+
+                        <!-- 3D Interactive Gyroscopic Robot Rig -->
+                        <div class="robot-3d-rig" id="robot-3d-rig">
+                            <!-- 3D Concentric Orbital Rings System -->
+                            <div class="orbital-system" id="orbital-system">
+                                <!-- Outer Gold Gyroscope Ring -->
+                                <div class="orbital-ring ring-outer-gold"></div>
+                                <!-- Middle Cyan Energy Orbital Ring with Orbiting Satellites -->
+                                <div class="orbital-ring ring-middle-cyan">
+                                    <span class="orbit-sat sat-1"></span>
+                                    <span class="orbit-sat sat-2"></span>
+                                    <span class="orbit-sat sat-3"></span>
+                                </div>
+                                <!-- Inner Equatorial Gold Ring -->
+                                <div class="orbital-ring ring-inner-gold"></div>
+                                <!-- Pulsing Radial Ring Glow -->
+                                <div class="orbital-ring ring-glow-pulse"></div>
+                            </div>
+
+                            <!-- Robot Character Body Container -->
+                            <div class="robot-character-box" id="robot-character-box">
+                                <img 
+                                    src="/assets/varis-robot-welcoming.jpg" 
+                                    alt="VARIS AI Living Humanoid Robot Character" 
+                                    class="robot-portrait-img" 
+                                    id="robot-portrait-img"
+                                    loading="eager"
+                                />
+
+                                <!-- Glowing Cyan Core Pulse Overlay -->
+                                <div class="robot-glowing-core"></div>
+                                
+                                <!-- Glowing Luminescent Eyes Overlay -->
+                                <div class="robot-glowing-eyes"></div>
+
+                                <!-- Specular Metallic Light Sweep Shimmer -->
+                                <div class="robot-metallic-shimmer"></div>
+                            </div>
+
+                            <!-- Interactive Speech Bubble (Appears on Hover / Click) -->
+                            <div class="robot-speech-bubble hidden" id="robot-speech-bubble">
+                                <div class="speech-bubble-inner">
+                                    <div class="speech-header">
+                                        <span class="speech-avatar">✨</span>
+                                        <strong>VARIS AI</strong>
+                                        <span class="speech-badge">Live</span>
+                                    </div>
+                                    <p class="speech-text" id="robot-speech-text">"Halo! Saya VARIS, asisten AI cerdas Anda. Siap membantu riset dan coding!"</p>
+                                    <div class="speech-actions">
+                                        <button class="speech-btn-action" id="robot-btn-start-chat">Mulai Chat</button>
+                                        <button class="speech-btn-action voice" id="robot-btn-start-voice">Mode Suara 🎙️</button>
+                                    </div>
+                                </div>
+                                <div class="speech-arrow"></div>
+                            </div>
+
+                            <!-- Floating Interactive Status Pill -->
+                            <div class="robot-interactive-pill" id="robot-interactive-pill">
+                                <span class="status-live-dot"></span>
+                                <span class="status-pill-text">VARIS AI Core • Online</span>
+                                <span class="status-pill-sub">Tap to interact ✨</span>
+                            </div>
                         </div>
                     </div>
                 </div>
