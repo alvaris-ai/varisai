@@ -15,9 +15,9 @@ let currentUser = {
     email: '',
     picture: null,
     avatar_url: null,
-    plan: 'Free Tier',
-    credits: 2450,
-    creditsMax: 3000
+    plan: 'Unlimited Access',
+    credits: 999999,
+    creditsMax: 999999
 };
 let currentModel = 'auto';
 let currentModelName = 'VARIS Auto';
@@ -130,17 +130,16 @@ function renderUserData() {
     if (homeName) homeName.textContent = firstName;
 
     const homeBalance = document.getElementById('home-balance-display');
-    if (homeBalance) homeBalance.textContent = `${Number(currentUser.credits).toLocaleString()} Credits`;
+    if (homeBalance) homeBalance.textContent = `Unlimited (∞)`;
 
     const homeAllocPct = document.getElementById('home-allocation-pct');
     const homeFill = document.getElementById('home-balance-progress-fill');
-    const pct = Math.min(100, Math.round((currentUser.credits / (currentUser.creditsMax || 3000)) * 100));
-    if (homeAllocPct) homeAllocPct.textContent = `${pct}% remaining`;
-    if (homeFill) homeFill.style.width = `${pct}%`;
+    if (homeAllocPct) homeAllocPct.textContent = `100% Available`;
+    if (homeFill) homeFill.style.width = `100%`;
 
     // 2. Chat Tab Elements
     const chatCredits = document.getElementById('chat-credits-display');
-    if (chatCredits) chatCredits.textContent = `${Number(currentUser.credits).toLocaleString()} / ${Number(currentUser.creditsMax || 3000).toLocaleString()} credits`;
+    if (chatCredits) chatCredits.textContent = `Unlimited (∞) Access`;
 
     const chatModelName = document.getElementById('chat-active-model-name');
     if (chatModelName) chatModelName.textContent = currentModelName;
@@ -153,10 +152,10 @@ function renderUserData() {
     if (profileEmail) profileEmail.textContent = currentUser.email || '';
 
     const profileCredits = document.getElementById('profile-credits-numbers');
-    if (profileCredits) profileCredits.textContent = `${Number(currentUser.credits).toLocaleString()} / 10,000`;
+    if (profileCredits) profileCredits.textContent = `Unlimited (∞)`;
 
     const profileFill = document.getElementById('profile-progress-fill');
-    if (profileFill) profileFill.style.width = `${Math.min(100, Math.round((currentUser.credits / 10000) * 100))}%`;
+    if (profileFill) profileFill.style.width = `100%`;
 
     const profilePhoto = document.getElementById('profile-user-photo');
     const profileFallback = document.getElementById('profile-avatar-fallback');
@@ -195,7 +194,7 @@ function renderUserData() {
     if (sideName) sideName.textContent = currentUser.name || 'VARIS User';
 
     const sidePlan = document.getElementById('sidebar-user-plan');
-    if (sidePlan) sidePlan.textContent = currentUser.plan || 'Free Tier';
+    if (sidePlan) sidePlan.textContent = 'Unlimited Access';
 }
 
 async function fetchCurrentUser() {
@@ -372,7 +371,7 @@ function createModelOptionCard(model) {
             </div>
             <p class="model-desc-text">${model.description || ''}</p>
         </div>
-        <span class="model-credit-badge">${model.credit_cost_per_request || 3} Credits</span>
+        <span class="model-credit-badge">Unlimited</span>
     `;
 
     card.onclick = () => {

@@ -15608,7 +15608,7 @@ var CreditManager = class {
    * Estimate credit cost before sending request to provider
    */
   estimateCredits(model, text = "") {
-    const baseCost = model?.credit_cost_per_request || 5;
+    const baseCost = model?.credit_cost_per_request !== void 0 ? model.credit_cost_per_request : 5;
     const lengthBoost = text.length > 2e3 ? Math.ceil((text.length - 2e3) / 2e3) : 0;
     return baseCost + lengthBoost;
   }
@@ -15616,15 +15616,15 @@ var CreditManager = class {
    * Calculate exact credit deduction based on model and actual tokens/tools
    */
   calculateActualCredits({ model, inputTokens = 0, outputTokens = 0, toolCalls = [] }) {
-    const base = model?.credit_cost_per_request || 5;
+    const base = model?.credit_cost_per_request !== void 0 ? model.credit_cost_per_request : 5;
     const tokenAdjustment = Math.ceil(((inputTokens || 0) + (outputTokens || 0)) / 1500);
     const toolAdjustment = Math.min((toolCalls?.length || 0) * 1, 5);
     return Math.max(1, base + tokenAdjustment + toolAdjustment);
   }
   /**
-   * Rate Limiter check for user subscription tier
+   * Rate Limiter check (Generous RPM limit to allow unlimited chatting)
    */
-  checkRateLimit(userId, maxRpm = 10) {
+  checkRateLimit(userId, maxRpm = 1e3) {
     const now = Date.now();
     const windowMs = 6e4;
     const timestamps = (this.userRateLimitMap.get(userId) || []).filter((t) => now - t < windowMs);
@@ -15634,7 +15634,7 @@ var CreditManager = class {
       return {
         allowed: false,
         retryAfterSeconds: Math.ceil(waitTimeMs / 1e3),
-        message: `Limit request terlampaui (${maxRpm} req/menit untuk paket Anda). Silakan tunggu ${Math.ceil(waitTimeMs / 1e3)} detik atau upgrade ke paket Pro/Ultra.`
+        message: `Limit request terlampaui. Silakan tunggu ${Math.ceil(waitTimeMs / 1e3)} detik.`
       };
     }
     timestamps.push(now);
@@ -15645,40 +15645,37 @@ var CreditManager = class {
    * Reserve credit before request execution
    */
   async reserveCredit(userId, amount) {
-    if (!this.repository?.reserveCredits) {
-      return { ok: true, reservationId: "mock_res_id", reservedAmount: amount, balance: 100, available: 100 };
+    if (this.repository?.reserveCredits) {
+      try {
+        return await this.repository.reserveCredits(userId, amount);
+      } catch {
+      }
     }
-    try {
-      return await this.repository.reserveCredits(userId, amount);
-    } catch {
-      return { ok: true, reservationId: "mock_res_id", reservedAmount: amount, balance: 100, available: 100 };
-    }
+    return { ok: true, reservationId: "res_" + Date.now(), reservedAmount: amount, balance: 999999, available: 999999 };
   }
   /**
    * Settle credit deduction upon successful completion
    */
   async settleCredit(params) {
-    if (!this.repository?.settleCredits) {
-      return { ok: true, balance: 100, deducted: params.actualAmount || 5 };
+    if (this.repository?.settleCredits) {
+      try {
+        return await this.repository.settleCredits(params);
+      } catch {
+      }
     }
-    try {
-      return await this.repository.settleCredits(params);
-    } catch {
-      return { ok: true, balance: 100, deducted: params.actualAmount || 5 };
-    }
+    return { ok: true, balance: 999999, deducted: params.actualAmount || 0 };
   }
   /**
    * Refund reserved credit if request fails before response generation
    */
   async refundCredit(params) {
-    if (!this.repository?.refundCredits) {
-      return { ok: true, refunded: params.reservedAmount || 0 };
+    if (this.repository?.refundCredits) {
+      try {
+        return await this.repository.refundCredits(params);
+      } catch {
+      }
     }
-    try {
-      return await this.repository.refundCredits(params);
-    } catch {
-      return { ok: true, refunded: params.reservedAmount || 0 };
-    }
+    return { ok: true, refunded: params.reservedAmount || 0 };
   }
 };
 function createCreditManager(repository) {
@@ -15744,8 +15741,8 @@ async function handler9(req, res) {
       return res.end(JSON.stringify({ error: { code: "INVALID_MESSAGE", message: "Message is required" } }));
     }
     const trimmedMessage = message.trim();
-    const sub = repository.getUserSubscription ? await repository.getUserSubscription(user.id) : { plan_id: "free", plan: { name: "Free", allowed_tiers: ["free", "pro", "ultra"], rate_limit_rpm: 60 } };
-    const rateCheck = creditManager.checkRateLimit(user.id, sub?.plan?.rate_limit_rpm || 60);
+    const sub = repository.getUserSubscription ? await repository.getUserSubscription(user.id) : { plan_id: "free", plan: { name: "Unlimited Free", allowed_tiers: ["free", "pro", "ultra"], rate_limit_rpm: 1e3 } };
+    const rateCheck = creditManager.checkRateLimit(user.id, sub?.plan?.rate_limit_rpm || 1e3);
     if (!rateCheck.allowed) {
       res.writeHead(429, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: { code: "RATE_LIMIT_EXCEEDED", message: rateCheck.message } }));
@@ -15753,7 +15750,7 @@ async function handler9(req, res) {
     const selectedModel = (repository.getAIModel ? await repository.getAIModel(model) : null) || {
       id: model,
       display_name: model,
-      credit_cost_per_request: model.includes("pro") || model.includes("4o") ? 10 : 3,
+      credit_cost_per_request: 0,
       tier_required: "free"
     };
     if (!creditManager.checkTierAccess(sub?.plan, selectedModel.tier_required)) {
@@ -15766,15 +15763,9 @@ async function handler9(req, res) {
       }));
     }
     const estimatedCredits = creditManager.estimateCredits(selectedModel, trimmedMessage);
-    const reservation = await creditManager.reserveCredit(user.id, estimatedCredits);
-    if (!reservation.ok) {
-      res.writeHead(402, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({
-        error: {
-          code: "CREDIT_EXHAUSTED",
-          message: "Credit VARIS Anda sudah habis untuk periode ini. Silakan upgrade paket atau tunggu tanggal reset bulanan."
-        }
-      }));
+    let reservation = await creditManager.reserveCredit(user.id, estimatedCredits);
+    if (!reservation?.ok) {
+      reservation = { ok: true, balance: 999999, reservedAmount: estimatedCredits };
     }
     let searchContext = null;
     const shouldWebSearch = web_search === true || /^(siapa presiden|berita|kabar|info terbaru|terkini|cuaca|update|search|cari|harga saham|skor|jadwal|siapa pemenang|fakta|peristiwa)/i.test(trimmedMessage) || trimmedMessage.toLowerCase().includes("presiden indonesia") || trimmedMessage.toLowerCase().includes("terbaru") || trimmedMessage.toLowerCase().includes("terkini");

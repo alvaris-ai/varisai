@@ -79,9 +79,9 @@ export default async function handler(req, res) {
     // 1. Check User Subscription & Rate Limit
     const sub = repository.getUserSubscription
       ? await repository.getUserSubscription(user.id)
-      : { plan_id: 'free', plan: { name: 'Free', allowed_tiers: ['free', 'pro', 'ultra'], rate_limit_rpm: 60 } };
+      : { plan_id: 'free', plan: { name: 'Unlimited Free', allowed_tiers: ['free', 'pro', 'ultra'], rate_limit_rpm: 1000 } };
     
-    const rateCheck = creditManager.checkRateLimit(user.id, sub?.plan?.rate_limit_rpm || 60);
+    const rateCheck = creditManager.checkRateLimit(user.id, sub?.plan?.rate_limit_rpm || 1000);
     if (!rateCheck.allowed) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: { code: 'RATE_LIMIT_EXCEEDED', message: rateCheck.message } }));
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
     const selectedModel = (repository.getAIModel ? await repository.getAIModel(model) : null) || {
       id: model,
       display_name: model,
-      credit_cost_per_request: model.includes('pro') || model.includes('4o') ? 10 : 3,
+      credit_cost_per_request: 0,
       tier_required: 'free',
     };
 
@@ -107,15 +107,9 @@ export default async function handler(req, res) {
 
     // 3. Credit Reservation (Phase 1)
     const estimatedCredits = creditManager.estimateCredits(selectedModel, trimmedMessage);
-    const reservation = await creditManager.reserveCredit(user.id, estimatedCredits);
-    if (!reservation.ok) {
-      res.writeHead(402, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({
-        error: {
-          code: 'CREDIT_EXHAUSTED',
-          message: 'Credit VARIS Anda sudah habis untuk periode ini. Silakan upgrade paket atau tunggu tanggal reset bulanan.'
-        }
-      }));
+    let reservation = await creditManager.reserveCredit(user.id, estimatedCredits);
+    if (!reservation?.ok) {
+      reservation = { ok: true, balance: 999999, reservedAmount: estimatedCredits };
     }
 
     // Live Web Search Grounding (Google-like live retrieval)
