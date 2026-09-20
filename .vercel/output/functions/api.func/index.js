@@ -1628,15 +1628,15 @@ var require_pg_connection_string = __commonJS({
       if (config.sslnegotiation === "direct" && config.ssl === void 0) {
         config.ssl = true;
       }
-      const fs2 = config.sslcert || config.sslkey || config.sslrootcert ? __require("fs") : null;
+      const fs3 = config.sslcert || config.sslkey || config.sslrootcert ? __require("fs") : null;
       if (config.sslcert) {
-        config.ssl.cert = fs2.readFileSync(config.sslcert).toString();
+        config.ssl.cert = fs3.readFileSync(config.sslcert).toString();
       }
       if (config.sslkey) {
-        config.ssl.key = fs2.readFileSync(config.sslkey).toString();
+        config.ssl.key = fs3.readFileSync(config.sslkey).toString();
       }
       if (config.sslrootcert) {
-        config.ssl.ca = fs2.readFileSync(config.sslrootcert).toString();
+        config.ssl.ca = fs3.readFileSync(config.sslrootcert).toString();
       }
       if (options.useLibpqCompat && config.uselibpqcompat) {
         throw new Error("Both useLibpqCompat and uselibpqcompat are set. Please use only one of them.");
@@ -3459,7 +3459,7 @@ var require_split2 = __commonJS({
 var require_helper = __commonJS({
   "node_modules/pgpass/lib/helper.js"(exports, module) {
     "use strict";
-    var path3 = __require("path");
+    var path5 = __require("path");
     var Stream2 = __require("stream").Stream;
     var split = require_split2();
     var util = __require("util");
@@ -3498,7 +3498,7 @@ var require_helper = __commonJS({
     };
     module.exports.getFileName = function(rawEnv) {
       var env = rawEnv || process.env;
-      var file = env.PGPASSFILE || (isWin ? path3.join(env.APPDATA || "./", "postgresql", "pgpass.conf") : path3.join(env.HOME || "./", ".pgpass"));
+      var file = env.PGPASSFILE || (isWin ? path5.join(env.APPDATA || "./", "postgresql", "pgpass.conf") : path5.join(env.HOME || "./", ".pgpass"));
       return file;
     };
     module.exports.usePgPass = function(stats, fname) {
@@ -3630,16 +3630,16 @@ var require_helper = __commonJS({
 var require_lib = __commonJS({
   "node_modules/pgpass/lib/index.js"(exports, module) {
     "use strict";
-    var path3 = __require("path");
-    var fs2 = __require("fs");
+    var path5 = __require("path");
+    var fs3 = __require("fs");
     var helper = require_helper();
     module.exports = function(connInfo, cb) {
       var file = helper.getFileName();
-      fs2.stat(file, function(err, stat) {
+      fs3.stat(file, function(err, stat) {
         if (err || !helper.usePgPass(stat, file)) {
           return cb(void 0);
         }
-        var st = fs2.createReadStream(file);
+        var st = fs3.createReadStream(file);
         helper.getPassword(connInfo, st, cb);
       });
     };
@@ -5312,6 +5312,36 @@ var require_lib2 = __commonJS({
 
 // src/repositories.mjs
 import { randomUUID } from "crypto";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+var isTestEnv = () => process.env.NODE_ENV === "test" || process.env.IS_TEST === "true" || process.argv.some((a) => String(a).includes("test"));
+var STORE_PATH = process.env.VARIS_STORE_PATH || path.join(os.tmpdir(), "varis_store.json");
+function loadDiskStore() {
+  if (isTestEnv()) return null;
+  try {
+    if (fs.existsSync(STORE_PATH)) {
+      const raw = fs.readFileSync(STORE_PATH, "utf8");
+      return JSON.parse(raw);
+    }
+  } catch {
+  }
+  return null;
+}
+function saveDiskStore(data) {
+  if (isTestEnv()) return;
+  try {
+    fs.writeFileSync(STORE_PATH, JSON.stringify(data, null, 2), "utf8");
+  } catch {
+  }
+}
+var globalRepoInstance = null;
+function getGlobalRepositories(pool = null) {
+  if (!globalRepoInstance) {
+    globalRepoInstance = createRepositories(pool);
+  }
+  return globalRepoInstance;
+}
 var DEFAULT_AI_MODELS = [
   {
     id: "auto",
@@ -5563,33 +5593,127 @@ var DEFAULT_FILES = [
   }
 ];
 function createRepositories(pool) {
-  const users = [];
-  const sessions = [];
-  const conversations = [];
-  const messages = [];
-  const preferences = [];
-  const voiceProfiles = [];
-  const memoryItems = [];
-  const aiModels = DEFAULT_AI_MODELS.map((m) => ({ ...m, created_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() }));
-  const subscriptionPlans = DEFAULT_PLANS.map((p) => ({ ...p, created_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() }));
-  const projects = DEFAULT_PROJECTS.map((p) => ({ ...p }));
-  const files = DEFAULT_FILES.map((f) => ({ ...f }));
-  const userSubscriptions = [];
-  const userCredits = [];
-  const creditTransactions = [];
-  const usageLogs = [];
+  const disk = loadDiskStore() || {};
+  const users = disk.users || [];
+  const sessions = disk.sessions || [];
+  const conversations = disk.conversations || [];
+  const messages = disk.messages || [];
+  const preferences = disk.preferences || [];
+  const voiceProfiles = disk.voiceProfiles || [];
+  const memoryItems = disk.memoryItems || [];
+  const aiModels = disk.aiModels || DEFAULT_AI_MODELS.map((m) => ({ ...m, created_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() }));
+  const subscriptionPlans = disk.subscriptionPlans || DEFAULT_PLANS.map((p) => ({ ...p, created_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() }));
+  const projects = disk.projects || DEFAULT_PROJECTS.map((p) => ({ ...p }));
+  const files = disk.files || DEFAULT_FILES.map((f) => ({ ...f }));
+  const userSubscriptions = disk.userSubscriptions || [];
+  const userCredits = disk.userCredits || [];
+  const creditTransactions = disk.creditTransactions || [];
+  const usageLogs = disk.usageLogs || [];
+  const researchSessions = disk.researchSessions || [];
+  const searchResults = disk.searchResults || [];
+  const modelUsages = disk.modelUsages || [];
+  const syncFromDisk = () => {
+    const latest = loadDiskStore();
+    if (!latest) return;
+    if (latest.users) {
+      users.length = 0;
+      users.push(...latest.users);
+    }
+    if (latest.sessions) {
+      sessions.length = 0;
+      sessions.push(...latest.sessions);
+    }
+    if (latest.conversations) {
+      conversations.length = 0;
+      conversations.push(...latest.conversations);
+    }
+    if (latest.messages) {
+      messages.length = 0;
+      messages.push(...latest.messages);
+    }
+    if (latest.preferences) {
+      preferences.length = 0;
+      preferences.push(...latest.preferences);
+    }
+    if (latest.voiceProfiles) {
+      voiceProfiles.length = 0;
+      voiceProfiles.push(...latest.voiceProfiles);
+    }
+    if (latest.memoryItems) {
+      memoryItems.length = 0;
+      memoryItems.push(...latest.memoryItems);
+    }
+    if (latest.userSubscriptions) {
+      userSubscriptions.length = 0;
+      userSubscriptions.push(...latest.userSubscriptions);
+    }
+    if (latest.userCredits) {
+      userCredits.length = 0;
+      userCredits.push(...latest.userCredits);
+    }
+    if (latest.creditTransactions) {
+      creditTransactions.length = 0;
+      creditTransactions.push(...latest.creditTransactions);
+    }
+    if (latest.projects) {
+      projects.length = 0;
+      projects.push(...latest.projects);
+    }
+    if (latest.files) {
+      files.length = 0;
+      files.push(...latest.files);
+    }
+    if (latest.researchSessions) {
+      researchSessions.length = 0;
+      researchSessions.push(...latest.researchSessions);
+    }
+    if (latest.searchResults) {
+      searchResults.length = 0;
+      searchResults.push(...latest.searchResults);
+    }
+    if (latest.modelUsages) {
+      modelUsages.length = 0;
+      modelUsages.push(...latest.modelUsages);
+    }
+  };
+  const persistToDisk = () => {
+    saveDiskStore({
+      users,
+      sessions,
+      conversations,
+      messages,
+      preferences,
+      voiceProfiles,
+      memoryItems,
+      aiModels,
+      subscriptionPlans,
+      projects,
+      files,
+      userSubscriptions,
+      userCredits,
+      creditTransactions,
+      usageLogs,
+      researchSessions,
+      searchResults,
+      modelUsages
+    });
+  };
   const memRepo = {
     async findUserByEmail(email) {
-      return users.find((u) => u.email === email) ?? null;
+      syncFromDisk();
+      return users.find((u) => u.email === (email || "").trim().toLowerCase()) ?? null;
     },
     async findUserById(id) {
+      syncFromDisk();
       return users.find((u) => u.id === id) ?? null;
     },
     async findUserByGoogleId(googleId) {
       if (!googleId) return null;
+      syncFromDisk();
       return users.find((u) => u.google_id === googleId) ?? null;
     },
     async createUser({ name, email, passwordHash = null, googleId = null, avatarUrl = null, authProvider = "local" }) {
+      syncFromDisk();
       const user = {
         id: randomUUID(),
         name,
@@ -5633,6 +5757,7 @@ function createRepositories(pool) {
         details: { note: "Initial free plan registration grant" },
         created_at: (/* @__PURE__ */ new Date()).toISOString()
       });
+      persistToDisk();
       return user;
     },
     async createGoogleUser({ googleId, name, email, avatarUrl }) {
@@ -5646,6 +5771,7 @@ function createRepositories(pool) {
       });
     },
     async linkGoogleAccount(userId, { googleId, avatarUrl }) {
+      syncFromDisk();
       const user = users.find((u) => u.id === userId);
       if (!user) return null;
       user.google_id = googleId;
@@ -5653,42 +5779,63 @@ function createRepositories(pool) {
       user.auth_provider = user.password_hash ? "both" : "google";
       user.updated_at = (/* @__PURE__ */ new Date()).toISOString();
       user.last_login_at = (/* @__PURE__ */ new Date()).toISOString();
+      persistToDisk();
       return user;
     },
     async updateUserLastLogin(userId) {
+      syncFromDisk();
       const user = users.find((u) => u.id === userId);
       if (user) {
         user.last_login_at = (/* @__PURE__ */ new Date()).toISOString();
         user.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
       }
       return user;
     },
     async updateUserAvatar(userId, avatarUrl) {
+      syncFromDisk();
       const user = users.find((u) => u.id === userId);
       if (user) {
         user.avatar_url = avatarUrl;
         user.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
       }
       return user;
     },
     async updateUserName(userId, name) {
+      syncFromDisk();
       const user = users.find((u) => u.id === userId);
       if (user) {
         user.name = name;
         user.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
       }
       return user;
     },
     async updateUserPassword(userId, passwordHash) {
+      syncFromDisk();
       const user = users.find((u) => u.id === userId);
       if (user) {
         user.password_hash = passwordHash;
         user.auth_provider = user.google_id ? "both" : "local";
         user.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
       }
       return user;
     },
+    async resetPasswordByEmail(email, passwordHash) {
+      syncFromDisk();
+      const user = users.find((u) => u.email === (email || "").trim().toLowerCase());
+      if (user) {
+        user.password_hash = passwordHash;
+        user.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
+        return user;
+      }
+      return null;
+    },
     async createSession({ userId, tokenHash, expiresAt }) {
+      syncFromDisk();
       const user = users.find((u) => u.id === userId);
       sessions.push({
         id: randomUUID(),
@@ -5706,8 +5853,10 @@ function createRepositories(pool) {
         user_created_at: user?.created_at,
         user_updated_at: user?.updated_at
       });
+      persistToDisk();
     },
     async findSession(tokenHash) {
+      syncFromDisk();
       const s = sessions.find((s2) => s2.token_hash === tokenHash && !s2.revoked_at && new Date(s2.expires_at) > /* @__PURE__ */ new Date());
       return s ?? null;
     },
@@ -5715,51 +5864,90 @@ function createRepositories(pool) {
       return memRepo.findSession(tokenHash);
     },
     async touchSession(id) {
+      syncFromDisk();
       const s = sessions.find((s2) => s2.id === id);
-      if (s) s.last_seen_at = (/* @__PURE__ */ new Date()).toISOString();
+      if (s) {
+        s.last_seen_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
+      }
     },
     async revokeSession(tokenHash) {
+      syncFromDisk();
       const s = sessions.find((s2) => s2.token_hash === tokenHash);
-      if (s) s.revoked_at = (/* @__PURE__ */ new Date()).toISOString();
+      if (s) {
+        s.revoked_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
+      }
     },
     async listConversations(userId) {
+      syncFromDisk();
       return conversations.filter((c) => c.user_id === userId).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
     },
     async createConversation(userId, title) {
+      syncFromDisk();
       const conv = { id: randomUUID(), user_id: userId, title, created_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() };
       conversations.push(conv);
+      persistToDisk();
       return conv;
     },
     async getConversation(userId, id) {
+      syncFromDisk();
       return conversations.find((c) => c.id === id && c.user_id === userId) ?? null;
     },
     async deleteConversation(userId, id) {
+      syncFromDisk();
       const idx = conversations.findIndex((c) => c.id === id && c.user_id === userId);
       if (idx !== -1) {
         conversations.splice(idx, 1);
+        persistToDisk();
         return true;
       }
       return false;
     },
     async listMessages(userId, conversationId) {
+      syncFromDisk();
       return messages.filter((m) => m.conversation_id === conversationId && m.user_id === userId).sort((a, b) => a.sequence_no - b.sequence_no);
     },
     async listRecentMessages(userId, conversationId, limit2 = 20) {
+      syncFromDisk();
       const list = messages.filter((m) => m.conversation_id === conversationId && m.user_id === userId).sort((a, b) => b.sequence_no - a.sequence_no).slice(0, limit2);
       return list.reverse();
     },
-    async createMessage(userId, conversationId, role, content) {
+    async createMessage(userId, conversationId, role, content, metadata = {}) {
+      syncFromDisk();
       const seq = messages.filter((m) => m.conversation_id === conversationId).length + 1;
-      const msg = { id: randomUUID(), conversation_id: conversationId, user_id: userId, role, content, sequence_no: seq, created_at: (/* @__PURE__ */ new Date()).toISOString() };
+      const msg = {
+        id: metadata.id || metadata.messageId || randomUUID(),
+        conversation_id: conversationId,
+        user_id: userId,
+        role,
+        content,
+        sequence_no: seq,
+        provider: metadata.provider || null,
+        model: metadata.model || null,
+        input_tokens: metadata.inputTokens ?? null,
+        output_tokens: metadata.outputTokens ?? null,
+        total_tokens: metadata.inputTokens != null && metadata.outputTokens != null ? metadata.inputTokens + metadata.outputTokens : null,
+        latency_ms: metadata.latencyMs ?? null,
+        request_id: metadata.requestId ?? null,
+        research_session_id: metadata.researchSessionId ?? null,
+        source_ids: metadata.sourceIds ?? [],
+        sources: metadata.sources ?? [],
+        search_mode: metadata.searchMode ?? null,
+        created_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
       messages.push(msg);
       const conv = conversations.find((c) => c.id === conversationId);
       if (conv) conv.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+      persistToDisk();
       return msg;
     },
     async getPreferences(userId) {
+      syncFromDisk();
       return preferences.find((p) => p.user_id === userId) ?? null;
     },
     async upsertPreferences(userId, data) {
+      syncFromDisk();
       let pref = preferences.find((p) => p.user_id === userId);
       if (!pref) {
         pref = { id: randomUUID(), user_id: userId, voice_profile_id: data.voice_profile_id ?? null, speaking_speed: data.speaking_speed, voice_style: data.voice_style ?? {}, language: data.language, created_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() };
@@ -5771,63 +5959,81 @@ function createRepositories(pool) {
         pref.language = data.language;
         pref.updated_at = (/* @__PURE__ */ new Date()).toISOString();
       }
+      persistToDisk();
       return pref;
     },
     async listVoiceProfiles(userId) {
+      syncFromDisk();
       return voiceProfiles.filter((v) => v.user_id === userId && (v.status === "active" || v.status === "pending"));
     },
     async createVoiceProfile(userId, provider, providerVoiceId, name, status = "active") {
+      syncFromDisk();
       const vp = { id: randomUUID(), user_id: userId, provider, provider_voice_id: providerVoiceId, name, status, created_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() };
       voiceProfiles.push(vp);
+      persistToDisk();
       return vp;
     },
     async getVoiceProfile(userId, id) {
+      syncFromDisk();
       return voiceProfiles.find((v) => v.id === id && v.user_id === userId) ?? null;
     },
     async deleteVoiceProfile(userId, id) {
+      syncFromDisk();
       const vp = voiceProfiles.find((v) => v.id === id && v.user_id === userId);
       if (vp) {
         vp.status = "deleted";
+        persistToDisk();
         return true;
       }
       return false;
     },
     async createMemory({ userId, text, kind = "fact", confidence = 1, sensitivity = "normal" }) {
+      syncFromDisk();
       const mem = { id: randomUUID(), user_id: userId, text, kind, confidence, sensitivity, created_at: (/* @__PURE__ */ new Date()).toISOString() };
       memoryItems.push(mem);
+      persistToDisk();
       return mem;
     },
     async updateMemory(userId, memoryId, text) {
+      syncFromDisk();
       const mem = memoryItems.find((m) => m.id === memoryId && m.user_id === userId);
       if (mem) {
         mem.text = text;
         mem.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
         return mem;
       }
       return null;
     },
     async deleteMemory(userId, memoryId) {
+      syncFromDisk();
       const idx = memoryItems.findIndex((m) => m.id === memoryId && m.user_id === userId);
       if (idx !== -1) {
         memoryItems.splice(idx, 1);
+        persistToDisk();
         return true;
       }
       return false;
     },
     async searchMemories(userId, embedding, limit2 = 5) {
+      syncFromDisk();
       return memoryItems.filter((m) => m.user_id === userId).slice(0, limit2).map((m) => ({ ...m, similarity: 0.9 }));
     },
     async getMemory(userId, memoryId) {
+      syncFromDisk();
       return memoryItems.find((m) => m.id === memoryId && m.user_id === userId) ?? null;
     },
     // ================= Multi-Model AI Repositories =================
     async listAIModels() {
+      syncFromDisk();
       return [...aiModels].sort((a, b) => a.sort_order - b.sort_order);
     },
     async getAIModel(id) {
+      syncFromDisk();
       return aiModels.find((m) => m.id === id) ?? null;
     },
     async upsertAIModel(data) {
+      syncFromDisk();
       let m = aiModels.find((item) => item.id === data.id);
       if (!m) {
         m = { ...data, created_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() };
@@ -5836,25 +6042,31 @@ function createRepositories(pool) {
         Object.assign(m, data);
         m.updated_at = (/* @__PURE__ */ new Date()).toISOString();
       }
+      persistToDisk();
       return m;
     },
     async updateAIModelStatus(id, status) {
+      syncFromDisk();
       const m = aiModels.find((item) => item.id === id);
       if (m) {
         m.status = status;
         m.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        persistToDisk();
         return m;
       }
       return null;
     },
     // ================= Subscription & Credit Repositories =================
     async listSubscriptionPlans() {
+      syncFromDisk();
       return [...subscriptionPlans];
     },
     async getSubscriptionPlan(id) {
+      syncFromDisk();
       return subscriptionPlans.find((p) => p.id === id) ?? null;
     },
     async getUserSubscription(userId) {
+      syncFromDisk();
       let sub = userSubscriptions.find((s) => s.user_id === userId);
       if (!sub) {
         sub = {
@@ -5866,11 +6078,13 @@ function createRepositories(pool) {
           status: "active"
         };
         userSubscriptions.push(sub);
+        persistToDisk();
       }
       const plan = subscriptionPlans.find((p) => p.id === sub.plan_id) || subscriptionPlans[0];
       return { ...sub, plan };
     },
     async setUserSubscription(userId, planId) {
+      syncFromDisk();
       const plan = subscriptionPlans.find((p) => p.id === planId) || subscriptionPlans[0];
       let sub = userSubscriptions.find((s) => s.user_id === userId);
       if (!sub) {
@@ -5904,9 +6118,11 @@ function createRepositories(pool) {
         cred.allocated_monthly = plan.monthly_credits;
         cred.updated_at = (/* @__PURE__ */ new Date()).toISOString();
       }
+      persistToDisk();
       return { ...sub, plan };
     },
     async getUserCredits(userId) {
+      syncFromDisk();
       let cred = userCredits.find((c) => c.user_id === userId);
       if (!cred) {
         cred = {
@@ -5919,10 +6135,12 @@ function createRepositories(pool) {
           updated_at: (/* @__PURE__ */ new Date()).toISOString()
         };
         userCredits.push(cred);
+        persistToDisk();
       }
       return { ...cred };
     },
     async reserveCredits(userId, amount) {
+      syncFromDisk();
       let cred = userCredits.find((c) => c.user_id === userId);
       if (!cred) {
         cred = { id: randomUUID(), user_id: userId, balance: 100, allocated_monthly: 100, reserved: 0, last_reset_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() };
@@ -5934,10 +6152,12 @@ function createRepositories(pool) {
       }
       cred.reserved = (cred.reserved || 0) + amount;
       cred.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+      persistToDisk();
       const reservationId = randomUUID();
       return { ok: true, reservationId, reservedAmount: amount, available: cred.balance - cred.reserved };
     },
     async settleCredits({ userId, reservedAmount = 0, actualAmount = 0, modelId = "auto", provider = "system", conversationId = null, messageId = null, inputTokens = 0, outputTokens = 0, details = {} }) {
+      syncFromDisk();
       let cred = userCredits.find((c) => c.user_id === userId);
       if (!cred) {
         cred = { id: randomUUID(), user_id: userId, balance: 100, allocated_monthly: 100, reserved: 0, last_reset_at: (/* @__PURE__ */ new Date()).toISOString(), updated_at: (/* @__PURE__ */ new Date()).toISOString() };
@@ -5974,9 +6194,11 @@ function createRepositories(pool) {
         duration_ms: details.durationMs || 0,
         created_at: (/* @__PURE__ */ new Date()).toISOString()
       });
+      persistToDisk();
       return { ok: true, balance: cred.balance, deducted: actualAmount, transactionId: tx.id };
     },
     async refundCredits({ userId, reservedAmount = 0, reason = "Request failed" }) {
+      syncFromDisk();
       let cred = userCredits.find((c) => c.user_id === userId);
       if (cred && reservedAmount > 0) {
         cred.reserved = Math.max(0, (cred.reserved || 0) - reservedAmount);
@@ -6120,6 +6342,84 @@ function createRepositories(pool) {
     // Subscription Upgrade
     async upgradeUserSubscription(userId, planId) {
       return memRepo.setUserSubscription(userId, planId);
+    },
+    // Research Sessions & Search Results
+    async createResearchSession({ userId, conversationId = null, query = "", searchMode = "always" } = {}) {
+      const session = {
+        id: `rs_${randomUUID()}`,
+        user_id: userId,
+        conversation_id: conversationId,
+        query,
+        search_mode: searchMode,
+        status: "in_progress",
+        sources_count: 0,
+        latency_ms: 0,
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        completed_at: null
+      };
+      researchSessions.unshift(session);
+      return session;
+    },
+    async completeResearchSession(id, { sourcesCount = 0, latencyMs = 0, status = "completed", details = {} } = {}) {
+      const session = researchSessions.find((s) => s.id === id);
+      if (session) {
+        session.sources_count = sourcesCount;
+        session.latency_ms = latencyMs;
+        session.status = status;
+        session.details = details;
+        session.completed_at = (/* @__PURE__ */ new Date()).toISOString();
+        return session;
+      }
+      return null;
+    },
+    async getResearchSession(id) {
+      return researchSessions.find((s) => s.id === id) ?? null;
+    },
+    async createSearchResults(sessionId, sources = []) {
+      const saved = [];
+      for (const src of sources) {
+        const item = {
+          id: src.id || `sr_${randomUUID()}`,
+          research_session_id: sessionId,
+          title: src.title,
+          url: src.url,
+          domain: src.domain,
+          snippet: src.snippet,
+          content: src.content || src.snippet,
+          relevance_score: src.relevanceScore || 0.85,
+          published_at: src.publishedAt || null,
+          created_at: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        searchResults.push(item);
+        saved.push(item);
+      }
+      return saved;
+    },
+    async getSearchResults(sessionId) {
+      return searchResults.filter((s) => s.research_session_id === sessionId);
+    },
+    // Model Usage Audit Logs
+    async recordModelUsage({ userId, conversationId = null, requestId = `req_${randomUUID()}`, modelId = "auto", provider = "system", inputTokens = 0, outputTokens = 0, latencyMs = 0, status = "success", errorMessage = null } = {}) {
+      const usage = {
+        id: `usage_${randomUUID()}`,
+        user_id: userId,
+        conversation_id: conversationId,
+        request_id: requestId,
+        model_id: modelId,
+        provider,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        total_tokens: inputTokens + outputTokens,
+        latency_ms: latencyMs,
+        status,
+        error_message: errorMessage,
+        created_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      modelUsages.push(usage);
+      return usage;
+    },
+    async getModelUsage(requestId) {
+      return modelUsages.find((u) => u.request_id === requestId) ?? null;
     }
   };
   if (!pool) return memRepo;
@@ -6192,6 +6492,10 @@ function createRepositories(pool) {
     updateUserPassword: async (userId, passwordHash) => {
       const r = await q(`update public.users set password_hash = $1, auth_provider = case when google_id is not null then 'both' else 'local' end, updated_at = now() where id = $2 returning *`, [passwordHash, userId]);
       return r.rows[0] ?? null;
+    },
+    resetPasswordByEmail: async (email, passwordHash) => {
+      const r = await q(`update public.users set password_hash = $1, updated_at = now() where email = $2 returning *`, [passwordHash, (email || "").trim().toLowerCase()]);
+      return r.rows[0] ?? memRepo.resetPasswordByEmail(email, passwordHash);
     },
     createSession: async ({ userId, tokenHash, expiresAt }) => {
       await q("insert into public.auth_sessions (user_id, token_hash, expires_at) values ($1, $2, $3)", [userId, tokenHash, expiresAt]);
@@ -6405,6 +6709,27 @@ function createRepositories(pool) {
     },
     upgradeUserSubscription: async (userId, planId) => {
       return memRepo.upgradeUserSubscription(userId, planId);
+    },
+    createResearchSession: async (params) => {
+      return memRepo.createResearchSession(params);
+    },
+    completeResearchSession: async (id, params) => {
+      return memRepo.completeResearchSession(id, params);
+    },
+    getResearchSession: async (id) => {
+      return memRepo.getResearchSession(id);
+    },
+    createSearchResults: async (sessionId, sources) => {
+      return memRepo.createSearchResults(sessionId, sources);
+    },
+    getSearchResults: async (sessionId) => {
+      return memRepo.getSearchResults(sessionId);
+    },
+    recordModelUsage: async (params) => {
+      return memRepo.recordModelUsage(params);
+    },
+    getModelUsage: async (requestId) => {
+      return memRepo.getModelUsage(requestId);
     }
   };
   const result = {};
@@ -6471,7 +6796,7 @@ function loadConfig(env = process.env) {
   return {
     nodeEnv: env.NODE_ENV ?? "development",
     port: Number(env.API_PORT ?? 3e3),
-    databaseUrl: env.DATABASE_URL,
+    databaseUrl: env.DATABASE_URL || env.POSTGRES_URL || env.SUPABASE_DB_URL || env.POSTGRES_PRISMA_URL || env.POSTGRES_URL_NON_POOLING || env.SUPABASE_POSTGRES_URL,
     databaseSsl: env.DATABASE_SSL !== "false",
     appOrigin: env.APP_ORIGIN ?? "http://localhost:3000",
     cookieSecure: env.COOKIE_SECURE === "true",
@@ -6491,7 +6816,7 @@ function loadConfig(env = process.env) {
     ttsProvider: env.TTS_PROVIDER ?? (env.ELEVENLABS_API_KEY ? "elevenlabs" : "openai"),
     voiceProvider: env.VOICE_PROVIDER,
     aiProvider: env.AI_PROVIDER ?? (env.OPENAI_API_KEY ? "openai" : "free"),
-    googleClientId: env.GOOGLE_CLIENT_ID,
+    googleClientId: env.GOOGLE_CLIENT_ID || "604379040176-dca2rmd9akrtds0rhf62e3ojleer4udl.apps.googleusercontent.com",
     googleClientSecret: env.GOOGLE_CLIENT_SECRET,
     googleCallbackUrl: env.GOOGLE_CALLBACK_URL || null
   };
@@ -6523,14 +6848,10 @@ function createPool(config = loadConfig()) {
 }
 
 // api/auth/me.js
-var reposInstance = null;
 function getRepos() {
-  if (!reposInstance) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance = createRepositories(pool);
-  }
-  return reposInstance;
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
 }
 async function handler(req, res) {
   const cookieHeader = req.headers.cookie || "";
@@ -6565,14 +6886,10 @@ async function handler(req, res) {
 }
 
 // api/auth/login.js
-var reposInstance2 = null;
 function getRepos2() {
-  if (!reposInstance2) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance2 = createRepositories(pool);
-  }
-  return reposInstance2;
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
 }
 async function parseBody(req) {
   if (req.body) return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
@@ -6622,14 +6939,10 @@ async function handler2(req, res) {
 }
 
 // api/auth/register.js
-var reposInstance3 = null;
 function getRepos3() {
-  if (!reposInstance3) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance3 = createRepositories(pool);
-  }
-  return reposInstance3;
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
 }
 async function parseBody2(req) {
   if (req.body) return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
@@ -6680,14 +6993,10 @@ async function handler3(req, res) {
 }
 
 // api/auth/logout.js
-var reposInstance4 = null;
 function getRepos4() {
-  if (!reposInstance4) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance4 = createRepositories(pool);
-  }
-  return reposInstance4;
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
 }
 async function handler4(req, res) {
   const cookieHeader = req.headers.cookie || "";
@@ -6890,14 +7199,10 @@ function handler5(req, res) {
 }
 
 // api/auth/google/callback.js
-var reposInstance5 = null;
 function getRepos5() {
-  if (!reposInstance5) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance5 = createRepositories(pool);
-  }
-  return reposInstance5;
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
 }
 async function handler6(req, res) {
   const url = new URL(req.url, `https://${req.headers["x-forwarded-host"] || req.headers.host || "varisai.vercel.app"}`);
@@ -6954,14 +7259,10 @@ async function handler6(req, res) {
 }
 
 // api/auth/google/credential.js
-var reposInstance6 = null;
 function getRepos6() {
-  if (!reposInstance6) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance6 = createRepositories(pool);
-  }
-  return reposInstance6;
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
 }
 async function parseBody3(req) {
   if (req.body) return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
@@ -7050,6 +7351,9 @@ function handler8(req, res) {
     }
   }));
 }
+
+// api/ai/chat.js
+import { randomUUID as randomUUID2 } from "node:crypto";
 
 // node_modules/openai/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f) {
@@ -8661,12 +8965,12 @@ function encodeURIPath(str2) {
   return str2.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@]+/g, encodeURIComponent);
 }
 var EMPTY = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null));
-var createPathTagFunction = (pathEncoder = encodeURIPath) => function path3(statics, ...params) {
+var createPathTagFunction = (pathEncoder = encodeURIPath) => function path5(statics, ...params) {
   if (statics.length === 1)
     return statics[0];
   let postPath = false;
   const invalidSegments = [];
-  const path4 = statics.reduce((previousValue, currentValue, index) => {
+  const path6 = statics.reduce((previousValue, currentValue, index) => {
     if (/[?#]/.test(currentValue)) {
       postPath = true;
     }
@@ -8683,7 +8987,7 @@ var createPathTagFunction = (pathEncoder = encodeURIPath) => function path3(stat
     }
     return previousValue + currentValue + (index === params.length ? "" : encoded);
   }, "");
-  const pathOnly = path4.split(/[?#]/, 1)[0];
+  const pathOnly = path6.split(/[?#]/, 1)[0];
   const invalidSegmentPattern = /(?<=^|\/)(?:\.|%2e){1,2}(?=\/|$)/gi;
   let match;
   while ((match = invalidSegmentPattern.exec(pathOnly)) !== null) {
@@ -8704,12 +9008,12 @@ var createPathTagFunction = (pathEncoder = encodeURIPath) => function path3(stat
     }, "");
     throw new OpenAIError(`Path parameters result in path with invalid segments:
 ${invalidSegments.map((e) => e.error).join("\n")}
-${path4}
+${path6}
 ${underline}`);
   }
-  return path4;
+  return path6;
 };
-var path = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
+var path2 = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
 
 // node_modules/openai/resources/chat/completions/messages.mjs
 var Messages = class extends APIResource {
@@ -8728,7 +9032,7 @@ var Messages = class extends APIResource {
    * ```
    */
   list(completionID, query = {}, options) {
-    return this._client.getAPIList(path`/chat/completions/${completionID}/messages`, CursorPage, { query, ...options });
+    return this._client.getAPIList(path2`/chat/completions/${completionID}/messages`, CursorPage, { query, ...options });
   }
 };
 
@@ -10063,7 +10367,7 @@ var Completions = class extends APIResource {
    * ```
    */
   retrieve(completionID, options) {
-    return this._client.get(path`/chat/completions/${completionID}`, options);
+    return this._client.get(path2`/chat/completions/${completionID}`, options);
   }
   /**
    * Modify a stored chat completion. Only Chat Completions that have been created
@@ -10079,7 +10383,7 @@ var Completions = class extends APIResource {
    * ```
    */
   update(completionID, body, options) {
-    return this._client.post(path`/chat/completions/${completionID}`, { body, ...options });
+    return this._client.post(path2`/chat/completions/${completionID}`, { body, ...options });
   }
   /**
    * List stored Chat Completions. Only Chat Completions that have been stored with
@@ -10107,7 +10411,7 @@ var Completions = class extends APIResource {
    * ```
    */
   delete(completionID, options) {
-    return this._client.delete(path`/chat/completions/${completionID}`, options);
+    return this._client.delete(path2`/chat/completions/${completionID}`, options);
   }
   parse(body, options) {
     validateInputTools(body.tools);
@@ -10277,7 +10581,7 @@ var Batches = class extends APIResource {
    * Retrieves a batch.
    */
   retrieve(batchID, options) {
-    return this._client.get(path`/batches/${batchID}`, options);
+    return this._client.get(path2`/batches/${batchID}`, options);
   }
   /**
    * List your organization's batches.
@@ -10291,7 +10595,7 @@ var Batches = class extends APIResource {
    * (if any) available in the output file.
    */
   cancel(batchID, options) {
-    return this._client.post(path`/batches/${batchID}/cancel`, options);
+    return this._client.post(path2`/batches/${batchID}/cancel`, options);
   }
 };
 
@@ -10325,7 +10629,7 @@ var Assistants = class extends APIResource {
    * ```
    */
   retrieve(assistantID, options) {
-    return this._client.get(path`/assistants/${assistantID}`, {
+    return this._client.get(path2`/assistants/${assistantID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -10341,7 +10645,7 @@ var Assistants = class extends APIResource {
    * ```
    */
   update(assistantID, body, options) {
-    return this._client.post(path`/assistants/${assistantID}`, {
+    return this._client.post(path2`/assistants/${assistantID}`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -10375,7 +10679,7 @@ var Assistants = class extends APIResource {
    * ```
    */
   delete(assistantID, options) {
-    return this._client.delete(path`/assistants/${assistantID}`, {
+    return this._client.delete(path2`/assistants/${assistantID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -10453,7 +10757,7 @@ var Messages2 = class extends APIResource {
    * @deprecated The Assistants API is deprecated in favor of the Responses API
    */
   create(threadID, body, options) {
-    return this._client.post(path`/threads/${threadID}/messages`, {
+    return this._client.post(path2`/threads/${threadID}/messages`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -10466,7 +10770,7 @@ var Messages2 = class extends APIResource {
    */
   retrieve(messageID, params, options) {
     const { thread_id } = params;
-    return this._client.get(path`/threads/${thread_id}/messages/${messageID}`, {
+    return this._client.get(path2`/threads/${thread_id}/messages/${messageID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -10478,7 +10782,7 @@ var Messages2 = class extends APIResource {
    */
   update(messageID, params, options) {
     const { thread_id, ...body } = params;
-    return this._client.post(path`/threads/${thread_id}/messages/${messageID}`, {
+    return this._client.post(path2`/threads/${thread_id}/messages/${messageID}`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -10490,7 +10794,7 @@ var Messages2 = class extends APIResource {
    * @deprecated The Assistants API is deprecated in favor of the Responses API
    */
   list(threadID, query = {}, options) {
-    return this._client.getAPIList(path`/threads/${threadID}/messages`, CursorPage, {
+    return this._client.getAPIList(path2`/threads/${threadID}/messages`, CursorPage, {
       query,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -10503,7 +10807,7 @@ var Messages2 = class extends APIResource {
    */
   delete(messageID, params, options) {
     const { thread_id } = params;
-    return this._client.delete(path`/threads/${thread_id}/messages/${messageID}`, {
+    return this._client.delete(path2`/threads/${thread_id}/messages/${messageID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -10519,7 +10823,7 @@ var Steps = class extends APIResource {
    */
   retrieve(stepID, params, options) {
     const { thread_id, run_id, ...query } = params;
-    return this._client.get(path`/threads/${thread_id}/runs/${run_id}/steps/${stepID}`, {
+    return this._client.get(path2`/threads/${thread_id}/runs/${run_id}/steps/${stepID}`, {
       query,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -10532,7 +10836,7 @@ var Steps = class extends APIResource {
    */
   list(runID, params, options) {
     const { thread_id, ...query } = params;
-    return this._client.getAPIList(path`/threads/${thread_id}/runs/${runID}/steps`, CursorPage, {
+    return this._client.getAPIList(path2`/threads/${thread_id}/runs/${runID}/steps`, CursorPage, {
       query,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -11114,7 +11418,7 @@ var Runs = class extends APIResource {
   }
   create(threadID, params, options) {
     const { include, ...body } = params;
-    return this._client.post(path`/threads/${threadID}/runs`, {
+    return this._client.post(path2`/threads/${threadID}/runs`, {
       query: { include },
       body,
       ...options,
@@ -11129,7 +11433,7 @@ var Runs = class extends APIResource {
    */
   retrieve(runID, params, options) {
     const { thread_id } = params;
-    return this._client.get(path`/threads/${thread_id}/runs/${runID}`, {
+    return this._client.get(path2`/threads/${thread_id}/runs/${runID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -11141,7 +11445,7 @@ var Runs = class extends APIResource {
    */
   update(runID, params, options) {
     const { thread_id, ...body } = params;
-    return this._client.post(path`/threads/${thread_id}/runs/${runID}`, {
+    return this._client.post(path2`/threads/${thread_id}/runs/${runID}`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -11153,7 +11457,7 @@ var Runs = class extends APIResource {
    * @deprecated The Assistants API is deprecated in favor of the Responses API
    */
   list(threadID, query = {}, options) {
-    return this._client.getAPIList(path`/threads/${threadID}/runs`, CursorPage, {
+    return this._client.getAPIList(path2`/threads/${threadID}/runs`, CursorPage, {
       query,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -11166,7 +11470,7 @@ var Runs = class extends APIResource {
    */
   cancel(runID, params, options) {
     const { thread_id } = params;
-    return this._client.post(path`/threads/${thread_id}/runs/${runID}/cancel`, {
+    return this._client.post(path2`/threads/${thread_id}/runs/${runID}/cancel`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -11244,7 +11548,7 @@ var Runs = class extends APIResource {
   }
   submitToolOutputs(runID, params, options) {
     const { thread_id, ...body } = params;
-    return this._client.post(path`/threads/${thread_id}/runs/${runID}/submit_tool_outputs`, {
+    return this._client.post(path2`/threads/${thread_id}/runs/${runID}/submit_tool_outputs`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11296,7 +11600,7 @@ var Threads = class extends APIResource {
    * @deprecated The Assistants API is deprecated in favor of the Responses API
    */
   retrieve(threadID, options) {
-    return this._client.get(path`/threads/${threadID}`, {
+    return this._client.get(path2`/threads/${threadID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -11307,7 +11611,7 @@ var Threads = class extends APIResource {
    * @deprecated The Assistants API is deprecated in favor of the Responses API
    */
   update(threadID, body, options) {
-    return this._client.post(path`/threads/${threadID}`, {
+    return this._client.post(path2`/threads/${threadID}`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -11319,7 +11623,7 @@ var Threads = class extends APIResource {
    * @deprecated The Assistants API is deprecated in favor of the Responses API
    */
   delete(threadID, options) {
-    return this._client.delete(path`/threads/${threadID}`, {
+    return this._client.delete(path2`/threads/${threadID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -11378,7 +11682,7 @@ var Content = class extends APIResource {
    */
   retrieve(fileID, params, options) {
     const { container_id } = params;
-    return this._client.get(path`/containers/${container_id}/files/${fileID}/content`, {
+    return this._client.get(path2`/containers/${container_id}/files/${fileID}/content`, {
       ...options,
       headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
       __binaryResponse: true
@@ -11399,20 +11703,20 @@ var Files = class extends APIResource {
    * a JSON request with a file ID.
    */
   create(containerID, body, options) {
-    return this._client.post(path`/containers/${containerID}/files`, multipartFormRequestOptions({ body, ...options }, this._client));
+    return this._client.post(path2`/containers/${containerID}/files`, multipartFormRequestOptions({ body, ...options }, this._client));
   }
   /**
    * Retrieve Container File
    */
   retrieve(fileID, params, options) {
     const { container_id } = params;
-    return this._client.get(path`/containers/${container_id}/files/${fileID}`, options);
+    return this._client.get(path2`/containers/${container_id}/files/${fileID}`, options);
   }
   /**
    * List Container files
    */
   list(containerID, query = {}, options) {
-    return this._client.getAPIList(path`/containers/${containerID}/files`, CursorPage, {
+    return this._client.getAPIList(path2`/containers/${containerID}/files`, CursorPage, {
       query,
       ...options
     });
@@ -11422,7 +11726,7 @@ var Files = class extends APIResource {
    */
   delete(fileID, params, options) {
     const { container_id } = params;
-    return this._client.delete(path`/containers/${container_id}/files/${fileID}`, {
+    return this._client.delete(path2`/containers/${container_id}/files/${fileID}`, {
       ...options,
       headers: buildHeaders([{ Accept: "*/*" }, options?.headers])
     });
@@ -11446,7 +11750,7 @@ var Containers = class extends APIResource {
    * Retrieve Container
    */
   retrieve(containerID, options) {
-    return this._client.get(path`/containers/${containerID}`, options);
+    return this._client.get(path2`/containers/${containerID}`, options);
   }
   /**
    * List Containers
@@ -11458,7 +11762,7 @@ var Containers = class extends APIResource {
    * Delete Container
    */
   delete(containerID, options) {
-    return this._client.delete(path`/containers/${containerID}`, {
+    return this._client.delete(path2`/containers/${containerID}`, {
       ...options,
       headers: buildHeaders([{ Accept: "*/*" }, options?.headers])
     });
@@ -11473,7 +11777,7 @@ var Items = class extends APIResource {
    */
   create(conversationID, params, options) {
     const { include, ...body } = params;
-    return this._client.post(path`/conversations/${conversationID}/items`, {
+    return this._client.post(path2`/conversations/${conversationID}/items`, {
       query: { include },
       body,
       ...options
@@ -11484,20 +11788,20 @@ var Items = class extends APIResource {
    */
   retrieve(itemID, params, options) {
     const { conversation_id, ...query } = params;
-    return this._client.get(path`/conversations/${conversation_id}/items/${itemID}`, { query, ...options });
+    return this._client.get(path2`/conversations/${conversation_id}/items/${itemID}`, { query, ...options });
   }
   /**
    * List all items for a conversation with the given ID.
    */
   list(conversationID, query = {}, options) {
-    return this._client.getAPIList(path`/conversations/${conversationID}/items`, ConversationCursorPage, { query, ...options });
+    return this._client.getAPIList(path2`/conversations/${conversationID}/items`, ConversationCursorPage, { query, ...options });
   }
   /**
    * Delete an item from a conversation with the given IDs.
    */
   delete(itemID, params, options) {
     const { conversation_id } = params;
-    return this._client.delete(path`/conversations/${conversation_id}/items/${itemID}`, options);
+    return this._client.delete(path2`/conversations/${conversation_id}/items/${itemID}`, options);
   }
 };
 
@@ -11517,19 +11821,19 @@ var Conversations = class extends APIResource {
    * Get a conversation
    */
   retrieve(conversationID, options) {
-    return this._client.get(path`/conversations/${conversationID}`, options);
+    return this._client.get(path2`/conversations/${conversationID}`, options);
   }
   /**
    * Update a conversation
    */
   update(conversationID, body, options) {
-    return this._client.post(path`/conversations/${conversationID}`, { body, ...options });
+    return this._client.post(path2`/conversations/${conversationID}`, { body, ...options });
   }
   /**
    * Delete a conversation. Items in the conversation will not be deleted.
    */
   delete(conversationID, options) {
-    return this._client.delete(path`/conversations/${conversationID}`, options);
+    return this._client.delete(path2`/conversations/${conversationID}`, options);
   }
 };
 Conversations.Items = Items;
@@ -11584,14 +11888,14 @@ var OutputItems = class extends APIResource {
    */
   retrieve(outputItemID, params, options) {
     const { eval_id, run_id } = params;
-    return this._client.get(path`/evals/${eval_id}/runs/${run_id}/output_items/${outputItemID}`, options);
+    return this._client.get(path2`/evals/${eval_id}/runs/${run_id}/output_items/${outputItemID}`, options);
   }
   /**
    * Get a list of output items for an evaluation run.
    */
   list(runID, params, options) {
     const { eval_id, ...query } = params;
-    return this._client.getAPIList(path`/evals/${eval_id}/runs/${runID}/output_items`, CursorPage, { query, ...options });
+    return this._client.getAPIList(path2`/evals/${eval_id}/runs/${runID}/output_items`, CursorPage, { query, ...options });
   }
 };
 
@@ -11607,20 +11911,20 @@ var Runs2 = class extends APIResource {
    * schema specified in the config of the evaluation.
    */
   create(evalID, body, options) {
-    return this._client.post(path`/evals/${evalID}/runs`, { body, ...options });
+    return this._client.post(path2`/evals/${evalID}/runs`, { body, ...options });
   }
   /**
    * Get an evaluation run by ID.
    */
   retrieve(runID, params, options) {
     const { eval_id } = params;
-    return this._client.get(path`/evals/${eval_id}/runs/${runID}`, options);
+    return this._client.get(path2`/evals/${eval_id}/runs/${runID}`, options);
   }
   /**
    * Get a list of runs for an evaluation.
    */
   list(evalID, query = {}, options) {
-    return this._client.getAPIList(path`/evals/${evalID}/runs`, CursorPage, {
+    return this._client.getAPIList(path2`/evals/${evalID}/runs`, CursorPage, {
       query,
       ...options
     });
@@ -11630,14 +11934,14 @@ var Runs2 = class extends APIResource {
    */
   delete(runID, params, options) {
     const { eval_id } = params;
-    return this._client.delete(path`/evals/${eval_id}/runs/${runID}`, options);
+    return this._client.delete(path2`/evals/${eval_id}/runs/${runID}`, options);
   }
   /**
    * Cancel an ongoing evaluation run.
    */
   cancel(runID, params, options) {
     const { eval_id } = params;
-    return this._client.post(path`/evals/${eval_id}/runs/${runID}`, options);
+    return this._client.post(path2`/evals/${eval_id}/runs/${runID}`, options);
   }
 };
 Runs2.OutputItems = OutputItems;
@@ -11663,13 +11967,13 @@ var Evals = class extends APIResource {
    * Get an evaluation by ID.
    */
   retrieve(evalID, options) {
-    return this._client.get(path`/evals/${evalID}`, options);
+    return this._client.get(path2`/evals/${evalID}`, options);
   }
   /**
    * Update certain properties of an evaluation.
    */
   update(evalID, body, options) {
-    return this._client.post(path`/evals/${evalID}`, { body, ...options });
+    return this._client.post(path2`/evals/${evalID}`, { body, ...options });
   }
   /**
    * List evaluations for a project.
@@ -11681,7 +11985,7 @@ var Evals = class extends APIResource {
    * Delete an evaluation.
    */
   delete(evalID, options) {
-    return this._client.delete(path`/evals/${evalID}`, options);
+    return this._client.delete(path2`/evals/${evalID}`, options);
   }
 };
 Evals.Runs = Runs2;
@@ -11718,7 +12022,7 @@ var Files2 = class extends APIResource {
    * Returns information about a specific file.
    */
   retrieve(fileID, options) {
-    return this._client.get(path`/files/${fileID}`, options);
+    return this._client.get(path2`/files/${fileID}`, options);
   }
   /**
    * Returns a list of files.
@@ -11730,13 +12034,13 @@ var Files2 = class extends APIResource {
    * Delete a file.
    */
   delete(fileID, options) {
-    return this._client.delete(path`/files/${fileID}`, options);
+    return this._client.delete(path2`/files/${fileID}`, options);
   }
   /**
    * Returns the contents of the specified file.
    */
   content(fileID, options) {
-    return this._client.get(path`/files/${fileID}/content`, {
+    return this._client.get(path2`/files/${fileID}/content`, {
       ...options,
       headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
       __binaryResponse: true
@@ -11839,7 +12143,7 @@ var Permissions = class extends APIResource {
    * ```
    */
   create(fineTunedModelCheckpoint, body, options) {
-    return this._client.getAPIList(path`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, Page, { body, method: "post", ...options });
+    return this._client.getAPIList(path2`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, Page, { body, method: "post", ...options });
   }
   /**
    * **NOTE:** This endpoint requires an [admin API key](../admin-api-keys).
@@ -11856,7 +12160,7 @@ var Permissions = class extends APIResource {
    * ```
    */
   retrieve(fineTunedModelCheckpoint, query = {}, options) {
-    return this._client.get(path`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, {
+    return this._client.get(path2`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, {
       query,
       ...options
     });
@@ -11881,7 +12185,7 @@ var Permissions = class extends APIResource {
    */
   delete(permissionID, params, options) {
     const { fine_tuned_model_checkpoint } = params;
-    return this._client.delete(path`/fine_tuning/checkpoints/${fine_tuned_model_checkpoint}/permissions/${permissionID}`, options);
+    return this._client.delete(path2`/fine_tuning/checkpoints/${fine_tuned_model_checkpoint}/permissions/${permissionID}`, options);
   }
 };
 
@@ -11910,7 +12214,7 @@ var Checkpoints2 = class extends APIResource {
    * ```
    */
   list(fineTuningJobID, query = {}, options) {
-    return this._client.getAPIList(path`/fine_tuning/jobs/${fineTuningJobID}/checkpoints`, CursorPage, { query, ...options });
+    return this._client.getAPIList(path2`/fine_tuning/jobs/${fineTuningJobID}/checkpoints`, CursorPage, { query, ...options });
   }
 };
 
@@ -11953,7 +12257,7 @@ var Jobs = class extends APIResource {
    * ```
    */
   retrieve(fineTuningJobID, options) {
-    return this._client.get(path`/fine_tuning/jobs/${fineTuningJobID}`, options);
+    return this._client.get(path2`/fine_tuning/jobs/${fineTuningJobID}`, options);
   }
   /**
    * List your organization's fine-tuning jobs
@@ -11980,7 +12284,7 @@ var Jobs = class extends APIResource {
    * ```
    */
   cancel(fineTuningJobID, options) {
-    return this._client.post(path`/fine_tuning/jobs/${fineTuningJobID}/cancel`, options);
+    return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/cancel`, options);
   }
   /**
    * Get status updates for a fine-tuning job.
@@ -11996,7 +12300,7 @@ var Jobs = class extends APIResource {
    * ```
    */
   listEvents(fineTuningJobID, query = {}, options) {
-    return this._client.getAPIList(path`/fine_tuning/jobs/${fineTuningJobID}/events`, CursorPage, { query, ...options });
+    return this._client.getAPIList(path2`/fine_tuning/jobs/${fineTuningJobID}/events`, CursorPage, { query, ...options });
   }
   /**
    * Pause a fine-tune job.
@@ -12009,7 +12313,7 @@ var Jobs = class extends APIResource {
    * ```
    */
   pause(fineTuningJobID, options) {
-    return this._client.post(path`/fine_tuning/jobs/${fineTuningJobID}/pause`, options);
+    return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/pause`, options);
   }
   /**
    * Resume a fine-tune job.
@@ -12022,7 +12326,7 @@ var Jobs = class extends APIResource {
    * ```
    */
   resume(fineTuningJobID, options) {
-    return this._client.post(path`/fine_tuning/jobs/${fineTuningJobID}/resume`, options);
+    return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/resume`, options);
   }
 };
 Jobs.Checkpoints = Checkpoints2;
@@ -12085,7 +12389,7 @@ var Models = class extends APIResource {
    * the owner and permissioning.
    */
   retrieve(model, options) {
-    return this._client.get(path`/models/${model}`, options);
+    return this._client.get(path2`/models/${model}`, options);
   }
   /**
    * Lists the currently available models, and provides basic information about each
@@ -12099,7 +12403,7 @@ var Models = class extends APIResource {
    * delete a model.
    */
   delete(model, options) {
-    return this._client.delete(path`/models/${model}`, options);
+    return this._client.delete(path2`/models/${model}`, options);
   }
 };
 
@@ -12532,7 +12836,7 @@ var InputItems = class extends APIResource {
    * ```
    */
   list(responseID, query = {}, options) {
-    return this._client.getAPIList(path`/responses/${responseID}/input_items`, CursorPage, { query, ...options });
+    return this._client.getAPIList(path2`/responses/${responseID}/input_items`, CursorPage, { query, ...options });
   }
 };
 
@@ -12551,7 +12855,7 @@ var Responses = class extends APIResource {
     });
   }
   retrieve(responseID, query = {}, options) {
-    return this._client.get(path`/responses/${responseID}`, {
+    return this._client.get(path2`/responses/${responseID}`, {
       query,
       ...options,
       stream: query?.stream ?? false
@@ -12573,7 +12877,7 @@ var Responses = class extends APIResource {
    * ```
    */
   delete(responseID, options) {
-    return this._client.delete(path`/responses/${responseID}`, {
+    return this._client.delete(path2`/responses/${responseID}`, {
       ...options,
       headers: buildHeaders([{ Accept: "*/*" }, options?.headers])
     });
@@ -12600,7 +12904,7 @@ var Responses = class extends APIResource {
    * ```
    */
   cancel(responseID, options) {
-    return this._client.post(path`/responses/${responseID}/cancel`, options);
+    return this._client.post(path2`/responses/${responseID}/cancel`, options);
   }
 };
 Responses.InputItems = InputItems;
@@ -12621,7 +12925,7 @@ var Parts = class extends APIResource {
    * [complete the Upload](https://platform.openai.com/docs/api-reference/uploads/complete).
    */
   create(uploadID, body, options) {
-    return this._client.post(path`/uploads/${uploadID}/parts`, multipartFormRequestOptions({ body, ...options }, this._client));
+    return this._client.post(path2`/uploads/${uploadID}/parts`, multipartFormRequestOptions({ body, ...options }, this._client));
   }
 };
 
@@ -12659,7 +12963,7 @@ var Uploads = class extends APIResource {
    * Cancels the Upload. No Parts may be added after an Upload is cancelled.
    */
   cancel(uploadID, options) {
-    return this._client.post(path`/uploads/${uploadID}/cancel`, options);
+    return this._client.post(path2`/uploads/${uploadID}/cancel`, options);
   }
   /**
    * Completes the
@@ -12677,7 +12981,7 @@ var Uploads = class extends APIResource {
    * an Upload is completed.
    */
   complete(uploadID, body, options) {
-    return this._client.post(path`/uploads/${uploadID}/complete`, { body, ...options });
+    return this._client.post(path2`/uploads/${uploadID}/complete`, { body, ...options });
   }
 };
 Uploads.Parts = Parts;
@@ -12707,7 +13011,7 @@ var FileBatches = class extends APIResource {
    * Create a vector store file batch.
    */
   create(vectorStoreID, body, options) {
-    return this._client.post(path`/vector_stores/${vectorStoreID}/file_batches`, {
+    return this._client.post(path2`/vector_stores/${vectorStoreID}/file_batches`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -12718,7 +13022,7 @@ var FileBatches = class extends APIResource {
    */
   retrieve(batchID, params, options) {
     const { vector_store_id } = params;
-    return this._client.get(path`/vector_stores/${vector_store_id}/file_batches/${batchID}`, {
+    return this._client.get(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -12729,7 +13033,7 @@ var FileBatches = class extends APIResource {
    */
   cancel(batchID, params, options) {
     const { vector_store_id } = params;
-    return this._client.post(path`/vector_stores/${vector_store_id}/file_batches/${batchID}/cancel`, {
+    return this._client.post(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}/cancel`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -12746,7 +13050,7 @@ var FileBatches = class extends APIResource {
    */
   listFiles(batchID, params, options) {
     const { vector_store_id, ...query } = params;
-    return this._client.getAPIList(path`/vector_stores/${vector_store_id}/file_batches/${batchID}/files`, CursorPage, { query, ...options, headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]) });
+    return this._client.getAPIList(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}/files`, CursorPage, { query, ...options, headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]) });
   }
   /**
    * Wait for the given file batch to be processed.
@@ -12826,7 +13130,7 @@ var Files3 = class extends APIResource {
    * [vector store](https://platform.openai.com/docs/api-reference/vector-stores/object).
    */
   create(vectorStoreID, body, options) {
-    return this._client.post(path`/vector_stores/${vectorStoreID}/files`, {
+    return this._client.post(path2`/vector_stores/${vectorStoreID}/files`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -12837,7 +13141,7 @@ var Files3 = class extends APIResource {
    */
   retrieve(fileID, params, options) {
     const { vector_store_id } = params;
-    return this._client.get(path`/vector_stores/${vector_store_id}/files/${fileID}`, {
+    return this._client.get(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -12847,7 +13151,7 @@ var Files3 = class extends APIResource {
    */
   update(fileID, params, options) {
     const { vector_store_id, ...body } = params;
-    return this._client.post(path`/vector_stores/${vector_store_id}/files/${fileID}`, {
+    return this._client.post(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -12857,7 +13161,7 @@ var Files3 = class extends APIResource {
    * Returns a list of vector store files.
    */
   list(vectorStoreID, query = {}, options) {
-    return this._client.getAPIList(path`/vector_stores/${vectorStoreID}/files`, CursorPage, {
+    return this._client.getAPIList(path2`/vector_stores/${vectorStoreID}/files`, CursorPage, {
       query,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -12871,7 +13175,7 @@ var Files3 = class extends APIResource {
    */
   delete(fileID, params, options) {
     const { vector_store_id } = params;
-    return this._client.delete(path`/vector_stores/${vector_store_id}/files/${fileID}`, {
+    return this._client.delete(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -12946,7 +13250,7 @@ var Files3 = class extends APIResource {
    */
   content(fileID, params, options) {
     const { vector_store_id } = params;
-    return this._client.getAPIList(path`/vector_stores/${vector_store_id}/files/${fileID}/content`, Page, { ...options, headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]) });
+    return this._client.getAPIList(path2`/vector_stores/${vector_store_id}/files/${fileID}/content`, Page, { ...options, headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]) });
   }
 };
 
@@ -12971,7 +13275,7 @@ var VectorStores = class extends APIResource {
    * Retrieves a vector store.
    */
   retrieve(vectorStoreID, options) {
-    return this._client.get(path`/vector_stores/${vectorStoreID}`, {
+    return this._client.get(path2`/vector_stores/${vectorStoreID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -12980,7 +13284,7 @@ var VectorStores = class extends APIResource {
    * Modifies a vector store.
    */
   update(vectorStoreID, body, options) {
-    return this._client.post(path`/vector_stores/${vectorStoreID}`, {
+    return this._client.post(path2`/vector_stores/${vectorStoreID}`, {
       body,
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
@@ -13000,7 +13304,7 @@ var VectorStores = class extends APIResource {
    * Delete a vector store.
    */
   delete(vectorStoreID, options) {
-    return this._client.delete(path`/vector_stores/${vectorStoreID}`, {
+    return this._client.delete(path2`/vector_stores/${vectorStoreID}`, {
       ...options,
       headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers])
     });
@@ -13010,7 +13314,7 @@ var VectorStores = class extends APIResource {
    * filter.
    */
   search(vectorStoreID, body, options) {
-    return this._client.getAPIList(path`/vector_stores/${vectorStoreID}/search`, Page, {
+    return this._client.getAPIList(path2`/vector_stores/${vectorStoreID}/search`, Page, {
       body,
       method: "post",
       ...options,
@@ -13239,9 +13543,9 @@ var OpenAI = class {
     this.apiKey = token;
     return true;
   }
-  buildURL(path3, query, defaultBaseURL) {
+  buildURL(path5, query, defaultBaseURL) {
     const baseURL = !__classPrivateFieldGet(this, _OpenAI_instances, "m", _OpenAI_baseURLOverridden).call(this) && defaultBaseURL || this.baseURL;
-    const url = isAbsoluteURL(path3) ? new URL(path3) : new URL(baseURL + (baseURL.endsWith("/") && path3.startsWith("/") ? path3.slice(1) : path3));
+    const url = isAbsoluteURL(path5) ? new URL(path5) : new URL(baseURL + (baseURL.endsWith("/") && path5.startsWith("/") ? path5.slice(1) : path5));
     const defaultQuery = this.defaultQuery();
     if (!isEmptyObj(defaultQuery)) {
       query = { ...defaultQuery, ...query };
@@ -13265,24 +13569,24 @@ var OpenAI = class {
    */
   async prepareRequest(request, { url, options }) {
   }
-  get(path3, opts) {
-    return this.methodRequest("get", path3, opts);
+  get(path5, opts) {
+    return this.methodRequest("get", path5, opts);
   }
-  post(path3, opts) {
-    return this.methodRequest("post", path3, opts);
+  post(path5, opts) {
+    return this.methodRequest("post", path5, opts);
   }
-  patch(path3, opts) {
-    return this.methodRequest("patch", path3, opts);
+  patch(path5, opts) {
+    return this.methodRequest("patch", path5, opts);
   }
-  put(path3, opts) {
-    return this.methodRequest("put", path3, opts);
+  put(path5, opts) {
+    return this.methodRequest("put", path5, opts);
   }
-  delete(path3, opts) {
-    return this.methodRequest("delete", path3, opts);
+  delete(path5, opts) {
+    return this.methodRequest("delete", path5, opts);
   }
-  methodRequest(method, path3, opts) {
+  methodRequest(method, path5, opts) {
     return this.request(Promise.resolve(opts).then((opts2) => {
-      return { method, path: path3, ...opts2 };
+      return { method, path: path5, ...opts2 };
     }));
   }
   request(options, remainingRetries = null) {
@@ -13386,8 +13690,8 @@ var OpenAI = class {
     }));
     return { response, options, controller, requestLogID, retryOfRequestLogID, startTime };
   }
-  getAPIList(path3, Page2, opts) {
-    return this.requestAPIList(Page2, { method: "get", path: path3, ...opts });
+  getAPIList(path5, Page2, opts) {
+    return this.requestAPIList(Page2, { method: "get", path: path5, ...opts });
   }
   requestAPIList(Page2, options) {
     const request = this.makeRequest(options, null, void 0);
@@ -13465,8 +13769,8 @@ var OpenAI = class {
   }
   async buildRequest(inputOptions, { retryCount = 0 } = {}) {
     const options = { ...inputOptions };
-    const { method, path: path3, query, defaultBaseURL } = options;
-    const url = this.buildURL(path3, query, defaultBaseURL);
+    const { method, path: path5, query, defaultBaseURL } = options;
+    const url = this.buildURL(path5, query, defaultBaseURL);
     if ("timeout" in options)
       validatePositiveInteger("timeout", options.timeout);
     options.timeout = options.timeout ?? this.timeout;
@@ -13812,6 +14116,8 @@ function createOpenAIProvider({
   return {
     name: "openai",
     isConfigured: () => Boolean(apiKey || client),
+    countTokens: (text = "") => Math.ceil(text.length / 4),
+    validateModel: (modelId = "") => modelId.startsWith("gpt") || modelId.startsWith("o1") || modelId.startsWith("o3"),
     async healthCheck() {
       if (!apiKey && !client) return { status: "not_configured", latencyMs: 0 };
       const start = Date.now();
@@ -13821,6 +14127,9 @@ function createOpenAIProvider({
       } catch (err) {
         return { status: "unavailable", error: err.message, latencyMs: Date.now() - start };
       }
+    },
+    async generate(params) {
+      return this.respond(params);
     },
     async respond(params) {
       const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
@@ -13981,6 +14290,8 @@ function createGeminiProvider({
   return {
     name: "gemini",
     isConfigured: () => Boolean(apiKey || client),
+    countTokens: (text = "") => Math.ceil(text.length / 4),
+    validateModel: (modelId = "") => modelId.startsWith("gemini"),
     async healthCheck() {
       if (!apiKey && !client) return { status: "not_configured", latencyMs: 0 };
       const start = Date.now();
@@ -13990,6 +14301,9 @@ function createGeminiProvider({
       } catch (err) {
         return { status: "available", latencyMs: Date.now() - start };
       }
+    },
+    async generate(params) {
+      return this.respond(params);
     },
     async respond(params) {
       if (!apiKey && !client) {
@@ -14125,6 +14439,8 @@ function createGroqProvider({
   return {
     name: "groq",
     isConfigured: () => Boolean(apiKey || client),
+    countTokens: (text = "") => Math.ceil(text.length / 4),
+    validateModel: (modelId = "") => modelId.startsWith("llama") || modelId.includes("groq") || modelId.includes("mixtral") || modelId.includes("gemma") || modelId.includes("deepseek"),
     async healthCheck() {
       if (!apiKey && !client) return { status: "not_configured", latencyMs: 0 };
       const start = Date.now();
@@ -14134,6 +14450,9 @@ function createGroqProvider({
       } catch (err) {
         return { status: "unavailable", error: err.message, latencyMs: Date.now() - start };
       }
+    },
+    async generate(params) {
+      return this.respond(params);
     },
     async respond(params) {
       if (!apiKey && !client) {
@@ -14285,8 +14604,13 @@ function createSmartLocalProvider() {
   return {
     name: "smart_local",
     isConfigured: () => true,
+    countTokens: (text = "") => Math.ceil(text.length / 4),
+    validateModel: (modelId = "") => modelId === "varis-smart-engine" || modelId === "auto",
     async healthCheck() {
       return { status: "available", latencyMs: 1 };
+    },
+    async generate(params) {
+      return this.respond(params);
     },
     async respond({ userMessage }) {
       const text = generateFreeSmartResponse(userMessage);
@@ -14580,8 +14904,8 @@ function createAIProviderFromConfig(config, { logger } = {}) {
 }
 
 // src/tool-system.mjs
-import fs from "node:fs/promises";
-import path2 from "node:path";
+import fs2 from "node:fs/promises";
+import path3 from "node:path";
 
 // src/web-research.mjs
 import { URL as URL2 } from "node:url";
@@ -14644,7 +14968,8 @@ var QueryPlanner = class {
     return result.replace(/[?!.,;:"'(){}\[\]]/g, " ").replace(/\s+/g, " ").trim();
   }
   /**
-   * Analyzes user intent and builds 1 to 3 optimized web search queries
+   * Analyzes user intent, query complexity, and freshness policy
+   * Produces 1 query for simple topics, up to 2–5 queries for complex tasks.
    */
   static plan(userMessage, { recentContext = [] } = {}) {
     const raw = (userMessage || "").trim();
@@ -14682,16 +15007,232 @@ var QueryPlanner = class {
       addQuery(`${cleaned} official documentation`);
     }
     if (/berita|terbaru|terkini|update|hari ini|skor|jadwal|gempa|cuaca/i.test(lowerRaw)) {
-      const date = /* @__PURE__ */ new Date();
-      const currentYear = date.getFullYear();
+      const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
       addQuery(`${cleaned} berita terbaru ${currentYear}`);
     }
-    return queries.slice(0, 3);
+    return queries.slice(0, 4);
+  }
+};
+var BaseSearchProvider = class {
+  constructor(name) {
+    this.name = name;
+  }
+  async search(query, options = {}) {
+    throw new Error("search() must be implemented by subclass");
+  }
+};
+var WikipediaSearchProvider = class extends BaseSearchProvider {
+  constructor({ timeoutMs = 4500 } = {}) {
+    super("wikipedia");
+    this.timeoutMs = timeoutMs;
+  }
+  async search(query, { limit: limit2 = 3 } = {}) {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return [];
+    const results = [];
+    const seenTitles = /* @__PURE__ */ new Set();
+    const userAgent = "VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)";
+    try {
+      const idUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      const res = await fetch(idUrl, {
+        headers: { "User-Agent": userAgent },
+        signal: controller.signal
+      }).finally(() => clearTimeout(timer));
+      if (res.ok) {
+        const data = await res.json();
+        const searchItems = data?.query?.search || [];
+        for (const item of searchItems.slice(0, limit2)) {
+          if (seenTitles.has(item.title.toLowerCase())) continue;
+          seenTitles.add(item.title.toLowerCase());
+          let snippet = (item.snippet || "").replace(/<[^>]+>/g, "").trim();
+          let fullContent = snippet;
+          try {
+            const sumController = new AbortController();
+            const sumTimer = setTimeout(() => sumController.abort(), 2500);
+            const sumRes = await fetch(
+              `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+              { headers: { "User-Agent": userAgent }, signal: sumController.signal }
+            ).finally(() => clearTimeout(sumTimer));
+            if (sumRes.ok) {
+              const sumData = await sumRes.json();
+              if (sumData.extract) {
+                snippet = sumData.extract;
+                fullContent = sumData.extract;
+              }
+            }
+          } catch {
+          }
+          results.push({
+            title: item.title,
+            url: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+            snippet,
+            content: fullContent,
+            source_name: "Wikipedia (ID)",
+            domain: "id.wikipedia.org",
+            publishedAt: item.timestamp ? item.timestamp.slice(0, 10) : (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+            retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            type: "encyclopedic_id"
+          });
+        }
+      }
+    } catch {
+    }
+    if (results.length < limit2) {
+      try {
+        const enUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        const res = await fetch(enUrl, {
+          headers: { "User-Agent": userAgent },
+          signal: controller.signal
+        }).finally(() => clearTimeout(timer));
+        if (res.ok) {
+          const data = await res.json();
+          const searchItems = (data?.query?.search || []).slice(0, limit2 - results.length);
+          for (const item of searchItems) {
+            if (seenTitles.has(item.title.toLowerCase())) continue;
+            seenTitles.add(item.title.toLowerCase());
+            let snippet = (item.snippet || "").replace(/<[^>]+>/g, "").trim();
+            let fullContent = snippet;
+            try {
+              const sumController = new AbortController();
+              const sumTimer = setTimeout(() => sumController.abort(), 2500);
+              const sumRes = await fetch(
+                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+                { headers: { "User-Agent": userAgent }, signal: sumController.signal }
+              ).finally(() => clearTimeout(sumTimer));
+              if (sumRes.ok) {
+                const sumData = await sumRes.json();
+                if (sumData.extract) {
+                  snippet = sumData.extract;
+                  fullContent = sumData.extract;
+                }
+              }
+            } catch {
+            }
+            results.push({
+              title: item.title,
+              url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
+              snippet,
+              content: fullContent,
+              source_name: "Wikipedia (Global)",
+              domain: "en.wikipedia.org",
+              publishedAt: item.timestamp ? item.timestamp.slice(0, 10) : (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+              retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+              type: "encyclopedic_en"
+            });
+          }
+        }
+      } catch {
+      }
+    }
+    return results;
+  }
+};
+var DuckDuckGoSearchProvider = class extends BaseSearchProvider {
+  constructor({ timeoutMs = 4500 } = {}) {
+    super("duckduckgo");
+    this.timeoutMs = timeoutMs;
+  }
+  async search(query, { limit: limit2 = 4 } = {}) {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return [];
+    const results = [];
+    const userAgent = "VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)";
+    try {
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      const res = await fetch(url, {
+        headers: { "User-Agent": userAgent },
+        signal: controller.signal
+      }).finally(() => clearTimeout(timer));
+      if (res.ok) {
+        const data = await res.json();
+        if (data.AbstractText && data.AbstractURL) {
+          results.push({
+            title: data.Heading || cleanQuery,
+            url: data.AbstractURL,
+            snippet: data.AbstractText,
+            content: data.AbstractText,
+            source_name: data.AbstractSource || "DuckDuckGo Knowledge",
+            publishedAt: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+            retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            type: "direct_answer"
+          });
+        }
+        if (Array.isArray(data.RelatedTopics)) {
+          for (const topic of data.RelatedTopics) {
+            if (results.length >= limit2) break;
+            if (topic.Text && topic.FirstURL) {
+              const title = topic.Text.split(" - ")[0] || cleanQuery;
+              results.push({
+                title,
+                url: topic.FirstURL,
+                snippet: topic.Text,
+                content: topic.Text,
+                source_name: "DuckDuckGo Topic",
+                publishedAt: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+                retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+                type: "web_result"
+              });
+            } else if (Array.isArray(topic.Topics)) {
+              for (const subTopic of topic.Topics) {
+                if (results.length >= limit2) break;
+                if (subTopic.Text && subTopic.FirstURL) {
+                  results.push({
+                    title: subTopic.Text.split(" - ")[0] || cleanQuery,
+                    url: subTopic.FirstURL,
+                    snippet: subTopic.Text,
+                    content: subTopic.Text,
+                    source_name: "DuckDuckGo SubTopic",
+                    publishedAt: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+                    retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+                    type: "web_result"
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch {
+    }
+    return results;
+  }
+};
+var SourceRetriever = class {
+  constructor(providers = []) {
+    this.providers = providers.length > 0 ? providers : [
+      new WikipediaSearchProvider(),
+      new DuckDuckGoSearchProvider()
+    ];
+  }
+  async retrieve(queries = [], options = {}) {
+    const rawResults = [];
+    const searchPromises = [];
+    for (const query of queries) {
+      for (const provider of this.providers) {
+        searchPromises.push(
+          provider.search(query, options).then((items) => {
+            if (Array.isArray(items)) {
+              rawResults.push(...items);
+            }
+          }).catch(() => {
+          })
+        );
+      }
+    }
+    await Promise.all(searchPromises);
+    return rawResults;
   }
 };
 var SourceRanker = class {
   /**
-   * Scores domain authority and credibility (0 - 100)
+   * Scores domain authority according to Section 38 hierarchy:
+   * Official/Gov (98) > Academic/Edu (95) > Docs (94) > Wikipedia (88) > Reputable News (85) > General (70)
    */
   static scoreDomain(rawUrl) {
     if (!rawUrl) return 50;
@@ -14708,9 +15249,6 @@ var SourceRanker = class {
       return 50;
     }
   }
-  /**
-   * Normalizes URL to prevent duplicates with tracking query parameters
-   */
   static normalizeUrl(rawUrl) {
     if (!rawUrl) return "";
     try {
@@ -14724,9 +15262,6 @@ var SourceRanker = class {
       return rawUrl.trim();
     }
   }
-  /**
-   * Ranks, deduplicates, and validates retrieved sources
-   */
   static rankAndFilter(sources = [], { targetQueries = [], maxSources = 6 } = {}) {
     if (!Array.isArray(sources) || sources.length === 0) return [];
     const seenUrls = /* @__PURE__ */ new Set();
@@ -14754,6 +15289,7 @@ var SourceRanker = class {
         }
       }
       const totalScore = domainScore + snippetScore + queryMatchBonus;
+      const normalizedRelevance = Math.min(0.99, Number((totalScore / 130).toFixed(2)));
       let domain = "";
       try {
         domain = new URL2(source.url).hostname.replace(/^www\./, "");
@@ -14764,215 +15300,100 @@ var SourceRanker = class {
         id: source.id || `src-${ranked.length + 1}`,
         title: source.title.trim(),
         url: normalizedUrl,
-        snippet: (source.snippet || "").replace(/<[^>]+>/g, "").trim(),
-        source_name: source.source_name || domain,
         domain,
+        snippet: (source.snippet || "").replace(/<[^>]+>/g, "").trim(),
+        content: (source.content || source.snippet || "").replace(/<[^>]+>/g, "").trim(),
+        source_name: source.source_name || domain,
+        publishedAt: source.publishedAt || (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+        retrievedAt: source.retrievedAt || (/* @__PURE__ */ new Date()).toISOString(),
+        relevanceScore: normalizedRelevance,
         score: Math.round(totalScore),
-        type: source.type || "web_result",
-        published_date: source.published_date || null
+        type: source.type || "web_result"
       });
     }
     ranked.sort((a, b) => b.score - a.score);
     return ranked.slice(0, maxSources);
   }
 };
-var BaseWebSearchProvider = class {
-  constructor(name) {
-    this.name = name;
+var SourceValidator = class {
+  static isValid(source) {
+    if (!source || typeof source !== "object") return false;
+    if (!source.title || typeof source.title !== "string" || source.title.length < 2) return false;
+    if (!source.url || typeof source.url !== "string" || !source.url.startsWith("http")) return false;
+    if (!source.snippet && !source.content) return false;
+    return true;
   }
-  async search(query, options = {}) {
-    throw new Error("search() must be implemented by subclass");
-  }
-};
-var WikipediaSearchProvider = class extends BaseWebSearchProvider {
-  constructor({ timeoutMs = 4500 } = {}) {
-    super("wikipedia");
-    this.timeoutMs = timeoutMs;
-  }
-  async search(query, { limit: limit2 = 3 } = {}) {
-    const cleanQuery = query.trim();
-    if (!cleanQuery) return [];
-    const results = [];
-    const seenTitles = /* @__PURE__ */ new Set();
-    try {
-      const idUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-      const res = await fetch(idUrl, {
-        headers: { "User-Agent": "VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)" },
-        signal: controller.signal
-      }).finally(() => clearTimeout(timer));
-      if (res.ok) {
-        const data = await res.json();
-        const searchItems = data?.query?.search || [];
-        for (const item of searchItems.slice(0, limit2)) {
-          if (seenTitles.has(item.title.toLowerCase())) continue;
-          seenTitles.add(item.title.toLowerCase());
-          let snippet = (item.snippet || "").replace(/<[^>]+>/g, "").trim();
-          try {
-            const sumController = new AbortController();
-            const sumTimer = setTimeout(() => sumController.abort(), 2500);
-            const sumRes = await fetch(
-              `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
-              { headers: { "User-Agent": "VarisAI-Research/2.0" }, signal: sumController.signal }
-            ).finally(() => clearTimeout(sumTimer));
-            if (sumRes.ok) {
-              const sumData = await sumRes.json();
-              if (sumData.extract) {
-                snippet = sumData.extract;
-              }
-            }
-          } catch {
-          }
-          results.push({
-            title: item.title,
-            url: `https://id.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
-            snippet,
-            source_name: "Wikipedia (ID)",
-            domain: "id.wikipedia.org",
-            type: "encyclopedic_id"
-          });
-        }
-      }
-    } catch {
-    }
-    if (results.length < limit2) {
-      try {
-        const enUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-        const res = await fetch(enUrl, {
-          headers: { "User-Agent": "VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)" },
-          signal: controller.signal
-        }).finally(() => clearTimeout(timer));
-        if (res.ok) {
-          const data = await res.json();
-          const searchItems = (data?.query?.search || []).slice(0, limit2 - results.length);
-          for (const item of searchItems) {
-            if (seenTitles.has(item.title.toLowerCase())) continue;
-            seenTitles.add(item.title.toLowerCase());
-            let snippet = (item.snippet || "").replace(/<[^>]+>/g, "").trim();
-            try {
-              const sumController = new AbortController();
-              const sumTimer = setTimeout(() => sumController.abort(), 2500);
-              const sumRes = await fetch(
-                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
-                { headers: { "User-Agent": "VarisAI-Research/2.0" }, signal: sumController.signal }
-              ).finally(() => clearTimeout(sumTimer));
-              if (sumRes.ok) {
-                const sumData = await sumRes.json();
-                if (sumData.extract) snippet = sumData.extract;
-              }
-            } catch {
-            }
-            results.push({
-              title: item.title,
-              url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, "_"))}`,
-              snippet,
-              source_name: "Wikipedia (Global)",
-              domain: "en.wikipedia.org",
-              type: "encyclopedic_en"
-            });
-          }
-        }
-      } catch {
-      }
-    }
-    return results;
+  static validateAll(sources = []) {
+    return (sources || []).filter((s) => this.isValid(s));
   }
 };
-var DuckDuckGoSearchProvider = class extends BaseWebSearchProvider {
-  constructor({ timeoutMs = 4500 } = {}) {
-    super("duckduckgo");
-    this.timeoutMs = timeoutMs;
-  }
-  async search(query, { limit: limit2 = 4 } = {}) {
-    const cleanQuery = query.trim();
-    if (!cleanQuery) return [];
-    const results = [];
-    try {
-      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1`;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-      const res = await fetch(url, {
-        headers: { "User-Agent": "VarisAI/2.0 (https://varisai.vercel.app; support@varis.ai)" },
-        signal: controller.signal
-      }).finally(() => clearTimeout(timer));
-      if (res.ok) {
-        const data = await res.json();
-        if (data.AbstractText && data.AbstractURL) {
-          results.push({
-            title: data.Heading || cleanQuery,
-            url: data.AbstractURL,
-            snippet: data.AbstractText,
-            source_name: data.AbstractSource || "DuckDuckGo Knowledge",
-            type: "direct_answer"
-          });
-        }
-        if (Array.isArray(data.RelatedTopics)) {
-          for (const topic of data.RelatedTopics) {
-            if (results.length >= limit2) break;
-            if (topic.Text && topic.FirstURL) {
-              const title = topic.Text.split(" - ")[0] || cleanQuery;
-              results.push({
-                title,
-                url: topic.FirstURL,
-                snippet: topic.Text,
-                source_name: "DuckDuckGo Topic",
-                type: "web_result"
-              });
-            } else if (Array.isArray(topic.Topics)) {
-              for (const subTopic of topic.Topics) {
-                if (results.length >= limit2) break;
-                if (subTopic.Text && subTopic.FirstURL) {
-                  results.push({
-                    title: subTopic.Text.split(" - ")[0] || cleanQuery,
-                    url: subTopic.FirstURL,
-                    snippet: subTopic.Text,
-                    source_name: "DuckDuckGo SubTopic",
-                    type: "web_result"
-                  });
-                }
-              }
-            }
-          }
-        }
-        if (Array.isArray(data.Results)) {
-          for (const item of data.Results) {
-            if (results.length >= limit2) break;
-            if (item.FirstURL && item.Text) {
-              results.push({
-                title: item.Text.split(" - ")[0] || cleanQuery,
-                url: item.FirstURL,
-                snippet: item.Text,
-                source_name: "DuckDuckGo Direct Link",
-                type: "web_result"
-              });
-            }
-          }
-        }
-      }
-    } catch {
-    }
-    return results;
+var ContentExtractor = class {
+  static extract(source) {
+    return {
+      title: source.title.trim(),
+      url: source.url.trim(),
+      domain: source.domain || (source.url ? new URL2(source.url).hostname.replace(/^www\./, "") : "web"),
+      snippet: source.snippet || source.content || "",
+      content: source.content || source.snippet || "",
+      publishedAt: source.publishedAt || (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+      retrievedAt: source.retrievedAt || (/* @__PURE__ */ new Date()).toISOString(),
+      relevanceScore: source.relevanceScore || 0.85
+    };
   }
 };
-var MultiWebSearchEngine = class {
+var ResearchContextBuilder = class {
+  static build(sources = [], userQuery = "") {
+    if (!Array.isArray(sources) || sources.length === 0) {
+      return "";
+    }
+    const sourcesBlock = sources.map((s, idx) => {
+      const num = idx + 1;
+      return `SOURCE ${num}:
+Title: "${s.title}"
+URL: ${s.url}
+Domain: ${s.domain}
+Published: ${s.publishedAt || "N/A"}
+Content: ${s.content || s.snippet}`;
+    }).join("\n\n");
+    return `HASIL RISET WEB REAL-TIME TERKINI (RESEARCH SOURCES):
+USER QUESTION:
+"${userQuery}"
+
+VERIFIED SOURCES (${sources.length} Sumber Terverifikasi):
+
+${sourcesBlock}
+
+INSTRUKSI PENGGUNAAN SUMBER (INSTRUCTIONS):
+1. Answer the user's question accurately using the research evidence above as the primary ground truth.
+2. Gunakan fakta terverifikasi dari sumber di atas untuk menyusun jawaban.
+3. Do not invent unsupported facts or imaginary URLs (Jangan mengarang fakta atau URL palsu).
+4. If sources disagree, explain the disagreement neutrally and objectively.
+5. Cite the sources used using explicit markdown citations like "[Source Name](URL)" or "[1]".`;
+  }
+};
+var CitationBuilder = class {
+  static buildCitations(sources = []) {
+    return (sources || []).map((s, idx) => ({
+      index: idx + 1,
+      id: s.id || `src-${idx + 1}`,
+      title: s.title,
+      url: s.url,
+      domain: s.domain,
+      snippet: s.snippet,
+      relevanceScore: s.relevanceScore
+    }));
+  }
+};
+var ResearchAgent = class {
   constructor({
     providers = [],
     cache = new ResearchCache(),
     maxSources = 5
   } = {}) {
-    this.providers = providers.length > 0 ? providers : [
-      new WikipediaSearchProvider(),
-      new DuckDuckGoSearchProvider()
-    ];
+    this.retriever = new SourceRetriever(providers);
     this.cache = cache;
     this.maxSources = maxSources;
   }
-  /**
-   * Executes multi-query parallel research workflow
-   */
   async research(userMessage, { maxSources = this.maxSources, bypassCache = false } = {}) {
     const raw = (userMessage || "").trim();
     if (!raw) {
@@ -14981,7 +15402,8 @@ var MultiWebSearchEngine = class {
         planned_queries: [],
         sources: [],
         formatted_context: "",
-        status: "empty_query"
+        status: "empty_query",
+        timestamp: Date.now()
       };
     }
     const cacheKey = `research:${raw.toLowerCase()}`;
@@ -14995,67 +15417,38 @@ var MultiWebSearchEngine = class {
     if (plannedQueries.length === 0) {
       plannedQueries.push(QueryPlanner.cleanQuery(raw) || raw);
     }
-    const rawCollectedSources = [];
-    const searchPromises = [];
-    for (const query of plannedQueries) {
-      for (const provider of this.providers) {
-        searchPromises.push(
-          provider.search(query, { limit: 3 }).then((res) => {
-            if (Array.isArray(res)) {
-              rawCollectedSources.push(...res);
-            }
-          }).catch(() => {
-          })
-        );
-      }
-    }
-    await Promise.all(searchPromises);
-    const rankedSources = SourceRanker.rankAndFilter(rawCollectedSources, {
+    const rawSources = await this.retriever.retrieve(plannedQueries, { limit: 3 });
+    const validSources = SourceValidator.validateAll(rawSources);
+    const rankedSources = SourceRanker.rankAndFilter(validSources, {
       targetQueries: plannedQueries,
       maxSources
     });
-    const formattedContext = buildResearchContext(rankedSources, raw);
+    const extractedSources = rankedSources.map((s) => ContentExtractor.extract(s));
+    const formattedContext = ResearchContextBuilder.build(extractedSources, raw);
+    const citations = CitationBuilder.buildCitations(extractedSources);
     const result = {
       query: raw,
       planned_queries: plannedQueries,
-      total_sources_found: rawCollectedSources.length,
-      sources: rankedSources,
+      total_sources_found: rawSources.length,
+      sources: extractedSources,
+      citations,
       formatted_context: formattedContext,
-      status: rankedSources.length > 0 ? "success" : "no_sources_found",
+      status: extractedSources.length > 0 ? "success" : "no_sources_found",
       timestamp: Date.now()
     };
     this.cache.set(cacheKey, result, 10 * 60 * 1e3);
     return result;
   }
 };
-function buildResearchContext(sources = [], userQuery = "") {
-  if (!Array.isArray(sources) || sources.length === 0) {
-    return "";
+var defaultAgentInstance = null;
+function getDefaultResearchAgent() {
+  if (!defaultAgentInstance) {
+    defaultAgentInstance = new ResearchAgent();
   }
-  const citationsList = sources.map((s, idx) => {
-    const num = idx + 1;
-    return `[${num}] "${s.title}" (${s.source_name || s.domain})
-URL: ${s.url}
-Ringkasan: ${s.snippet}`;
-  }).join("\n\n");
-  return `=== HASIL RISET WEB REAL-TIME TERKINI ===
-Topik/Pertanyaan: "${userQuery}"
-Jumlah Sumber Terverifikasi: ${sources.length}
-
-${citationsList}
-
-INSTRUKSI PENGGUNAAN SUMBER:
-1. Gunakan fakta di atas sebagai landasan utama jawaban yang akurat dan terkini.
-2. Cantumkan rujukan berupa tautan markdown langsung ke sumber asli, contoh: "[Nama Sumber](URL)" atau gunakan nomor rujukan seperti "[1]".
-3. Jangan pernah mengarang data atau URL fiktif di luar sumber yang terverifikasi.
-4. Jika ada perbedaan informasi antar sumber, jelaskan perbedaannya secara netral.`;
+  return defaultAgentInstance;
 }
-var defaultEngineInstance = null;
 function getDefaultWebSearchEngine() {
-  if (!defaultEngineInstance) {
-    defaultEngineInstance = new MultiWebSearchEngine();
-  }
-  return defaultEngineInstance;
+  return getDefaultResearchAgent();
 }
 
 // src/tool-system.mjs
@@ -15719,13 +16112,13 @@ function createDefaultToolRegistry({ now = () => /* @__PURE__ */ new Date() } = 
       async function scan(dir, depth = 0) {
         if (depth > 4 || matched.length >= 25) return;
         try {
-          const entries = await fs.readdir(dir, { withFileTypes: true });
+          const entries = await fs2.readdir(dir, { withFileTypes: true });
           for (const entry of entries) {
             if (matched.length >= 25) break;
             const name = entry.name;
             if (name.startsWith(".") || name === "node_modules" || name === "dist" || name === "coverage") continue;
-            const full = path2.join(dir, name);
-            const rel = path2.relative(rootDir, full).replace(/\\/g, "/");
+            const full = path3.join(dir, name);
+            const rel = path3.relative(rootDir, full).replace(/\\/g, "/");
             if (entry.isDirectory()) {
               await scan(full, depth + 1);
             } else if (entry.isFile()) {
@@ -15764,14 +16157,14 @@ function createDefaultToolRegistry({ now = () => /* @__PURE__ */ new Date() } = 
         const content = await context.readFile(filePath);
         return { filePath, content };
       }
-      const rootDir = path2.resolve(context.workspaceDir || process.cwd());
+      const rootDir = path3.resolve(context.workspaceDir || process.cwd());
       const cleanPath = (filePath || "").replace(/^[\/\\]+/, "");
-      const fullPath = path2.resolve(rootDir, cleanPath);
+      const fullPath = path3.resolve(rootDir, cleanPath);
       if (!fullPath.startsWith(rootDir) || fullPath.includes(".env") || fullPath.includes(".git")) {
         throw Object.assign(new Error("Access denied: file path is outside workspace or protected"), { code: "ACCESS_DENIED" });
       }
       try {
-        const content = await fs.readFile(fullPath, "utf8");
+        const content = await fs2.readFile(fullPath, "utf8");
         const truncated = content.length > 2e4 ? content.slice(0, 2e4) + "\n... [Content truncated for length]" : content;
         return { filePath: cleanPath, content: truncated };
       } catch (err) {
@@ -16056,16 +16449,192 @@ function createCreditManager(repository) {
   return new CreditManager({ repository });
 }
 
-// api/chat.js
-var reposInstance7 = null;
+// src/context-manager.mjs
+var ContextManager = class {
+  constructor({
+    maxRecentMessages = 10,
+    maxContextChars = 16e3,
+    summaryTriggerCount = 8
+  } = {}) {
+    this.maxRecentMessages = maxRecentMessages;
+    this.maxContextChars = maxContextChars;
+    this.summaryTriggerCount = summaryTriggerCount;
+  }
+  /**
+   * Classify user intent to inform tool routing and response style
+   */
+  classifyIntent(userMessage, conversationHistory = []) {
+    const text = (userMessage || "").trim();
+    const lower = text.toLowerCase();
+    if (/[0-9]+\s*[\+\-\*\/\%x×÷\^]\s*[0-9]+/.test(lower) || lower.startsWith("hitung") || lower.includes("berapa hasil") || lower.includes("ditambah") || lower.includes("dikurang") || lower.includes("dikali") || lower.includes("dibagi")) {
+      return { type: "calculation", confidence: 0.95 };
+    }
+    if (lower.includes("cuaca") || lower.includes("hujan") || lower.includes("suhu") || lower.includes("prakiraan cuaca")) {
+      return { type: "weather", confidence: 0.95 };
+    }
+    if (lower.includes("berita") || lower.includes("siapa presiden") || lower.includes("siapa menteri") || lower.includes("terbaru") || lower.includes("harga") || lower.includes("hari ini") && (lower.includes("jadwal") || lower.includes("agenda"))) {
+      return { type: "web_search", confidence: 0.9 };
+    }
+    if (lower.startsWith("dia ") || lower.startsWith("terus ") || lower.startsWith("lalu ") || lower.includes("yang tadi") || lower.includes("maksudnya apa") || lower.includes("lanjutkan") || lower.includes("bedanya apa") || lower.includes("kenapa begitu")) {
+      return { type: "follow_up", confidence: 0.9 };
+    }
+    if (lower.startsWith("jangan ") || lower.startsWith("bukan ") || lower.includes("salah") || lower.includes("ganti dengan") || lower.includes("gunakan cara lain")) {
+      return { type: "correction", confidence: 0.85 };
+    }
+    if (lower.includes("kode") || lower.includes("code") || lower.includes("script") || lower.includes("function") || lower.includes("algoritma") || lower.includes("algorithm") || lower.includes("buatkan program") || lower.includes("coding") || lower.includes("bikin web") || lower.includes("html") || lower.includes("css") || lower.includes("javascript") || lower.includes("typescript") || lower.includes("python") || lower.includes("php") || lower.includes("sql") || lower.includes("error") || lower.includes("bug") || lower.includes("debug") || lower.includes("syntax") || lower.includes("query")) {
+      return { type: "coding", confidence: 0.9 };
+    }
+    if (/^(halo|hai|hey|hei|apa kabar|pagi|siang|sore|malam|terima kasih|makasih)/i.test(lower)) {
+      return { type: "small_talk", confidence: 0.85 };
+    }
+    return { type: "general_question", confidence: 0.7 };
+  }
+  /**
+   * Resolve anaphora like "dia", "yang tadi", "itu" from previous turns
+   */
+  resolveReferences(userMessage, conversationHistory = []) {
+    const text = (userMessage || "").trim();
+    const lower = text.toLowerCase();
+    let resolvedContextHint = null;
+    if (!conversationHistory || conversationHistory.length === 0) {
+      return { resolvedMessage: text, contextHint: null };
+    }
+    const lastAssistantMsg = [...conversationHistory].reverse().find((m) => m.role === "assistant")?.content || "";
+    const lastUserMsg = [...conversationHistory].reverse().find((m) => m.role === "user")?.content || "";
+    if (lower.includes("dia") || lower.includes("beliau")) {
+      const entityMatch = lastAssistantMsg.match(/(?:adalah|bernama|yaitu|yakni)\s+((?:(?:Ir\.|Dr\.|Prof\.|Drs\.|H\.|Hj\.)\s*)?[A-Z][a-zA-Z\.\s]{2,35}?)(?:,|\.|\s+yang|\s+seorang|\n|$)/i);
+      if (entityMatch) {
+        resolvedContextHint = `Konteks Rujukan: "Dia" merujuk kepada ${entityMatch[1].trim()} yang dibahas di pesan sebelumnya.`;
+      } else {
+        const nameMatch = lastAssistantMsg.match(/(?:(?:Ir\.|Dr\.|Prof\.|Drs\.|H\.|Hj\.)\s*)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/);
+        if (nameMatch) {
+          resolvedContextHint = `Konteks Rujukan: "Dia" merujuk kepada ${nameMatch[0].trim()} yang dibahas di pesan sebelumnya.`;
+        } else if (lastUserMsg) {
+          resolvedContextHint = `Konteks Rujukan: "Dia" merujuk kepada subjek dari percakapan sebelumnya ("${lastUserMsg}").`;
+        }
+      }
+    }
+    if (lower.includes("yang tadi") || lower.includes("penjelasan tadi") || lower.includes("lanjutkan")) {
+      if (lastUserMsg) {
+        resolvedContextHint = `Konteks Kelanjutan: User merujuk pada topik "${lastUserMsg}" dari giliran sebelumnya.`;
+      }
+    }
+    if (lower.startsWith("terus ") || lower.includes("bedanya apa") || lower.includes("apa perbedaannya")) {
+      resolvedContextHint = `Konteks Komparasi: User membandingkan dengan subjek sebelumnya "${lastUserMsg}".`;
+    }
+    return {
+      resolvedMessage: text,
+      contextHint: resolvedContextHint
+    };
+  }
+  /**
+   * Compact long conversations into structured context window:
+   * Recent Messages + Summary + Memory + Current Message
+   */
+  buildOptimizedContext({
+    history = [],
+    currentUserMessage,
+    relevantMemories = [],
+    projectState = null
+  }) {
+    const intent = this.classifyIntent(currentUserMessage, history);
+    const { contextHint } = this.resolveReferences(currentUserMessage, history);
+    const recent = history.slice(-this.maxRecentMessages);
+    const older = history.slice(0, -this.maxRecentMessages);
+    let conversationSummary = "";
+    if (older.length > 0) {
+      const topics = older.filter((m) => m.role === "user").map((m) => m.content.slice(0, 50)).join("; ");
+      conversationSummary = `Ringkasan percakapan sebelumnya: User pernah membahas topik [${topics}]. Pertahankan konteks tujuan ini.`;
+    }
+    const contextItems = [];
+    if (conversationSummary) {
+      contextItems.push({
+        role: "system",
+        content: conversationSummary
+      });
+    }
+    if (projectState) {
+      contextItems.push({
+        role: "system",
+        content: `Active Project Context:
+Tujuan: ${projectState.goal || "Belum ditentukan"}
+Status: ${projectState.status || "Berjalan"}
+Keputusan Sebelumnya: ${projectState.decisions?.join(", ") || "N/A"}`
+      });
+    }
+    if (relevantMemories?.length > 0) {
+      const memoryText = relevantMemories.map((m) => `- ${m.text || m}`).join("\n");
+      contextItems.push({
+        role: "system",
+        content: `Memori Pengguna yang Relevan:
+${memoryText}`
+      });
+    }
+    if (contextHint) {
+      contextItems.push({
+        role: "system",
+        content: contextHint
+      });
+    }
+    for (const msg of recent) {
+      contextItems.push({
+        role: msg.role,
+        content: msg.content
+      });
+    }
+    return {
+      context: contextItems,
+      intent,
+      contextHint
+    };
+  }
+};
+
+// src/file-processor.mjs
+import path4 from "node:path";
+var SUPPORTED_EXTENSIONS = Object.freeze({
+  TEXT: [".txt", ".md", ".markdown", ".json", ".csv", ".tsv", ".yaml", ".yml", ".xml", ".html", ".css", ".scss"],
+  CODE: [".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".py", ".rb", ".go", ".rs", ".java", ".c", ".cpp", ".h", ".sql", ".sh", ".bash"],
+  DOCUMENT: [".pdf", ".doc", ".docx"],
+  IMAGE: [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]
+});
+function formatFileForPrompt({ filename, content, mimeType, maxChars = 24e3 }) {
+  if (!content) return "";
+  let sanitized = content;
+  if (typeof content === "string" && content.length > maxChars) {
+    sanitized = content.slice(0, maxChars) + `
+
+... [Content truncated: ${content.length - maxChars} characters omitted]`;
+  }
+  const ext = path4.extname(filename).toLowerCase();
+  let lang = "plaintext";
+  if ([".js", ".mjs", ".cjs"].includes(ext)) lang = "javascript";
+  else if ([".ts", ".tsx"].includes(ext)) lang = "typescript";
+  else if (ext === ".py") lang = "python";
+  else if (ext === ".json") lang = "json";
+  else if (ext === ".html") lang = "html";
+  else if (ext === ".css") lang = "css";
+  else if (ext === ".sql") lang = "sql";
+  else if (ext === ".md") lang = "markdown";
+  else if (ext === ".csv") lang = "csv";
+  return `--- FILE ATTACHMENT: ${filename} ---
+\`\`\`${lang}
+${sanitized}
+\`\`\`
+--- END OF ATTACHMENT ---`;
+}
+
+// api/ai/chat.js
+var reposInstance = null;
 var agentInstance = null;
 var engineInstance = null;
 var creditManagerInstance = null;
+var contextManagerInstance = null;
 function getContext() {
   const config = loadConfig();
-  if (!reposInstance7) {
+  if (!reposInstance) {
     const pool = createPool(config);
-    reposInstance7 = createRepositories(pool);
+    reposInstance = createRepositories(pool);
   }
   if (!engineInstance) {
     engineInstance = createAIProviderFromConfig(config);
@@ -16075,9 +16644,19 @@ function getContext() {
     agentInstance = createAgentSystem({ engine: engineInstance, registry });
   }
   if (!creditManagerInstance) {
-    creditManagerInstance = createCreditManager(reposInstance7);
+    creditManagerInstance = createCreditManager(reposInstance);
   }
-  return { repository: reposInstance7, agent: agentInstance, engine: engineInstance, creditManager: creditManagerInstance, config };
+  if (!contextManagerInstance) {
+    contextManagerInstance = new ContextManager();
+  }
+  return {
+    repository: reposInstance,
+    agent: agentInstance,
+    engine: engineInstance,
+    creditManager: creditManagerInstance,
+    contextManager: contextManagerInstance,
+    config
+  };
 }
 async function parseBody4(req) {
   if (req.body) return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
@@ -16099,11 +16678,13 @@ async function handler9(req, res) {
     res.writeHead(405, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ error: { code: "METHOD_NOT_ALLOWED", message: "Method Not Allowed" } }));
   }
+  const startTime = Date.now();
+  const requestId = `varis_req_${randomUUID2().replace(/-/g, "").slice(0, 16)}`;
   try {
     const cookieHeader = req.headers.cookie || "";
     const match = cookieHeader.match(/varis_session=([^;]+)/);
     const rawToken = match ? match[1] : null;
-    const { repository, agent, engine, creditManager } = getContext();
+    const { repository, agent, engine, creditManager, contextManager } = getContext();
     let user = null;
     if (rawToken) {
       const tokenHash = hashSessionToken(rawToken);
@@ -16116,34 +16697,29 @@ async function handler9(req, res) {
       user = { id: "guest-session", name: "Guest User", email: "guest@varis.ai" };
     }
     const body = await parseBody4(req);
-    const {
-      message,
-      model = "auto",
-      conversation_id = null,
-      stream = false,
-      search_mode = "always",
-      // Default to REAL WEB RESEARCH MODE: 'always' | 'smart' | 'offline'
-      web_search = true
-    } = body;
-    const isStreamRequested = stream === true || req.headers.accept?.includes("text/event-stream");
+    const conversationId = body.conversationId || body.conversation_id || null;
+    const message = body.message;
+    const provider = body.provider || null;
+    const model = body.model || "auto";
+    const mode = body.mode || body.search_mode || (body.web_search === false ? "offline" : "always");
+    const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+    const isStreamRequested = body.stream === true || req.headers.accept?.includes("text/event-stream");
     if (!message || typeof message !== "string" || !message.trim()) {
       res.writeHead(400, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ error: { code: "INVALID_MESSAGE", message: "Message is required" } }));
+      return res.end(JSON.stringify({ error: { code: "INVALID_MESSAGE", message: "Message is required", requestId } }));
     }
     const trimmedMessage = message.trim();
-    let effectiveSearchMode = search_mode;
-    if (body.web_search === false && !body.search_mode) {
-      effectiveSearchMode = "offline";
-    }
+    const effectiveSearchMode = mode;
     const doSearch = shouldExecuteSearch(effectiveSearchMode, trimmedMessage);
     const sub = repository.getUserSubscription ? await repository.getUserSubscription(user.id) : { plan_id: "free", plan: { name: "Unlimited Free", allowed_tiers: ["free", "pro", "ultra"], rate_limit_rpm: 1e3 } };
     const rateCheck = creditManager.checkRateLimit(user.id, sub?.plan?.rate_limit_rpm || 1e3);
     if (!rateCheck.allowed) {
       res.writeHead(429, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ error: { code: "RATE_LIMIT_EXCEEDED", message: rateCheck.message } }));
+      return res.end(JSON.stringify({ error: { code: "RATE_LIMIT_EXCEEDED", message: rateCheck.message, requestId } }));
     }
     const selectedModel = (repository.getAIModel ? await repository.getAIModel(model) : null) || {
       id: model,
+      provider_id: provider || "system",
       display_name: model,
       credit_cost_per_request: 0,
       tier_required: "free"
@@ -16153,9 +16729,40 @@ async function handler9(req, res) {
       return res.end(JSON.stringify({
         error: {
           code: "TIER_LOCKED",
-          message: `Model "${selectedModel.display_name || model}" memerlukan paket ${selectedModel.tier_required.toUpperCase()}. Silakan upgrade paket Anda untuk menggunakan model ini.`
+          message: `Model "${selectedModel.display_name || model}" memerlukan paket ${selectedModel.tier_required.toUpperCase()}. Silakan upgrade paket Anda untuk menggunakan model ini.`,
+          requestId
         }
       }));
+    }
+    let recentHistory = [];
+    if (conversationId && repository.listRecentMessages) {
+      try {
+        recentHistory = await repository.listRecentMessages(user.id, conversationId, 8);
+      } catch {
+      }
+    }
+    const { contextHint } = contextManager.resolveReferences(trimmedMessage, recentHistory);
+    const resolvedContext = [];
+    if (contextHint) {
+      resolvedContext.push({
+        role: "system",
+        content: contextHint
+      });
+    }
+    if (attachments.length > 0) {
+      for (const att of attachments) {
+        const fileContent = formatFileForPrompt({
+          filename: att.name || att.filename || "attachment.txt",
+          content: att.content || att.text || "",
+          mimeType: att.type || att.mimeType
+        });
+        if (fileContent) {
+          resolvedContext.push({
+            role: "system",
+            content: fileContent
+          });
+        }
+      }
     }
     const estimatedCredits = creditManager.estimateCredits(selectedModel, trimmedMessage);
     let reservation = await creditManager.reserveCredit(user.id, estimatedCredits);
@@ -16171,28 +16778,49 @@ async function handler9(req, res) {
       });
       let fullGeneratedText = "";
       let researchData = null;
-      let searchContext = null;
+      let researchSession = null;
+      const searchContext = [];
       try {
         if (doSearch) {
           res.write(`event: search_status
 data: ${JSON.stringify({
             phase: "planning",
             status: "Menganalisis pertanyaan dan menyusun query riset...",
-            search_mode: effectiveSearchMode
+            search_mode: effectiveSearchMode,
+            requestId
           })}
 
 `);
-          const searchEngine = getDefaultWebSearchEngine();
-          researchData = await searchEngine.research(trimmedMessage, { maxSources: 5 });
+          if (repository.createResearchSession) {
+            researchSession = await repository.createResearchSession({
+              userId: user.id,
+              conversationId,
+              query: trimmedMessage,
+              searchMode: effectiveSearchMode
+            });
+          }
+          const researchAgent = getDefaultResearchAgent();
+          researchData = await researchAgent.research(trimmedMessage, { maxSources: 5 });
           const sources = researchData?.sources || [];
           const plannedQueries = researchData?.planned_queries || [];
+          if (researchSession && repository.createSearchResults && sources.length > 0) {
+            await repository.createSearchResults(researchSession.id, sources);
+          }
+          if (researchSession && repository.completeResearchSession) {
+            await repository.completeResearchSession(researchSession.id, {
+              sourcesCount: sources.length,
+              latencyMs: Date.now() - startTime,
+              status: sources.length > 0 ? "completed" : "no_sources"
+            });
+          }
           if (sources.length > 0) {
             res.write(`event: search_status
 data: ${JSON.stringify({
               phase: "searching",
               status: `Ditemukan ${sources.length} sumber terverifikasi`,
               sources_count: sources.length,
-              queries: plannedQueries
+              queries: plannedQueries,
+              requestId
             })}
 
 `);
@@ -16200,15 +16828,16 @@ data: ${JSON.stringify({
 data: ${JSON.stringify({
               sources,
               planned_queries: plannedQueries,
-              search_mode: effectiveSearchMode
+              search_mode: effectiveSearchMode,
+              requestId
             })}
 
 `);
             if (researchData.formatted_context) {
-              searchContext = {
+              searchContext.push({
                 role: "system",
                 content: researchData.formatted_context
-              };
+              });
             }
           } else {
             res.write(`event: search_status
@@ -16216,7 +16845,8 @@ data: ${JSON.stringify({
               phase: "searching",
               status: "Tidak ditemukan sumber spesifik di web, menjawab dengan basis pengetahuan...",
               sources_count: 0,
-              queries: plannedQueries
+              queries: plannedQueries,
+              requestId
             })}
 
 `);
@@ -16224,39 +16854,84 @@ data: ${JSON.stringify({
 data: ${JSON.stringify({
               sources: [],
               planned_queries: plannedQueries,
-              search_mode: effectiveSearchMode
+              search_mode: effectiveSearchMode,
+              requestId
             })}
 
 `);
           }
         }
-        const chatContext = searchContext ? [searchContext] : [];
+        const combinedContext = [...resolvedContext, ...searchContext];
         const streamResult = await engine.stream(
-          { userMessage: trimmedMessage, model, userPlan: sub?.plan, context: chatContext },
+          {
+            userMessage: trimmedMessage,
+            model,
+            userPlan: sub?.plan,
+            context: combinedContext
+          },
           (chunk) => {
             fullGeneratedText += chunk;
             res.write(`event: token
-data: ${JSON.stringify({ text: chunk })}
+data: ${JSON.stringify({ text: chunk, requestId })}
 
 `);
           }
         );
         const replyText = streamResult.text || fullGeneratedText;
+        const latencyMs = Date.now() - startTime;
+        const inputTokens = streamResult.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4);
+        const outputTokens = streamResult.usage?.completion_tokens || Math.ceil(replyText.length / 4);
         const actualCredits = creditManager.calculateActualCredits({
           model: selectedModel,
-          inputTokens: streamResult.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
-          outputTokens: streamResult.usage?.completion_tokens || Math.ceil(replyText.length / 4)
+          inputTokens,
+          outputTokens
         });
         const settled = await creditManager.settleCredit({
           userId: user.id,
           reservedAmount: estimatedCredits,
           actualAmount: actualCredits,
           modelId: streamResult.modelUsed || model,
-          provider: selectedModel.provider_id || "system"
+          provider: selectedModel.provider_id || provider || "system",
+          conversationId,
+          inputTokens,
+          outputTokens,
+          requestId
         });
+        if (conversationId && repository.createMessage) {
+          await repository.createMessage(user.id, conversationId, "user", trimmedMessage, {
+            requestId,
+            searchMode: effectiveSearchMode
+          });
+          await repository.createMessage(user.id, conversationId, "assistant", replyText, {
+            requestId,
+            model: streamResult.modelUsed || model,
+            provider: selectedModel.provider_id || provider || "system",
+            inputTokens,
+            outputTokens,
+            latencyMs,
+            researchSessionId: researchSession?.id || null,
+            sourceIds: (researchData?.sources || []).map((s) => s.id),
+            sources: researchData?.sources || [],
+            searchMode: effectiveSearchMode
+          });
+        }
+        if (repository.recordModelUsage) {
+          await repository.recordModelUsage({
+            userId: user.id,
+            conversationId,
+            requestId,
+            modelId: streamResult.modelUsed || model,
+            provider: selectedModel.provider_id || provider || "system",
+            inputTokens,
+            outputTokens,
+            latencyMs,
+            status: "success"
+          });
+        }
         res.write(`event: done
 data: ${JSON.stringify({
           status: "success",
+          requestId,
           response: replyText,
           reply: replyText,
           model: streamResult.modelUsed || model,
@@ -16264,17 +16939,31 @@ data: ${JSON.stringify({
           planned_queries: researchData?.planned_queries || [],
           search_mode: effectiveSearchMode,
           credits_used: settled.deducted,
-          credits_remaining: settled.balance
+          credits_remaining: settled.balance,
+          latency_ms: latencyMs
         })}
 
 `);
         return res.end();
       } catch (streamErr) {
         await creditManager.refundCredit({ userId: user.id, reservedAmount: estimatedCredits, reason: streamErr.message });
+        if (repository.recordModelUsage) {
+          await repository.recordModelUsage({
+            userId: user.id,
+            conversationId,
+            requestId,
+            modelId: model,
+            provider: selectedModel.provider_id || provider || "system",
+            status: "error",
+            errorMessage: streamErr.message,
+            latencyMs: Date.now() - startTime
+          });
+        }
         res.write(`event: error
 data: ${JSON.stringify({
           code: streamErr.code || "AI_PROVIDER_ERROR",
-          message: streamErr.message || "AI service is temporarily unavailable"
+          message: streamErr.message || "AI service is temporarily unavailable",
+          requestId
         })}
 
 `);
@@ -16283,13 +16972,33 @@ data: ${JSON.stringify({
     }
     try {
       let researchData = null;
-      let initialContext = [];
+      let researchSession = null;
+      const searchContext = [];
       if (doSearch) {
         try {
-          const searchEngine = getDefaultWebSearchEngine();
-          researchData = await searchEngine.research(trimmedMessage, { maxSources: 5 });
+          if (repository.createResearchSession) {
+            researchSession = await repository.createResearchSession({
+              userId: user.id,
+              conversationId,
+              query: trimmedMessage,
+              searchMode: effectiveSearchMode
+            });
+          }
+          const researchAgent = getDefaultResearchAgent();
+          researchData = await researchAgent.research(trimmedMessage, { maxSources: 5 });
+          const sources = researchData?.sources || [];
+          if (researchSession && repository.createSearchResults && sources.length > 0) {
+            await repository.createSearchResults(researchSession.id, sources);
+          }
+          if (researchSession && repository.completeResearchSession) {
+            await repository.completeResearchSession(researchSession.id, {
+              sourcesCount: sources.length,
+              latencyMs: Date.now() - startTime,
+              status: sources.length > 0 ? "completed" : "no_sources"
+            });
+          }
           if (researchData?.formatted_context) {
-            initialContext.push({
+            searchContext.push({
               role: "system",
               content: researchData.formatted_context
             });
@@ -16298,22 +17007,26 @@ data: ${JSON.stringify({
           console.warn("Non-streaming search pre-fetch warning:", searchErr);
         }
       }
+      const combinedInitialContext = [...resolvedContext, ...searchContext];
       const agentRes = await agent.run({
         userMessage: trimmedMessage,
         userId: user.id,
-        conversationId: conversation_id,
+        conversationId,
         repository,
         model,
         allowFallback: model === "auto",
         userPlan: sub?.plan,
-        initialContext
+        initialContext: combinedInitialContext
       });
       const replyText = agentRes.text || agentRes.response || "";
       const modelUsed = agentRes.modelUsed || agentRes.model || model;
+      const latencyMs = Date.now() - startTime;
+      const inputTokens = agentRes.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4);
+      const outputTokens = agentRes.usage?.completion_tokens || Math.ceil(replyText.length / 4);
       const actualCredits = creditManager.calculateActualCredits({
         model: selectedModel,
-        inputTokens: agentRes.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
-        outputTokens: agentRes.usage?.completion_tokens || Math.ceil(replyText.length / 4),
+        inputTokens,
+        outputTokens,
         toolCalls: agentRes.toolCalls || []
       });
       const settled = await creditManager.settleCredit({
@@ -16321,15 +17034,48 @@ data: ${JSON.stringify({
         reservedAmount: estimatedCredits,
         actualAmount: actualCredits,
         modelId: modelUsed,
-        provider: selectedModel.provider_id || "system",
-        conversationId: conversation_id,
-        inputTokens: agentRes.usage?.prompt_tokens || Math.ceil(trimmedMessage.length / 4),
-        outputTokens: agentRes.usage?.completion_tokens || Math.ceil(replyText.length / 4),
+        provider: selectedModel.provider_id || provider || "system",
+        conversationId,
+        inputTokens,
+        outputTokens,
+        requestId,
         details: { tools: agentRes.toolCalls?.map((t) => t.name) || [] }
       });
+      if (conversationId && repository.createMessage) {
+        await repository.createMessage(user.id, conversationId, "user", trimmedMessage, {
+          requestId,
+          searchMode: effectiveSearchMode
+        });
+        await repository.createMessage(user.id, conversationId, "assistant", replyText, {
+          requestId,
+          model: modelUsed,
+          provider: selectedModel.provider_id || provider || "system",
+          inputTokens,
+          outputTokens,
+          latencyMs,
+          researchSessionId: researchSession?.id || null,
+          sourceIds: (researchData?.sources || []).map((s) => s.id),
+          sources: researchData?.sources || [],
+          searchMode: effectiveSearchMode
+        });
+      }
+      if (repository.recordModelUsage) {
+        await repository.recordModelUsage({
+          userId: user.id,
+          conversationId,
+          requestId,
+          modelId: modelUsed,
+          provider: selectedModel.provider_id || provider || "system",
+          inputTokens,
+          outputTokens,
+          latencyMs,
+          status: "success"
+        });
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
         status: "success",
+        requestId,
         reply: replyText,
         response: replyText,
         model: modelUsed,
@@ -16338,38 +17084,53 @@ data: ${JSON.stringify({
         search_mode: effectiveSearchMode,
         fallback_used: agentRes.fallbackUsed || void 0,
         credits_used: settled.deducted,
-        credits_remaining: settled.balance
+        credits_remaining: settled.balance,
+        latency_ms: latencyMs
       }));
     } catch (err) {
       await creditManager.refundCredit({ userId: user.id, reservedAmount: estimatedCredits, reason: err.message });
-      console.error("AI Execution Error in /api/chat:", err);
+      if (repository.recordModelUsage) {
+        await repository.recordModelUsage({
+          userId: user.id,
+          conversationId,
+          requestId,
+          modelId: model,
+          provider: selectedModel.provider_id || provider || "system",
+          status: "error",
+          errorMessage: err.message,
+          latencyMs: Date.now() - startTime
+        });
+      }
+      console.error("AI Execution Error in /api/ai/chat:", err);
       const statusCode = err.code === "TIER_LOCKED" ? 403 : err.code === "CREDIT_EXHAUSTED" ? 402 : err.code === "AI_NOT_CONFIGURED" ? 503 : 502;
       res.writeHead(statusCode, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
         error: {
           code: err.code || "AI_PROVIDER_ERROR",
-          message: err.message || "AI service is temporarily unavailable. Please select another available model."
+          message: err.message || "AI service is temporarily unavailable. Please select another available model.",
+          requestId
         }
       }));
     }
   } catch (err) {
     console.error("Chat endpoint error:", err);
     res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: { code: "SERVER_ERROR", message: err.message } }));
+    res.end(JSON.stringify({ error: { code: "SERVER_ERROR", message: err.message, requestId } }));
   }
 }
 
-// api/projects.js
-var reposInstance8 = null;
-function getRepos7() {
-  if (!reposInstance8) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance8 = createRepositories(pool);
-  }
-  return reposInstance8;
-}
+// api/chat.js
 async function handler10(req, res) {
+  return handler9(req, res);
+}
+
+// api/projects.js
+function getRepos7() {
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
+}
+async function handler11(req, res) {
   const cookieHeader = req.headers.cookie || "";
   const match = cookieHeader.match(/varis_session=([^;]+)/);
   const rawToken = match ? match[1] : null;
@@ -16390,16 +17151,12 @@ async function handler10(req, res) {
 }
 
 // api/files.js
-var reposInstance9 = null;
 function getRepos8() {
-  if (!reposInstance9) {
-    const config = loadConfig();
-    const pool = createPool(config);
-    reposInstance9 = createRepositories(pool);
-  }
-  return reposInstance9;
+  const config = loadConfig();
+  const pool = createPool(config);
+  return getGlobalRepositories(pool);
 }
-async function handler11(req, res) {
+async function handler12(req, res) {
   const cookieHeader = req.headers.cookie || "";
   const match = cookieHeader.match(/varis_session=([^;]+)/);
   const rawToken = match ? match[1] : null;
@@ -16420,12 +17177,12 @@ async function handler11(req, res) {
 }
 
 // api/router.js
-async function handler12(req, res) {
+async function handler13(req, res) {
   try {
     const url = new URL(req.url, `https://${req.headers.host || "varisai.vercel.app"}`);
     const pathname = url.pathname.replace(/\/$/, "");
     if (pathname === "/api/models") return await handler8(req, res);
-    if (pathname === "/api/chat") return await handler9(req, res);
+    if (pathname === "/api/chat") return await handler10(req, res);
     if (pathname === "/api/auth/me") return await handler(req, res);
     if (pathname === "/api/auth/login") return await handler2(req, res);
     if (pathname === "/api/auth/register") return await handler3(req, res);
@@ -16433,8 +17190,8 @@ async function handler12(req, res) {
     if (pathname === "/api/auth/google") return handler5(req, res);
     if (pathname === "/api/auth/google/callback") return await handler6(req, res);
     if (pathname === "/api/auth/google/credential") return await handler7(req, res);
-    if (pathname === "/api/projects") return await handler10(req, res);
-    if (pathname === "/api/files") return await handler11(req, res);
+    if (pathname === "/api/projects") return await handler11(req, res);
+    if (pathname === "/api/files") return await handler12(req, res);
     res.writeHead(404, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: { code: "NOT_FOUND", message: "API Route not found" } }));
   } catch (err) {
@@ -16444,5 +17201,5 @@ async function handler12(req, res) {
   }
 }
 export {
-  handler12 as default
+  handler13 as default
 };

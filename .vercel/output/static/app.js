@@ -297,6 +297,23 @@ function clearAuthAlert() {
     if (box) box.classList.add('hidden');
 }
 
+function showForgotAlert(msg, type = 'error') {
+    const box = document.getElementById('forgot-alert-box');
+    if (!box) return;
+    let text = msg;
+    if (typeof msg === 'object' && msg !== null) {
+        text = msg.message || msg.code || JSON.stringify(msg);
+    }
+    box.textContent = text;
+    box.className = `auth-alert-box ${type}`;
+    box.classList.remove('hidden');
+}
+
+function clearForgotAlert() {
+    const box = document.getElementById('forgot-alert-box');
+    if (box) box.classList.add('hidden');
+}
+
 // ==========================================================
 // 4. CHAT MESSAGING & STREAMING ENGINE
 // ==========================================================
@@ -551,7 +568,7 @@ async function handleSendMessage() {
     bodyEl.innerHTML = '<span class="streaming-cursor"></span>';
 
     try {
-        const res = await fetch('/api/chat', {
+        const res = await fetch('/api/ai/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -560,10 +577,12 @@ async function handleSendMessage() {
             body: JSON.stringify({
                 message: text,
                 model: currentModel,
+                conversationId: currentConversationId,
                 conversation_id: currentConversationId,
-                stream: true,
+                mode: currentSearchMode,
                 search_mode: currentSearchMode,
-                web_search: currentSearchMode !== 'offline'
+                web_search: currentSearchMode !== 'offline',
+                stream: true
             })
         });
 
@@ -829,10 +848,262 @@ function closeModal(id) {
 }
 
 // ==========================================================
+// 6.5. LIVING ROBOT ENGINE & LUXURY PARTICLES SYSTEM
+// ==========================================================
+function initLivingRobot() {
+    const stage = document.getElementById('hero-robot-stage');
+    const rig = document.getElementById('robot-3d-rig');
+    const canvas = document.getElementById('robot-sparkles-canvas');
+    const speechBubble = document.getElementById('robot-speech-bubble');
+    const btnChat = document.getElementById('robot-btn-start-chat');
+    const btnVoice = document.getElementById('robot-btn-start-voice');
+
+    if (!stage || !rig || !canvas) return;
+
+    // 1. Interactive 3D Mouse & Touch Parallax
+    let targetRotateX = 0;
+    let targetRotateY = 0;
+    let currentRotateX = 0;
+    let currentRotateY = 0;
+
+    function handlePointerMove(e) {
+        const rect = stage.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : rect.left + rect.width / 2);
+        const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : rect.top + rect.height / 2);
+
+        const x = clientX - (rect.left + rect.width / 2);
+        const y = clientY - (rect.top + rect.height / 2);
+
+        targetRotateY = (x / (rect.width / 2)) * 14;
+        targetRotateX = -(y / (rect.height / 2)) * 10;
+    }
+
+    stage.addEventListener('mousemove', handlePointerMove);
+
+    stage.addEventListener('mouseleave', () => {
+        targetRotateX = 0;
+        targetRotateY = 0;
+    });
+
+    stage.addEventListener('touchmove', handlePointerMove, { passive: true });
+
+    stage.addEventListener('touchend', () => {
+        targetRotateX = 0;
+        targetRotateY = 0;
+    });
+
+    function updateRigPhysics() {
+        currentRotateX += (targetRotateX - currentRotateX) * 0.08;
+        currentRotateY += (targetRotateY - currentRotateY) * 0.08;
+
+        rig.style.transform = `rotateX(${currentRotateX.toFixed(2)}deg) rotateY(${currentRotateY.toFixed(2)}deg)`;
+        requestAnimationFrame(updateRigPhysics);
+    }
+    requestAnimationFrame(updateRigPhysics);
+
+    // 2. Luxury Golden Sparkle & Cyan Ambient Embers Particle System
+    const ctx = canvas.getContext('2d');
+    let width = (canvas.width = stage.offsetWidth + 80);
+    let height = (canvas.height = stage.offsetHeight + 80);
+
+    window.addEventListener('resize', () => {
+        if (!stage) return;
+        width = canvas.width = stage.offsetWidth + 80;
+        height = canvas.height = stage.offsetHeight + 80;
+    });
+
+    const particles = [];
+    const MAX_PARTICLES = 36;
+
+    class Particle {
+        constructor(isBurst = false) {
+            this.reset(isBurst);
+        }
+
+        reset(isBurst = false) {
+            this.x = isBurst ? width / 2 + (Math.random() - 0.5) * 90 : Math.random() * width;
+            this.y = isBurst ? height * 0.45 + (Math.random() - 0.5) * 80 : height + Math.random() * 20;
+            this.size = Math.random() * 2.8 + 1.2;
+            this.speedY = isBurst ? (Math.random() - 0.5) * 4 - 1.5 : -(Math.random() * 0.7 + 0.35);
+            this.speedX = isBurst ? (Math.random() - 0.5) * 4 : (Math.random() - 0.5) * 0.5;
+            this.alpha = isBurst ? 1 : Math.random() * 0.7 + 0.2;
+            this.decay = isBurst ? Math.random() * 0.02 + 0.015 : Math.random() * 0.003 + 0.002;
+            this.type = Math.random() > 0.45 ? 'gold' : 'cyan';
+            this.isStar = Math.random() > 0.55;
+            this.angle = Math.random() * Math.PI * 2;
+            this.rotSpeed = (Math.random() - 0.5) * 0.04;
+            this.wave = Math.random() * Math.PI * 2;
+            this.waveSpeed = Math.random() * 0.02 + 0.01;
+        }
+
+        update() {
+            this.wave += this.waveSpeed;
+            this.x += this.speedX + Math.sin(this.wave) * 0.4;
+            this.y += this.speedY;
+            this.angle += this.rotSpeed;
+            this.alpha -= this.decay;
+
+            if (this.alpha <= 0 || this.y < -20 || this.x < -20 || this.x > width + 20) {
+                this.reset(false);
+            }
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+            ctx.globalAlpha = Math.max(0, this.alpha);
+
+            if (this.type === 'gold') {
+                ctx.fillStyle = '#D4AF37';
+                ctx.shadowColor = 'rgba(212, 175, 55, 0.85)';
+                ctx.shadowBlur = 7;
+            } else {
+                ctx.fillStyle = '#22D3EE';
+                ctx.shadowColor = 'rgba(34, 211, 238, 0.95)';
+                ctx.shadowBlur = 8;
+            }
+
+            if (this.isStar) {
+                ctx.beginPath();
+                const r = this.size * 1.8;
+                for (let i = 0; i < 4; i++) {
+                    ctx.lineTo(Math.cos((i * Math.PI) / 2) * r, Math.sin((i * Math.PI) / 2) * r);
+                    ctx.lineTo(Math.cos((i * Math.PI) / 2 + Math.PI / 4) * (r * 0.3), Math.sin((i * Math.PI) / 2 + Math.PI / 4) * (r * 0.3));
+                }
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+    }
+
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+        const p = new Particle();
+        p.y = Math.random() * height;
+        particles.push(p);
+    }
+
+    function renderParticles() {
+        ctx.clearRect(0, 0, width, height);
+        particles.forEach(p => {
+            p.update();
+            p.draw(ctx);
+        });
+        requestAnimationFrame(renderParticles);
+    }
+    requestAnimationFrame(renderParticles);
+
+    function createSparkleBurst(count = 18) {
+        for (let i = 0; i < count; i++) {
+            particles.push(new Particle(true));
+        }
+    }
+
+    // 3. Interactive Speech Bubble & Click Reactions
+    const greetings = [
+        "\"Halo! Saya VARIS, asisten AI cerdas Anda. Siap membantu proyek dan riset Anda!\"",
+        "\"Satu workspace terintegrasi untuk mengakses model AI terbaik dunia (Gemini Pro, GPT-4o, Claude).\"",
+        "\"Pencarian web nyata dan mode suara real-time selalu aktif untuk Anda!\"",
+        "\"Workspace Anda aman, privat, dan bebas batasan! ✨\""
+    ];
+    let greetingIndex = 0;
+
+    stage.addEventListener('click', () => {
+        createSparkleBurst(22);
+
+        if (speechBubble) {
+            greetingIndex = (greetingIndex + 1) % greetings.length;
+            const textEl = document.getElementById('robot-speech-text');
+            if (textEl) textEl.textContent = greetings[greetingIndex];
+            speechBubble.classList.remove('hidden');
+
+            clearTimeout(window.__robotBubbleTimer);
+            window.__robotBubbleTimer = setTimeout(() => {
+                speechBubble.classList.add('hidden');
+            }, 8000);
+        }
+    });
+
+    if (btnChat) {
+        btnChat.onclick = (e) => {
+            e.stopPropagation();
+            switchMainView('app');
+            switchTab('chat');
+        };
+    }
+
+    if (btnVoice) {
+        btnVoice.onclick = (e) => {
+            e.stopPropagation();
+            switchMainView('app');
+            switchTab('voice');
+        };
+    }
+
+    // 4. Feature Cards Click Handlers
+    const cardModels = document.getElementById('card-feat-models');
+    if (cardModels) cardModels.onclick = () => { switchMainView('app'); openModal('modal-model-sheet'); };
+
+    const cardTools = document.getElementById('card-feat-tools');
+    if (cardTools) cardTools.onclick = () => { switchMainView('app'); switchTab('chat'); };
+
+    const cardWorkspace = document.getElementById('card-feat-workspace');
+    if (cardWorkspace) cardWorkspace.onclick = () => { switchMainView('app'); switchTab('projects'); };
+
+    const cardSecurity = document.getElementById('card-feat-security');
+    if (cardSecurity) cardSecurity.onclick = () => { showToast('🔒 Enterprise encryption & zero-knowledge security active.'); };
+
+    // 5. Mobile Navigation Drawer Toggle
+    const mobileMenuBtn = document.getElementById('btn-landing-mobile-menu');
+    const mobileDrawer = document.getElementById('landing-mobile-drawer');
+    if (mobileMenuBtn && mobileDrawer) {
+        mobileMenuBtn.onclick = () => {
+            mobileDrawer.classList.toggle('hidden');
+        };
+    }
+
+    const drawerSignin = document.getElementById('btn-mobile-drawer-signin');
+    if (drawerSignin) drawerSignin.onclick = () => { if (mobileDrawer) mobileDrawer.classList.add('hidden'); isRegisterMode = false; updateAuthUI(); switchMainView('auth'); };
+
+    const drawerGetStarted = document.getElementById('btn-mobile-drawer-getstarted');
+    if (drawerGetStarted) drawerGetStarted.onclick = () => { if (mobileDrawer) mobileDrawer.classList.add('hidden'); isRegisterMode = true; updateAuthUI(); switchMainView('auth'); };
+}
+
+// ==========================================================
 // 7. EVENT LISTENERS & INITIALIZATION
 // ==========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 0. Check URL Parameters for OAuth Callbacks
+    const urlParams = new URLSearchParams(window.location.search);
+    const authParam = urlParams.get('auth');
+    const errorParam = urlParams.get('error');
+
+    if (authParam === 'success') {
+        showToast('🎉 Berhasil masuk dengan akun Google!');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        fetchCurrentUser();
+    } else if (errorParam === 'oauth_unavailable') {
+        showAuthAlert('⚠️ Google OAuth Server Secret belum diset di Vercel Environment (GOOGLE_CLIENT_SECRET). Silakan Sign In atau Sign Up dengan Email & Password di bawah!', 'error');
+        showToast('⚠️ Google OAuth belum aktif di server. Gunakan Email & Password.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        switchMainView('auth');
+    } else if (errorParam === 'auth_failed') {
+        showAuthAlert('Autentikasi Google gagal atau ditolak. Silakan coba lagi.', 'error');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        switchMainView('auth');
+    } else if (errorParam === 'cancelled') {
+        showAuthAlert('Login Google dibatalkan.', 'error');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        switchMainView('auth');
+    }
+
     // 1. Check current session & Load available models
     fetchCurrentUser();
     loadAIModels();
@@ -840,7 +1111,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Initialize GIS Google Auth
     setTimeout(initGoogleAuth, 600);
 
-    // 3. Landing Page Action Buttons
+    // 3. Initialize Living Robot Character Engine & Luxury Sparkles
+    initLivingRobot();
+
+    // 4. Landing Page Action Buttons
     const landingSignin = document.getElementById('landing-signin-btn');
     if (landingSignin) landingSignin.onclick = () => { isRegisterMode = false; updateAuthUI(); switchMainView('auth'); };
 
@@ -943,6 +1217,66 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (err) {
                 showAuthAlert('Network error: ' + err.message, 'error');
+            }
+        };
+    }
+
+    // Forgot Password Button & Modal
+    const btnForgot = document.getElementById('btn-forgot-password');
+    if (btnForgot) {
+        btnForgot.onclick = (e) => {
+            e.preventDefault();
+            const currentEmail = document.getElementById('auth-email-input')?.value || '';
+            const forgotEmailInput = document.getElementById('forgot-email-input');
+            if (forgotEmailInput && currentEmail) forgotEmailInput.value = currentEmail;
+            clearForgotAlert();
+            openModal('modal-forgot-password');
+        };
+    }
+
+    const closeForgotSheet = document.getElementById('btn-close-forgot-sheet');
+    if (closeForgotSheet) closeForgotSheet.onclick = () => closeModal('modal-forgot-password');
+
+    const forgotForm = document.getElementById('form-forgot-password');
+    if (forgotForm) {
+        forgotForm.onsubmit = async (e) => {
+            e.preventDefault();
+            clearForgotAlert();
+            const email = document.getElementById('forgot-email-input').value.trim();
+            const newPass = document.getElementById('forgot-newpass-input').value;
+            const confirmPass = document.getElementById('forgot-confirmpass-input').value;
+
+            if (newPass !== confirmPass) {
+                showForgotAlert('Konfirmasi password tidak cocok dengan password baru.', 'error');
+                return;
+            }
+            if (newPass.length < 6) {
+                showForgotAlert('Password baru minimal 6 karakter.', 'error');
+                return;
+            }
+
+            try {
+                showForgotAlert('Memperbarui password...', 'success');
+                const res = await fetch('/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, newPassword: newPass })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast('Password berhasil diubah! Silakan login.');
+                    closeModal('modal-forgot-password');
+                    const authPassInput = document.getElementById('auth-pass-input');
+                    if (authPassInput) authPassInput.value = newPass;
+                    const authEmailInput = document.getElementById('auth-email-input');
+                    if (authEmailInput) authEmailInput.value = email;
+                    showAuthAlert('Password berhasil diperbarui. Silakan klik Sign In.', 'success');
+                } else {
+                    const errorMsg = (typeof data.error === 'object' && data.error !== null ? (data.error.message || data.error.code) : data.error) || data.message || 'Gagal mengubah password.';
+                    showForgotAlert(errorMsg, 'error');
+                }
+            } catch (err) {
+                showForgotAlert('Network error: ' + err.message, 'error');
             }
         };
     }

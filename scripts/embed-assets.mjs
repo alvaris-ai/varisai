@@ -24,6 +24,16 @@ fs.writeFileSync(path.join(staticDir, 'index.html'), html, 'utf-8');
 fs.writeFileSync(path.join(staticDir, 'style.css'), css, 'utf-8');
 fs.writeFileSync(path.join(staticDir, 'app.js'), js, 'utf-8');
 
+// Copy public/assets to .vercel/output/static/assets
+const publicAssetsDir = path.resolve('public', 'assets');
+const staticAssetsDir = path.resolve(staticDir, 'assets');
+if (fs.existsSync(publicAssetsDir)) {
+  fs.mkdirSync(staticAssetsDir, { recursive: true });
+  for (const file of fs.readdirSync(publicAssetsDir)) {
+    fs.copyFileSync(path.join(publicAssetsDir, file), path.join(staticAssetsDir, file));
+  }
+}
+
 // 4. Assemble .vercel/output/functions/api.func
 const funcDir = path.resolve(outDir, 'functions', 'api.func');
 fs.mkdirSync(funcDir, { recursive: true });
