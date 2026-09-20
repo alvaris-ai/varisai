@@ -113,6 +113,22 @@ export const DEFAULT_AI_MODELS = [
     is_default: false,
     sort_order: 6,
   },
+  {
+    id: 'llama-3.1-8b',
+    provider_id: 'groq',
+    display_name: 'Llama 3.1 8B Instant',
+    description: 'Model ultra-cepat dengan respon instan dan latensi terendah.',
+    badge: 'Instant',
+    speed: 'Instant',
+    reasoning: 'Standard',
+    context_window: '128k tokens',
+    tier_required: 'free',
+    credit_cost_per_request: 2,
+    status: 'available',
+    is_enabled: true,
+    is_default: false,
+    sort_order: 7,
+  },
 ];
 
 export const DEFAULT_PLANS = [

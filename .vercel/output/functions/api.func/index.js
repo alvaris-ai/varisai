@@ -5424,6 +5424,22 @@ var DEFAULT_AI_MODELS = [
     is_enabled: true,
     is_default: false,
     sort_order: 6
+  },
+  {
+    id: "llama-3.1-8b",
+    provider_id: "groq",
+    display_name: "Llama 3.1 8B Instant",
+    description: "Model ultra-cepat dengan respon instan dan latensi terendah.",
+    badge: "Instant",
+    speed: "Instant",
+    reasoning: "Standard",
+    context_window: "128k tokens",
+    tier_required: "free",
+    credit_cost_per_request: 2,
+    status: "available",
+    is_enabled: true,
+    is_default: false,
+    sort_order: 7
   }
 ];
 var DEFAULT_PLANS = [
@@ -14111,50 +14127,66 @@ function createGroqProvider({
           parameters: t.parameters || { type: "object", properties: {} }
         }
       })) : void 0;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const completion = await groqClient.chat.completions.create(
-          {
-            model: targetModel,
-            messages,
-            ...formattedTools ? { tools: formattedTools } : {}
-          },
-          { signal: controller.signal }
-        );
-        const choice = completion.choices?.[0];
-        const message = choice?.message;
-        if (message?.tool_calls?.length > 0) {
-          const parsedCalls = message.tool_calls.map((tc) => {
-            let args = {};
-            try {
-              args = JSON.parse(tc.function.arguments);
-            } catch {
-            }
-            return {
-              callId: tc.id || `call_${Date.now()}`,
-              name: tc.function.name,
-              arguments: args
-            };
-          });
-          return {
-            toolCalls: parsedCalls,
-            continuation: {
-              previousInput: messages,
-              toolCallItems: message.tool_calls
+      const candidateModels = [
+        targetModel,
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "llama3-70b-8192",
+        "llama3-8b-8192",
+        "mixtral-8x7b-32768"
+      ].filter((v, i, a) => a.indexOf(v) === i);
+      let lastErr = null;
+      for (const candidate of candidateModels) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const completion = await groqClient.chat.completions.create(
+            {
+              model: candidate,
+              messages,
+              ...formattedTools ? { tools: formattedTools } : {}
             },
-            model: targetModel,
-            usage: completion.usage ?? null
-          };
+            { signal: controller.signal }
+          );
+          const choice = completion.choices?.[0];
+          const message = choice?.message;
+          if (message?.tool_calls?.length > 0) {
+            const parsedCalls = message.tool_calls.map((tc) => {
+              let args = {};
+              try {
+                args = JSON.parse(tc.function.arguments);
+              } catch {
+              }
+              return {
+                callId: tc.id || `call_${Date.now()}`,
+                name: tc.function.name,
+                arguments: args
+              };
+            });
+            return {
+              toolCalls: parsedCalls,
+              continuation: {
+                previousInput: messages,
+                toolCallItems: message.tool_calls
+              },
+              model: candidate,
+              usage: completion.usage ?? null
+            };
+          }
+          const text = message?.content?.trim() || "";
+          return { text, toolCalls: [], model: candidate, usage: completion.usage ?? null };
+        } catch (err) {
+          lastErr = err;
+          if (err?.status === 404 || err?.message?.includes("does not exist") || err?.message?.includes("model")) {
+            continue;
+          }
+          if (err?.name === "AbortError") throw timeoutError(timeoutMs, "Groq");
+          throw err;
+        } finally {
+          clearTimeout(timer);
         }
-        const text = message?.content?.trim() || "";
-        return { text, toolCalls: [], model: targetModel, usage: completion.usage ?? null };
-      } catch (err) {
-        if (err?.name === "AbortError") throw timeoutError(timeoutMs, "Groq");
-        throw err;
-      } finally {
-        clearTimeout(timer);
       }
+      throw lastErr || new Error("Groq model execution failed");
     },
     async stream(params, onToken) {
       if (!apiKey && !client) {
@@ -14167,24 +14199,43 @@ function createGroqProvider({
         ...context.map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content: userMessage }
       ];
-      const streamResponse = await groqClient.chat.completions.create({
-        model: targetModel,
-        messages,
-        stream: true
-      });
-      let fullText = "";
-      for await (const chunk of streamResponse) {
-        const token = chunk.choices?.[0]?.delta?.content || "";
-        if (token) {
-          fullText += token;
-          if (onToken) onToken(token);
+      const candidateModels = [
+        targetModel,
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "llama3-70b-8192",
+        "llama3-8b-8192"
+      ].filter((v, i, a) => a.indexOf(v) === i);
+      let lastErr = null;
+      for (const candidate of candidateModels) {
+        try {
+          const streamResponse = await groqClient.chat.completions.create({
+            model: candidate,
+            messages,
+            stream: true
+          });
+          let fullText = "";
+          for await (const chunk of streamResponse) {
+            const token = chunk.choices?.[0]?.delta?.content || "";
+            if (token) {
+              fullText += token;
+              if (onToken) onToken(token);
+            }
+          }
+          return {
+            text: fullText.trim(),
+            model: candidate,
+            usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) }
+          };
+        } catch (err) {
+          lastErr = err;
+          if (err?.status === 404 || err?.message?.includes("does not exist") || err?.message?.includes("model")) {
+            continue;
+          }
+          throw err;
         }
       }
-      return {
-        text: fullText.trim(),
-        model: targetModel,
-        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) }
-      };
+      throw lastErr || new Error("Groq stream execution failed");
     }
   };
 }
