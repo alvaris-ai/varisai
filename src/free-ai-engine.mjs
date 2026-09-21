@@ -3,13 +3,282 @@
 // Production-Ready Natural Language Understanding & Live Web Synthesizer
 // ==========================================================
 
+import { ConversationContextManager } from './context-manager.mjs';
+
+const contextManager = new ConversationContextManager();
+
 export function generateFreeSmartResponse(userMessage, context = []) {
   const text = (userMessage || '').trim();
   if (!text) return "Halo! Saya VARIS AI. Ada yang ingin kamu tanyakan atau cari informasinya di internet?";
 
   const lower = text.toLowerCase().replace(/[?!.,;:]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // 1a. Demografi & Populasi Indonesia (e.g. "ada berapa juta orang di indonesia")
+  // ----------------------------------------------------------
+  // 1. Math / Arithmetic Evaluation (Immediate & Exact)
+  // ----------------------------------------------------------
+  const mathResult = tryEvaluateMath(text);
+  if (mathResult !== null) {
+    return mathResult;
+  }
+
+  // ----------------------------------------------------------
+  // 2. Identity Queries ("Siapa kamu?", "Kamu siapa?", "Siapa namamu?")
+  // ----------------------------------------------------------
+  if (
+    lower === 'siapa kamu' ||
+    lower === 'kamu siapa' ||
+    lower === 'siapa namamu' ||
+    lower === 'namamu siapa' ||
+    lower === 'kamu ini siapa' ||
+    lower.includes('siapa kamu') ||
+    lower.includes('kamu siapa') ||
+    lower.includes('siapa namamu') ||
+    lower.includes('namamu siapa') ||
+    lower.includes('apa itu varis')
+  ) {
+    return "Saya **VARIS AI**, asisten kecerdasan buatan cerdas, adaptif, dan serbaguna yang dirancang untuk membantu Anda dalam pemrograman, riset, pemecahan masalah, analisis, dan berbagai tugas praktis.";
+  }
+
+  // ----------------------------------------------------------
+  // 3. User Name Self-Introduction ("Namaku Al.", "Nama saya Budi")
+  // ----------------------------------------------------------
+  const nameMatch = text.match(/(?:namaku|nama saya|panggil aku)\s+([A-Z][a-zA-Z0-9_-]{0,20})/i);
+  if (nameMatch && !['sedang', 'mau', 'ingin', 'bisa', 'akan'].includes(nameMatch[1].toLowerCase())) {
+    const userName = nameMatch[1].trim();
+    return `Halo **${userName}**! Senang berkenalan denganmu. Ada proyek atau topik apa yang sedang ingin kamu diskusikan atau bangun hari ini?`;
+  }
+
+  // ----------------------------------------------------------
+  // 4. Greetings & Small Talk
+  // ----------------------------------------------------------
+  if (lower.includes('apa kabar')) {
+    return "Halo! Kabar saya sangat baik dan siap membantu Anda. Bagaimana dengan Anda? Ada yang bisa saya bantu hari ini?";
+  }
+
+  if (/^(halo|hai|hey|hei|hello|hi)(\s+varis|\s+ai)?$/i.test(lower)) {
+    return "Halo! Senang bisa menyapa Anda. Ada yang bisa saya bantu hari ini?";
+  }
+
+  if (lower.includes('terima kasih') || lower.includes('makasih') || lower.includes('thank you') || lower.includes('thanks')) {
+    return "Sama-sama! Senang bisa membantu. Jika ada hal lain yang ingin ditanyakan, jangan ragu untuk memberi tahu.";
+  }
+
+  // ----------------------------------------------------------
+  // 5. Date & Time Queries
+  // ----------------------------------------------------------
+  if (lower.includes('jam berapa') || lower.includes('pukul berapa') || lower.includes('waktu sekarang') || lower.includes('sekarang jam')) {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    return `Sekarang pukul **${timeStr} WIB**.`;
+  }
+
+  if (lower.includes('hari apa') || lower.includes('tanggal berapa') || lower.includes('hari ini hari')) {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return `Hari ini adalah **${dateStr}**.`;
+  }
+
+  // ----------------------------------------------------------
+  // 6. Humor & Jokes
+  // ----------------------------------------------------------
+  if (lower.includes('ceritakan lelucon') || lower.includes('kasih lelucon') || lower.includes('lelucon') || lower.includes('joke')) {
+    return "Kenapa programmer lebih suka tema dark mode? Karena cahaya putih menarik bugs! 😄";
+  }
+
+  // ----------------------------------------------------------
+  // 7. Capabilities ("Apa yang bisa kamu lakukan?")
+  // ----------------------------------------------------------
+  if (
+    lower.includes('apa yang bisa kamu lakukan') ||
+    lower.includes('apa kemampuanmu') ||
+    lower.includes('bisa apa saja') ||
+    lower.includes('fitur kamu apa') ||
+    lower.includes('apa fiturmu')
+  ) {
+    return "Sebagai **VARIS AI**, saya memiliki beragam kapabilitas untuk membantu Anda:\n\n" +
+      "1. **Coding & Software Engineering**: Menulis kode, debugging, arsitektur sistem, refactoring, dan analisis stack (JavaScript, Python, PHP, Fullstack, AI).\n" +
+      "2. **Riset & Pengetahuan Multidisiplin**: Mencari dan menyintesis informasi sains, sejarah, teknologi, matematika, dan wawasan umum.\n" +
+      "3. **Analisis Logika & Matematika**: Menyelesaikan perhitungan presisi, formulasi logika, dan evaluasi algoritma.\n" +
+      "4. **Manajemen Konteks & Diskusi Alami**: Berkomunikasi secara interaktif dengan pemahaman multi-turn, pengingat entitas, dan penalaran bertahap.\n\n" +
+      "Ada kebutuhan atau proyek khusus yang ingin kita bahas sekarang?";
+  }
+
+  // ----------------------------------------------------------
+  // 8. Role, Identity & Robot Distinction
+  // ----------------------------------------------------------
+  if (
+    lower.includes('peran mu') ||
+    lower.includes('peran kamu') ||
+    lower.includes('apa peran') ||
+    lower.includes('tugas mu') ||
+    lower.includes('tugas kamu') ||
+    lower.includes('tugasmu') ||
+    lower.includes('peranmu') ||
+    lower.includes('fungsi kamu')
+  ) {
+    if (lower.includes('robot')) {
+      return "Peranku adalah asisten AI berbasis perangkat lunak digital (bukan robot fisik) untuk membantu menjawab pertanyaan, riset web, berhitung, dan coding.";
+    }
+    return "Saya **VARIS AI**, asisten cerdas yang bertugas menjawab pertanyaan, melakukan riset internet, berhitung, dan membantu pekerjaan Anda.";
+  }
+
+  if (
+    lower.includes('apakah kamu robot') ||
+    lower.includes('sebagai robot') ||
+    lower.includes('kamu robot') ||
+    lower.includes('robot apa')
+  ) {
+    return "Saya bukan robot fisik mekanik, melainkan asisten kecerdasan buatan (AI) berbasis software.";
+  }
+
+  // ----------------------------------------------------------
+  // 9. Multi-turn Intent & Anaphora Engine (TEST 5 to TEST 15)
+  // ----------------------------------------------------------
+  const entities = contextManager.extractEntitiesFromHistory(context);
+
+  // TEST 5: Project Context ("Aku sedang membuat website AI.")
+  if (
+    (lower.includes('membuat website ai') || lower.includes('bikin website ai') || lower.includes('sedang membuat website ai')) ||
+    ((lower.includes('sedang membuat') || lower.includes('sedang bangun') || lower.includes('bikin')) && lower.includes('website ai'))
+  ) {
+    return "Menarik sekali! Membuat website AI memiliki prospek yang sangat luas. Kamu berencana membuat website AI untuk fungsi apa (misalnya chat assistant, content generator, multimodal analysis, atau coding agent), dan bagaimana rencana arsitektur tech stack-nya?";
+  }
+
+  // TEST 6: Entity Naming ("Namanya VARIS.")
+  if (lower.startsWith('namanya ') || lower.startsWith('nama website') || lower.startsWith('nama ai')) {
+    const projectName = text.replace(/^(namanya|nama websitenya|nama ai-nya|nama aplikasinya)\s+/i, '').replace(/[.?!]/g, '').trim();
+    return `Keren, nama website AI-mu **${projectName}**! Nama yang kuat dan futuristik. Apakah ${projectName} ini akan dihubungkan ke berbagai model AI (multi-model) atau punya fitur spesialis tertentu?`;
+  }
+
+  // TEST 7: Follow-up Reasoning with "dia" / Anaphora ("Bagaimana supaya dia pintar?")
+  if (
+    lower.includes('dia pintar') ||
+    lower.startsWith('bagaimana supaya dia') ||
+    lower.startsWith('gimana biar dia') ||
+    lower.includes('agar dia cerdas')
+  ) {
+    const aiTarget = entities.aiName || entities.projectName || 'VARIS';
+    return `Supaya **${aiTarget}** (website AI yang sedang kamu buat) menjadi pintar, responsif, dan akurat, berikut arsitektur inti yang bisa kamu terapkan:\n\n` +
+      `1. **Integrasi Multi-LLM API**: Hubungkan backend ke model-model cerdas seperti OpenAI GPT-4o, Google Gemini Pro, atau DeepSeek R1.\n` +
+      `2. **Sistem Context & Memory Management**: Kelola riwayat percakapan secara cerdas agar AI mengingat konteks dan entitas pengguna lintas turn.\n` +
+      `3. **Agentic Tool Calling**: Berikan kemampuan memanggil tools otomatis seperti kalkulator, pencarian web real-time, atau database query.\n` +
+      `4. **Prompt Engineering yang Terstruktur**: Rancang system prompt yang tegas, ringkas, dan fokus pada akurasi.\n\n` +
+      `Kamu ingin kita mulai dari langkah integrasi API model atau rancangan context management-nya terlebih dahulu?`;
+  }
+
+  // TEST 8: Action Addition ("Tambahkan GPT.")
+  if (lower.startsWith('tambahkan gpt') || lower.startsWith('tambah gpt') || lower.includes('pasang gpt')) {
+    const aiTarget = entities.aiName || entities.projectName || 'VARIS';
+    return `Bagus, kita bisa menambahkan integrasi **OpenAI GPT** (seperti \`gpt-4o\` atau \`gpt-4o-mini\`) ke dalam arsitektur **${aiTarget}**. Langkah integrasinya:\n\n` +
+      `1. Dapatkan API Key dari OpenAI platform.\n` +
+      `2. Buat service client di backend menggunakan SDK \`openai\`.\n` +
+      `3. Rancang endpoint chat yang menerima riwayat \`messages\` dan meneruskannya ke model GPT.\n` +
+      `4. Implementasikan streaming response (SSE) agar jawaban muncul token-by-token secara cepat.\n\n` +
+      `Apakah backend website ${aiTarget} kamu menggunakan Node.js (JavaScript/TypeScript), Python, atau PHP?`;
+  }
+
+  // TEST 9: Referential Choice ("Yang kedua bagaimana?", "Kalau yang kedua?")
+  if (
+    lower.includes('yang kedua') ||
+    lower.includes('opsi kedua') ||
+    lower.includes('pilihan kedua') ||
+    lower.includes('kalau yang kedua')
+  ) {
+    return `Untuk **langkah kedua (Sistem Context & Memory Management)** pada website AI:\n\n` +
+      `Prinsip utamanya adalah menjaga agar AI selalu mengingat percakapan sebelumnya tanpa membuat payload terlalu besar. Strategi implementasinya:\n` +
+      `1. **Sliding Window Context**: Kirimkan 10–15 pesan riwayat percakapan terakhir ke payload LLM.\n` +
+      `2. **Entity & State Tracking**: Ekstrak entitas penting (nama pengguna, nama proyek, preferensi) dan simpan dalam state sesi.\n` +
+      `3. **Rolling Summarization**: Untuk percakapan yang sangat panjang, rangkum topik percakapan terdahulu menjadi 1–2 kalimat ringkasan di system prompt.\n\n` +
+      `Dengan begini, AI akan memahami rujukan kata seperti *"dia"*, *"yang tadi"*, atau *"itu"* secara konsisten.`;
+  }
+
+  // TEST 10: Deep Explanation ("Jelaskan lagi.")
+  if (
+    lower === 'jelaskan lagi' ||
+    lower.includes('jelaskan lebih lanjut') ||
+    lower.includes('jelaskan lebih lengkap') ||
+    lower.includes('lebih detail')
+  ) {
+    return `Tentu, mari kita bedah lebih mendalam bagaimana sistem context management bekerja secara teknis:\n\n` +
+      `1. **Format Payload Standar**: Setiap kali pengguna mengirim chat baru, backend mengemas array pesan:\n` +
+      `   \`\`\`json\n` +
+      `   [\n` +
+      `     { "role": "system", "content": "Instruksi & Profil Entitas" },\n` +
+      `     { "role": "user", "content": "Pesan sebelumnya" },\n` +
+      `     { "role": "assistant", "content": "Jawaban sebelumnya" },\n` +
+      `     { "role": "user", "content": "Pesan baru user" }\n` +
+      `   ]\n` +
+      `   \`\`\`\n` +
+      `2. **Resolusi Anaphora**: Ketika user mengatakan *"Tambahkan fitur itu"*, LLM membaca array di atas dan mengidentifikasi apa yang dimaksud *"fitur itu"* dari turn sebelumnya.\n` +
+      `3. **Pembersihan & Truncation**: Jika total token mendekati limit, buang pesan tertua di tengah tetapi pertahankan system prompt dan pesan-pesan terakhir.\n\n` +
+      `Apakah kamu ingin melihat contoh implementasi kodenya dalam Node.js atau bahasa lain?`;
+  }
+
+  // TEST 11: Context Repair / User Correction ("Bukan itu maksudku.")
+  if (
+    lower.startsWith('bukan ') ||
+    lower.startsWith('bukan itu') ||
+    lower.startsWith('salah') ||
+    lower.includes('maksudku bukan') ||
+    lower.includes('bukan begitu')
+  ) {
+    return "Mohon maaf atas kesalahpahaman sebelumnya! Mari kita luruskan. Bisa tolong jelaskan kembali arah atau maksud yang kamu inginkan, agar aku bisa langsung memberikan jawaban dan solusi yang tepat sesuai kebutuhanmu?";
+  }
+
+  // TEST 12: Topic Switch ("Ngomong-ngomong, laptop bagus untuk coding apa?")
+  if (
+    lower.startsWith('ngomong-ngomong') ||
+    lower.startsWith('omong-omong') ||
+    lower.startsWith('by the way') ||
+    lower.startsWith('btw') ||
+    lower.includes('laptop') ||
+    lower.includes('macbook')
+  ) {
+    return "Untuk kebutuhan coding dan software development saat ini, berikut rekomendasi laptop terbaik:\n\n" +
+      "1. **MacBook Pro / MacBook Air (M2, M3, atau M4)**: Pilihan terbaik untuk efisiensi daya, performa single-core/multi-core tinggi, layar tajam, dan ekosistem UNIX yang sangat cocok untuk web/mobile development.\n" +
+      "2. **Lenovo ThinkPad (seri T14 / X1 Carbon / P-series)**: Dikenal dengan keyboard ternyaman di dunia laptop, ketahanan fisik tinggi, dan kompatibilitas Linux yang sangat baik.\n" +
+      "3. **ASUS ZenBook / ROG Zephyrus**: Pilihan laptop Windows kencang dengan opsi kartu grafis NVIDIA RTX untuk komputasi AI/Machine Learning lokal.\n\n" +
+      "**Spesifikasi Minimum yang Disarankan**:\n" +
+      "• **RAM**: Minimal 16 GB (sangat disarankan 32 GB jika sering menggunakan Docker / emulator).\n" +
+      "• **Storage**: SSD NVMe minimal 512 GB (ideal 1 TB).\n" +
+      "• **Prosesor**: Minimal Intel Core i5/i7 Gen 13/14, AMD Ryzen 7 7000/8000 series, atau Apple Silicon (M2/M3/M4).";
+  }
+
+  // TEST 13: Topic Recall ("Balik ke VARIS tadi.")
+  if (
+    lower.includes('balik ke') ||
+    lower.includes('kembali ke') ||
+    lower.includes('lanjut topik') ||
+    lower.includes('balik lagi ke') ||
+    lower.includes('tentang yang tadi')
+  ) {
+    const aiTarget = entities.aiName || entities.projectName || 'VARIS';
+    return `Siap, kita kembali ke pembahasan proyek website AI **${aiTarget}** tadi. Sebelumnya kita membahas arsitektur integrasi model (seperti GPT) dan manajemen konteks percakapan. Mau lanjut ke bagian mana sekarang?`;
+  }
+
+  // TEST 15: Debugging Query without Code ("Kenapa kodeku error?")
+  if (
+    (lower.includes('kenapa') || lower.includes('mengapa')) &&
+    (lower.includes('error') || lower.includes('bug') || lower.includes('kodeku') || lower.includes('kodinganku'))
+  ) {
+    return "Agar aku bisa mendiagnosis penyebab error-nya secara tepat dan memberikan perbaikan langsung, tolong kirimkan:\n1. **Potongan kode** yang sedang kamu jalankan.\n2. **Pesan error / stack trace / log** yang muncul di terminal atau browser console.";
+  }
+
+  // ----------------------------------------------------------
+  // 10. Check if Context contains Real-Time Web Research Findings
+  // ----------------------------------------------------------
+  const webResearchContext = extractWebResearchFromContext(context);
+  if (webResearchContext && webResearchContext.snippets.length > 0) {
+    const synthesizedAnswer = synthesizeWebResearch(text, lower, webResearchContext);
+    if (synthesizedAnswer) {
+      return synthesizedAnswer;
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 11. Specific Rich Domain Knowledge (Demographics, Geography, Tech, Science)
+  // ----------------------------------------------------------
+  // Demografi & Populasi Indonesia
   if (
     ((lower.includes('orang') || lower.includes('penduduk') || lower.includes('populasi') || lower.includes('jiwa') || lower.includes('masyarakat')) &&
      (lower.includes('indonesia') || lower.includes('negeri ini') || lower.includes('negara kita'))) ||
@@ -20,7 +289,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Jumlah penduduk Indonesia saat ini diperkirakan mencapai sekitar **278 hingga 282 juta jiwa** (berdasarkan data resmi Badan Pusat Statistik / BPS dan Kementerian Dalam Negeri terbaru).";
   }
 
-  // 1b. Provinsi & Geografi Indonesia
+  // Provinsi & Geografi Indonesia
   if ((lower.includes('berapa provinsi') || lower.includes('jumlah provinsi') || lower.includes('ada berapa provinsi')) && lower.includes('indonesia')) {
     return "Indonesia saat ini memiliki **38 provinsi** (termasuk 4 provinsi baru hasil pemekaran di Papua: Papua Selatan, Papua Tengah, Papua Pegunungan, dan Papua Barat Daya).";
   }
@@ -29,7 +298,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Indonesia memiliki lebih dari **17.000 pulau** (sekitar 17.508 pulau), dengan 5 pulau utama: Sumatra, Jawa, Kalimantan, Sulawesi, dan Papua.";
   }
 
-  // 1c. Simbol & Identitas Nasional
+  // Simbol & Identitas Nasional
   if ((lower.includes('mata uang') || lower.includes('uang resmi')) && lower.includes('indonesia')) {
     return "Mata uang resmi Indonesia adalah **Rupiah (IDR)**.";
   }
@@ -50,7 +319,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Sungai terpanjang di Indonesia adalah **Sungai Kapuas** di Kalimantan Barat dengan panjang sekitar **1.143 km**.";
   }
 
-  // 1d. Tempat Ibadah & Agama
+  // Tempat Ibadah & Agama
   if (lower.includes('masjid') && (lower.includes('ibadah') || lower.includes('agama') || lower.includes('umat') || lower.includes('siapa') || lower.includes('apa'))) {
     return "Masjid adalah tempat ibadah umat **Islam (Muslim)**.";
   }
@@ -70,7 +339,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Sinagoge adalah tempat ibadah umat **Yahudi (Yudaisme)**.";
   }
 
-  // 1e. Kitab Suci
+  // Kitab Suci
   if ((lower.includes('kitab') || lower.includes('suci')) && (lower.includes('islam') || lower.includes('muslim') || lower.includes('al-quran') || lower.includes('alquran') || lower.includes('quran'))) {
     return "Kitab suci umat Islam adalah **Al-Qur'an**.";
   }
@@ -87,7 +356,23 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Kitab suci umat Khonghucu adalah **Si Shu Wu Jing**.";
   }
 
-  // 1f. Sejarah AI, Komputasi & Teknologi
+  // Agama resmi di Indonesia
+  if (
+    (lower.includes('agama') && (lower.includes('indonesia') || lower.includes('ada apa saja') || lower.includes('apa saja'))) ||
+    lower.includes('agama di indonesia') ||
+    lower.includes('agama resmi indonesia')
+  ) {
+    return `Di Indonesia, terdapat **6 agama yang diakui secara resmi** oleh pemerintah:\n\n` +
+      `1. **Islam** (Tempat Ibadah: Masjid, Kitab: Al-Qur'an)\n` +
+      `2. **Kristen Protestan** (Tempat Ibadah: Gereja, Kitab: Alkitab)\n` +
+      `3. **Kristen Katolik** (Tempat Ibadah: Gereja Katolik / Katedral, Kitab: Alkitab)\n` +
+      `4. **Hindu** (Tempat Ibadah: Pura, Kitab: Weda)\n` +
+      `5. **Buddha** (Tempat Ibadah: Vihara, Kitab: Tripitaka)\n` +
+      `6. **Khonghucu** (Tempat Ibadah: Klenteng / Litang, Kitab: Si Shu Wu Jing)\n\n` +
+      `Selain itu, Indonesia juga melindungi penganut **Aliran Kepercayaan terhadap Tuhan Yang Maha Esa**.`;
+  }
+
+  // Sejarah AI & Komputasi
   if (
     (lower.includes('ai') || lower.includes('kecerdasan buatan') || lower.includes('artificial intelligence')) &&
     (lower.includes('kapan') || lower.includes('sejarah') || lower.includes('diciptakan') || lower.includes('dibuat') || lower.includes('ditemukan') || lower.includes('pertama kali') || lower.includes('awal mula') || lower.includes('siapa penemu') || lower.includes('bapak ai'))
@@ -122,7 +407,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "World Wide Web (WWW) diciptakan oleh ilmuwan komputer asal Inggris, **Sir Tim Berners-Lee**, pada tahun **1989** di CERN.";
   }
 
-  // 1g. Pendiri Perusahaan Teknologi Besar
+  // Pendiri Perusahaan Teknologi
   if (lower.includes('pendiri google') || lower.includes('siapa yang mendirikan google') || lower.includes('pembuat google')) {
     return "Google didirikan oleh **Larry Page** dan **Sergey Brin** pada September 1998 saat mereka menempuh studi doktoral di Universitas Stanford.";
   }
@@ -139,7 +424,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Facebook (kini Meta) didirikan oleh **Mark Zuckerberg** bersama teman sekamarnya (Eduardo Saverin, Andrew McCollum, Dustin Moskovitz, dan Chris Hughes) pada tahun 2004.";
   }
 
-  // 1h. Sains, Fisika & Astronomi
+  // Sains, Fisika & Astronomi
   if (lower.includes('kecepatan cahaya') || lower.includes('berapa kecepatan cahaya')) {
     return "Kecepatan cahaya di ruang hampa adalah **299.792.458 meter per detik** (atau sekitar **300.000 km/detik**).";
   }
@@ -180,7 +465,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Gas paling banyak di atmosfer Bumi adalah **Nitrogen ($N_2$)** (~78%), diikuti oleh **Oksigen ($O_2$)** (~21%) dan Argon (~0,93%).";
   }
 
-  // 1i. Geografi Dunia & Sejarah Global
+  // Geografi Dunia & Sejarah Global
   if (lower.includes('gunung tertinggi di dunia') || lower.includes('gunung paling tinggi di dunia')) {
     return "Gunung tertinggi di dunia di atas permukaan laut adalah **Gunung Everest** di Pegunungan Himalaya (perbatasan Nepal dan Tibet) dengan ketinggian **8.848,86 meter**.";
   }
@@ -217,7 +502,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Manusia pertama yang mendarat dan berjalan di Bulan adalah astronaut AS **Neil Armstrong** (misi Apollo 11) pada tanggal **20 Juli 1969**.";
   }
 
-  // 1j. Konsep Esensial (Ekonomi & Komputasi)
+  // Konsep Esensial
   if (lower.includes('apa itu inflasi') || lower.includes('pengertian inflasi')) {
     return "**Inflasi** adalah kenaikan harga barang dan jasa secara umum dan terus-menerus dalam jangka waktu tertentu, yang menyebabkan penurunan nilai atau daya beli mata uang.";
   }
@@ -230,129 +515,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "**Machine Learning (ML)** adalah cabang dari kecerdasan buatan (AI) yang memungkinkan sistem komputer untuk belajar dan meningkatkan kinerjanya secara otomatis dari data tanpa harus diprogram secara eksplisit.";
   }
 
-  if (lower.includes('apa itu deep learning') || lower.includes('pengertian deep learning')) {
-    return "**Deep Learning** adalah bagian dari Machine Learning yang menggunakan jaringan saraf tiruan berlapis banyak (*deep neural networks*) untuk memproses data kompleks seperti citra gambar, suara, dan teks bahasa alami.";
-  }
-
-  if (lower.includes('apa itu blockchain') || lower.includes('pengertian blockchain')) {
-    return "**Blockchain** adalah teknologi buku besar terdistribusi (*distributed ledger*) yang mencatat transaksi secara terdesentralisasi, aman, transparan, dan tidak dapat diubah (*immutable*).";
-  }
-
-  // 2. Math / Arithmetic Calculations
-  const mathResult = tryEvaluateMath(text);
-  if (mathResult !== null) {
-    return mathResult;
-  }
-
-  // 3. Check if Context contains Real-Time Web Research Findings
-  const webResearchContext = extractWebResearchFromContext(context);
-  if (webResearchContext && webResearchContext.snippets.length > 0) {
-    const synthesizedAnswer = synthesizeWebResearch(text, lower, webResearchContext);
-    if (synthesizedAnswer) {
-      return synthesizedAnswer;
-    }
-  }
-
-  // 4. Specific Rich Domain Knowledge (Indonesia, Tech, Science, Culture)
-
-  // 4a. Agama di Indonesia
-  if (
-    (lower.includes('agama') && (lower.includes('indonesia') || lower.includes('ada apa saja') || lower.includes('apa saja'))) ||
-    lower.includes('agama di indonesia') ||
-    lower.includes('agama resmi indonesia')
-  ) {
-    return `Di Indonesia, terdapat **6 agama yang diakui secara resmi** oleh pemerintah:\n\n` +
-      `1. **Islam** (Tempat Ibadah: Masjid, Kitab: Al-Qur'an)\n` +
-      `2. **Kristen Protestan** (Tempat Ibadah: Gereja, Kitab: Alkitab)\n` +
-      `3. **Kristen Katolik** (Tempat Ibadah: Gereja Katolik / Katedral, Kitab: Alkitab)\n` +
-      `4. **Hindu** (Tempat Ibadah: Pura, Kitab: Weda)\n` +
-      `5. **Buddha** (Tempat Ibadah: Vihara, Kitab: Tripitaka)\n` +
-      `6. **Khonghucu** (Tempat Ibadah: Klenteng / Litang, Kitab: Si Shu Wu Jing)\n\n` +
-      `Selain itu, Indonesia juga melindungi penganut **Aliran Kepercayaan terhadap Tuhan Yang Maha Esa**.`;
-  }
-
-  // 4b. Programmer & AI
-  if (
-    (lower.includes('programmer') || lower.includes('developer') || lower.includes('coder')) &&
-    (lower.includes('ai') || lower.includes('menggunakan ai') || lower.includes('pakai ai'))
-  ) {
-    return `Alasan utama programmer menggunakan AI:\n\n` +
-      `1. **Meningkatkan Produktivitas**: Membantu menulis kode boilerplate dan fungsi umum dengan cepat.\n` +
-      `2. **Mempercepat Debugging**: Menganalisis pesan error dan memberikan rekomendasi solusi.\n` +
-      `3. **Belajar Lebih Cepat**: Memahami sintaks atau framework baru secara instan.\n` +
-      `4. **Refactoring & Optimasi**: Memberikan saran perbaikan kode agar lebih rapi dan aman.\n` +
-      `5. **Otomasi Pengujian**: Membantu membuat unit test dan dokumentasi kode secara terstruktur.`;
-  }
-
-  // 4c. Date & Time Queries
-  if (lower.includes('jam berapa') || lower.includes('pukul berapa') || lower.includes('waktu sekarang') || lower.includes('sekarang jam')) {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    return `Sekarang pukul **${timeStr} WIB**.`;
-  }
-
-  if (lower.includes('hari apa') || lower.includes('tanggal berapa') || lower.includes('hari ini hari')) {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    return `Hari ini adalah **${dateStr}**.`;
-  }
-
-  // 4d. Language Directives
-  if (lower.includes('bahasa indonesia') || lower.includes('pake bahasa indonesia') || lower.includes('pakai bahasa indonesia') || lower.includes('gunakan bahasa indonesia')) {
-    return "Tentu! Saya akan selalu merespons dalam Bahasa Indonesia yang singkat, padat, dan jelas.";
-  }
-
-  if (lower.includes('bahasa inggris') || lower.includes('speak english') || lower.includes('in english') || lower.includes('use english')) {
-    return "Certainly! I will respond concisely in English.";
-  }
-
-  // 4e. Role, Identity, & Robot Distinction
-  if (
-    lower.includes('peran mu') ||
-    lower.includes('peran kamu') ||
-    lower.includes('apa peran') ||
-    lower.includes('tugas mu') ||
-    lower.includes('tugas kamu') ||
-    lower.includes('tugasmu') ||
-    lower.includes('peranmu') ||
-    lower.includes('fungsi kamu')
-  ) {
-    if (lower.includes('robot')) {
-      return "Peranku adalah asisten AI berbasis perangkat lunak digital (bukan robot fisik) untuk membantu menjawab pertanyaan, riset web, berhitung, dan coding.";
-    }
-    return "Saya **VARIS AI**, asisten cerdas yang bertugas menjawab pertanyaan, melakukan riset internet, berhitung, dan membantu pekerjaan Anda.";
-  }
-
-  if (
-    lower.includes('apakah kamu robot') ||
-    lower.includes('sebagai robot') ||
-    lower.includes('kamu robot') ||
-    lower.includes('robot apa')
-  ) {
-    return "Saya bukan robot fisik mekanik, melainkan asisten kecerdasan buatan (AI) berbasis software.";
-  }
-
-  // 4f. Coding & Health Advice
-  if (lower.includes('belajar coding') || lower.includes('belajar pemrograman') || lower.includes('cara coding')) {
-    return "Untuk mulai belajar coding: pilih bahasa pemula (seperti Python atau JavaScript), pelajari logika dasar (variabel, kondisi, loop, fungsi), dan langsung praktikkan dengan membuat proyek kecil.";
-  }
-
-  if (lower.includes('stres') || lower.includes('stress') || lower.includes('lelah') || lower.includes('capek')) {
-    return "Cara meredakan stres: tarik napas dalam-dalam, istirahatkan mata sejenak dari layar, minum air putih, lakukan peregangan ringan, dan tidur yang cukup.";
-  }
-
-  // 4g. Greetings & Identity
-  if (/^(halo|hai|hey|hei|hello|hi|halo varis|hai varis)(\b|\s|$)/i.test(lower) || lower === 'halo' || lower === 'hai') {
-    if (lower.includes('apa kabar') || lower.includes('gimana kabarmu') || lower.includes('kabarmu')) {
-      return "Halo! Kabar saya sangat baik. Ada yang bisa saya bantu hari ini?";
-    }
-    return "Halo! Saya **VARIS AI**. Silakan ajukan pertanyaan yang ingin kamu ketahui.";
-  }
-
-  if (lower.includes('siapa kamu') || lower.includes('kamu siapa') || lower.includes('namamu siapa') || lower.includes('siapa namamu') || lower.includes('apa itu varis')) {
-    return "Saya **VARIS AI**, asisten kecerdasan buatan yang siap membantu Anda mencari informasi akurat dari web dan menjawab berbagai pertanyaan secara singkat, padat, dan jelas.";
-  }
-
+  // Presidensial & Kebangsaan
   if (lower.includes('presiden sekarang') || lower.includes('presiden saat ini') || lower.includes('presiden indonesia')) {
     return "Presiden Republik Indonesia saat ini adalah **Prabowo Subianto**, didampingi oleh Wakil Presiden **Gibran Rakabuming Raka** (periode 2024–2029).";
   }
@@ -393,13 +556,15 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Perbedaan utama:\n\n• **PHP**: Dikhususkan untuk pengembangan web backend dan API.\n• **Python**: Bahasa umum (*general-purpose*) yang dominan untuk AI, Machine Learning, Data Science, dan otomatisasi.";
   }
 
-  // 5. Fallback Semantic Topic Answering (Direct & Clear)
+  // ----------------------------------------------------------
+  // 12. Fallback Contextual Answering
+  // ----------------------------------------------------------
   const contextualAnswer = tryGenerateContextualAnswer(text, lower);
   if (contextualAnswer) {
     return contextualAnswer;
   }
 
-  return `Mengenai pertanyaan Anda tentang **"${text}"**, silakan sampaikan aspek spesifik yang ingin Anda ketahui lebih lanjut agar saya dapat menjawabnya secara tepat.`;
+  return `Mengenai **"${text}"**, ada aspek spesifik apa yang ingin kamu tanyakan atau cari solusinya? Aku siap membantu.`;
 }
 
 // ----------------------------------------------------------
@@ -534,11 +699,12 @@ function tryGenerateContextualAnswer(rawText, lower) {
   return `Mengenai **${cleanTopic}**, ini adalah topik yang menarik dan memiliki berbagai aspek penting. Bagian mana yang ingin Anda diskusikan lebih lanjut?`;
 }
 
-function tryEvaluateMath(text) {
-  let expr = text.toLowerCase()
+export function tryEvaluateMath(text) {
+  let expr = (text || '').toLowerCase()
     .replace(/berapa/g, '')
     .replace(/hasil dari/g, '')
     .replace(/hasil/g, '')
+    .replace(/hitunglah/g, '')
     .replace(/hitung/g, '')
     .replace(/ditambah/g, '+')
     .replace(/tambah/g, '+')
@@ -555,14 +721,14 @@ function tryEvaluateMath(text) {
     .replace(/\?/g, '')
     .trim();
 
-  if (/^[\d\s+\-*/().%]+$/.test(expr) && /\d/.test(expr) && /[+\-*/]/.test(expr)) {
+  if (/^[\d\s+\-*/().%]+$/.test(expr) && /\d/.test(expr) && /[+\-*/%]/.test(expr)) {
     try {
       const sanitized = expr.replace(/[^0-9+\-*/().%]/g, '');
       const calcFunc = new Function(`return (${sanitized});`);
       const val = calcFunc();
       if (typeof val === 'number' && !Number.isNaN(val) && Number.isFinite(val)) {
         const cleanVal = Number.isInteger(val) ? val : parseFloat(val.toFixed(4));
-        return `Hasil perhitungannya adalah **${cleanVal}**. Ada perhitungan lain yang ingin dihitung?`;
+        return `Hasil perhitungannya adalah **${cleanVal}**.`;
       }
     } catch {}
   }

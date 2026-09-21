@@ -13916,11 +13916,483 @@ OpenAI.Conversations = Conversations;
 OpenAI.Evals = Evals;
 OpenAI.Containers = Containers;
 
+// src/context-manager.mjs
+var ConversationTopicTracker = class {
+  constructor() {
+    this.currentTopic = "General Conversation";
+    this.previousTopic = null;
+    this.topicHistory = [];
+    this.activeTask = null;
+    this.taskStatus = "idle";
+    this.mentionedEntities = /* @__PURE__ */ new Map();
+  }
+  detectTopicSwitch(userMessage, currentTopic = this.currentTopic) {
+    const lower = (userMessage || "").toLowerCase().trim();
+    if (lower.includes("balik ke") || lower.includes("kembali ke") || lower.includes("lanjut topik") || lower.includes("balik lagi ke") || lower.includes("tentang yang tadi")) {
+      return { isRecall: true, targetTopic: this.previousTopic || "VARIS AI" };
+    }
+    if (lower.startsWith("ngomong-ngomong") || lower.startsWith("omong-omong") || lower.startsWith("by the way") || lower.startsWith("btw") || lower.startsWith("ganti topik") || lower.startsWith("eh ")) {
+      const topicName = this.extractTopicKeyword(lower);
+      return { isSwitch: true, newTopic: topicName || "New Topic" };
+    }
+    const domains = [
+      { name: "Hardware & Laptop", keywords: ["laptop", "macbook", "ram", "ssd", "keyboard", "komputer", "pc", "monitor"] },
+      { name: "Weather & Forecast", keywords: ["cuaca", "hujan", "suhu", "prakiraan"] },
+      { name: "VARIS AI Architecture", keywords: ["varis", "website ai", "agent", "model ai", "gpt", "gemini", "deepseek"] },
+      { name: "Database & Backend", keywords: ["database", "mysql", "postgres", "sql", "php", "backend", "api"] },
+      { name: "Mathematics", keywords: ["hitung", "tambah", "kurang", "kali", "bagi", "25 x 48", "rumus"] },
+      { name: "Daily News", keywords: ["berita", "presiden", "menteri", "terbaru", "kurs", "pemilu"] }
+    ];
+    for (const d of domains) {
+      const matchCount = d.keywords.filter((kw) => lower.includes(kw)).length;
+      if (matchCount >= 1 && currentTopic !== d.name) {
+        const isAnaphoric = lower.startsWith("kalau ") || lower.startsWith("terus ") || lower.startsWith("dia ") || lower.startsWith("lalu ");
+        if (!isAnaphoric && (lower.includes("laptop") || lower.includes("cuaca") || lower.includes("harga macbook"))) {
+          return { isSwitch: true, newTopic: d.name };
+        }
+      }
+    }
+    return { isSwitch: false, currentTopic };
+  }
+  extractTopicKeyword(lowerText) {
+    if (lowerText.includes("laptop") || lowerText.includes("macbook")) return "Laptop untuk coding";
+    if (lowerText.includes("cuaca")) return "Prakiraan Cuaca";
+    if (lowerText.includes("database")) return "Database";
+    if (lowerText.includes("varis")) return "VARIS AI";
+    return "Topik Baru";
+  }
+  updateTopic(newTopic) {
+    if (newTopic && newTopic !== this.currentTopic) {
+      this.previousTopic = this.currentTopic;
+      this.currentTopic = newTopic;
+      this.topicHistory.push({
+        topic: newTopic,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+  }
+  recallPreviousTopic() {
+    if (this.previousTopic) {
+      const temp = this.currentTopic;
+      this.currentTopic = this.previousTopic;
+      this.previousTopic = temp;
+      return this.currentTopic;
+    }
+    return this.currentTopic;
+  }
+};
+var ConversationContextManager = class {
+  constructor({
+    maxRecentMessages = 12,
+    maxContextChars = 2e4,
+    summaryTriggerCount = 10
+  } = {}) {
+    this.maxRecentMessages = maxRecentMessages;
+    this.maxContextChars = maxContextChars;
+    this.summaryTriggerCount = summaryTriggerCount;
+    this.topicTracker = new ConversationTopicTracker();
+    this.entities = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Extract key user facts and entities from multi-turn messages
+   */
+  extractEntitiesFromHistory(history = []) {
+    const state = {
+      userName: null,
+      projectName: null,
+      projectType: null,
+      aiName: null,
+      technologies: [],
+      modelsDiscussed: [],
+      lastTopic: null,
+      activeQuestion: null
+    };
+    for (const msg of history) {
+      const content = msg.content || "";
+      const lower = content.toLowerCase();
+      if (msg.role === "user") {
+        const nameMatch = content.match(/(?:namaku|nama saya|panggil aku|aku)\s+([A-Z][a-zA-Z]{1,20})/i);
+        if (nameMatch && !["sedang", "mau", "ingin", "bisa", "akan"].includes(nameMatch[1].toLowerCase())) {
+          state.userName = nameMatch[1].trim();
+          this.entities.set("user_name", state.userName);
+        }
+        if (lower.includes("website ai") || lower.includes("aplikasi ai") || lower.includes("bikin ai") || lower.includes("membuat ai")) {
+          state.projectType = "Website AI";
+          this.entities.set("project_type", state.projectType);
+        } else if (lower.includes("website") || lower.includes("aplikasi")) {
+          state.projectType = "Website / Software";
+          this.entities.set("project_type", state.projectType);
+        }
+        const entityNameMatch = content.match(/(?:namanya|nama proyeknya|nama ai[- ]nya|nama aplikasinya)\s+([A-Z0-9a-z_-]{2,25})/i);
+        if (entityNameMatch) {
+          state.aiName = entityNameMatch[1].trim();
+          state.projectName = entityNameMatch[1].trim();
+          this.entities.set("ai_name", state.aiName);
+          this.entities.set("project_name", state.projectName);
+        }
+        if (lower.includes("php")) state.technologies.push("PHP");
+        if (lower.includes("python")) state.technologies.push("Python");
+        if (lower.includes("javascript") || lower.includes("js")) state.technologies.push("JavaScript");
+        if (lower.includes("gpt")) state.modelsDiscussed.push("GPT");
+        if (lower.includes("gemini")) state.modelsDiscussed.push("Gemini");
+        if (lower.includes("deepseek")) state.modelsDiscussed.push("DeepSeek");
+      } else if (msg.role === "assistant") {
+        if (content.includes("?")) {
+          const questions = content.split("\n").filter((line) => line.includes("?"));
+          if (questions.length > 0) {
+            state.activeQuestion = questions[questions.length - 1].trim();
+          }
+        }
+      }
+    }
+    return state;
+  }
+  /**
+   * Classify user intent taking conversation history into deep account
+   */
+  classifyIntent(userMessage, conversationHistory = []) {
+    const text = (userMessage || "").trim();
+    const lower = text.toLowerCase().replace(/[?!.,;:]/g, " ").replace(/\s+/g, " ").trim();
+    const entities = this.extractEntitiesFromHistory(conversationHistory);
+    const lastAssistantMsg = [...conversationHistory].reverse().find((m) => m.role === "assistant")?.content || "";
+    const lastUserMsg = [...conversationHistory].reverse().find((m) => m.role === "user")?.content || "";
+    if (lower.startsWith("namaku ") || lower.startsWith("nama saya ") || lower.startsWith("panggil aku ") || /^namaku\b/i.test(lower) || /^nama saya\b/i.test(lower)) {
+      return { type: "user_name", confidence: 0.98, entities };
+    }
+    if (lower.includes("siapa kamu") || lower.includes("kamu siapa") || lower.includes("namamu siapa") || lower.includes("siapa namamu") || lower.includes("apa itu varis")) {
+      return { type: "identity", confidence: 0.98, entities };
+    }
+    if (lower.includes("apa yang bisa kamu lakukan") || lower.includes("apa kemampuanmu") || lower.includes("bisa apa saja") || lower.includes("fitur kamu apa") || lower.includes("apa fiturmu")) {
+      return { type: "capabilities", confidence: 0.95, entities };
+    }
+    if ((lower.includes("membuat") || lower.includes("bikin") || lower.includes("sedang bangun")) && (lower.includes("website") || lower.includes("aplikasi") || lower.includes("proyek") || lower.includes("ai"))) {
+      return { type: "project_context", confidence: 0.95, entities };
+    }
+    if (lower.startsWith("namanya ") || lower.startsWith("nama ai ") || lower.startsWith("judulnya ")) {
+      return { type: "entity_naming", confidence: 0.95, entities };
+    }
+    if (lower.startsWith("bukan ") || lower.startsWith("bukan itu") || lower.startsWith("salah") || lower.includes("maksudku bukan") || lower.includes("kok jawabnya beda") || lower.includes("bukan begitu")) {
+      return { type: "correction_repair", confidence: 0.95, entities };
+    }
+    if (lower.includes("balik ke") || lower.includes("kembali ke") || lower.includes("lanjut yang tadi")) {
+      return { type: "topic_recall", confidence: 0.95, entities };
+    }
+    if (lower.startsWith("ngomong-ngomong") || lower.startsWith("omong-omong") || lower.startsWith("by the way") || lower.startsWith("btw") || lower.includes("laptop") || lower.includes("macbook")) {
+      return { type: "topic_switch", confidence: 0.92, entities };
+    }
+    if (lower === "pendekin" || lower === "singkat" || lower.includes("singkat aja") || lower.includes("lebih pendek") || lower.includes("langsung jawab") || lower.includes("ambil poinnya")) {
+      return { type: "shorten_request", confidence: 0.95, entities };
+    }
+    if (lower.includes("lebih sederhana") || lower.includes("lebih simpel") || lower.includes("buat sederhana") || lower.includes("bahasa gampang") || lower.includes("anak kecil paham")) {
+      return { type: "simplification_request", confidence: 0.95, entities };
+    }
+    if (lower === "jelaskan lagi" || lower.includes("jelaskan lebih lengkap") || lower.includes("lebih detail") || lower.includes("step by step") || lower.includes("maksudnya apa")) {
+      return { type: "explanation_request", confidence: 0.92, entities };
+    }
+    if (lower.includes("yang kedua") || lower.includes("yang pertama") || lower.includes("opsi kedua") || lower.includes("pilihan kedua") || lower.includes("kalau yang kedua")) {
+      return { type: "referential_choice", confidence: 0.92, entities };
+    }
+    if (lower.startsWith("tambahkan ") || lower.startsWith("tambah ") || lower.includes("tambahkan gpt") || lower.includes("tambahkan gemini")) {
+      return { type: "action_addition", confidence: 0.95, entities };
+    }
+    if (lower.includes("dia pintar") || lower.startsWith("bagaimana supaya dia") || lower.startsWith("gimana biar dia") || lower.includes("agar dia cerdas")) {
+      return { type: "follow_up_reasoning", confidence: 0.92, entities };
+    }
+    if ((lower.includes("kenapa") || lower.includes("mengapa")) && (lower.includes("error") || lower.includes("bug") || lower.includes("kodeku") || lower.includes("kodinganku"))) {
+      const hasCodeSnippet = /[{};<>()=\[\]\n]{3,}/.test(text) || text.length > 80;
+      return { type: "debugging_query", confidence: 0.95, hasCodeSnippet, entities };
+    }
+    if (/[0-9]+\s*[\+\-\*\/\%x×÷\^]\s*[0-9]+/.test(lower) || lower.startsWith("hitung") || lower.includes("berapa hasil") || lower.includes("berapa 25 x 48")) {
+      return { type: "calculation", confidence: 0.98, entities };
+    }
+    if (lower.includes("cuaca") || lower.includes("hujan") || lower.includes("suhu") || lower.includes("prakiraan cuaca")) {
+      return { type: "weather", confidence: 0.95, entities };
+    }
+    if (/^(halo|hai|hey|hei|hello|hi|apa kabar|pagi|siang|sore|malam|terima kasih|makasih)(\b|\s|$)/i.test(lower)) {
+      return { type: "small_talk", confidence: 0.9, entities };
+    }
+    return { type: "general_question", confidence: 0.7, entities };
+  }
+  /**
+   * Resolve anaphoric references ("dia", "yang tadi", "yang kedua", "itu", "tersebut")
+   */
+  resolveReferences(userMessage, conversationHistory = []) {
+    const text = (userMessage || "").trim();
+    const lower = text.toLowerCase();
+    let resolvedContextHint = null;
+    if (!conversationHistory || conversationHistory.length === 0) {
+      return { resolvedMessage: text, contextHint: null, entityResolved: null };
+    }
+    const entities = this.extractEntitiesFromHistory(conversationHistory);
+    const lastAssistantMsg = [...conversationHistory].reverse().find((m) => m.role === "assistant")?.content || "";
+    const lastUserMsg = [...conversationHistory].reverse().find((m) => m.role === "user")?.content || "";
+    if (lower.includes("dia") || lower.includes("beliau")) {
+      const targetEntity = entities.aiName || entities.projectName || "VARIS AI";
+      resolvedContextHint = `Konteks Rujukan: Kata "dia" merujuk kepada [${targetEntity}] yang sedang dibuat/dibahas oleh pengguna.`;
+      return { resolvedMessage: text, contextHint: resolvedContextHint, entityResolved: targetEntity };
+    }
+    if (lower.startsWith("tambahkan gpt") || lower.startsWith("tambah gpt") || lower.includes("tambahkan gpt")) {
+      const targetEntity = entities.aiName || entities.projectName || "sistem VARIS AI";
+      resolvedContextHint = `Konteks Tindakan: Pengguna meminta untuk menambahkan model OpenAI GPT ke dalam [${targetEntity}].`;
+      return { resolvedMessage: text, contextHint: resolvedContextHint, entityResolved: targetEntity };
+    }
+    if (lower.includes("yang kedua") || lower.includes("pilihan kedua") || lower.includes("opsi kedua")) {
+      const matchSecond = lastAssistantMsg.match(/2\.\s*\*?\*?([^\n\r\*:]+)/i);
+      const secondItem = matchSecond ? matchSecond[1].trim() : "Opsi kedua dari pembahasan sebelumnya";
+      resolvedContextHint = `Konteks Pilihan: "Yang kedua" merujuk kepada [${secondItem}] dari daftar pesan sebelumnya.`;
+      return { resolvedMessage: text, contextHint: resolvedContextHint, entityResolved: secondItem };
+    }
+    if (lower.includes("jelaskan lagi") || lower.includes("maksudnya apa") || lower.includes("lebih sederhana") || lower.includes("pendekin")) {
+      resolvedContextHint = `Konteks Penyesuaian: Pengguna meminta penyesuaian/penjelasan ulang atas respons asisten sebelumnya ("${lastAssistantMsg.slice(0, 100)}...").`;
+      return { resolvedMessage: text, contextHint: resolvedContextHint };
+    }
+    if (text.length < 30 && entities.activeQuestion) {
+      resolvedContextHint = `Konteks Jawaban Langsung: Pesan ini adalah jawaban pengguna atas pertanyaan asisten sebelumnya ("${entities.activeQuestion}").`;
+      return { resolvedMessage: text, contextHint: resolvedContextHint };
+    }
+    return { resolvedMessage: text, contextHint: null, entityResolved: null };
+  }
+  /**
+   * Check if user request is genuinely ambiguous and warrants brief clarification,
+   * or if context is clear enough to answer directly.
+   */
+  checkClarificationNeeded(userMessage, conversationHistory = []) {
+    const lower = (userMessage || "").toLowerCase().trim();
+    if ((lower === "kenapa kodeku error?" || lower === "kenapa kodinganku error" || lower === "kenapa error?") && !lower.includes("{") && !lower.includes("function")) {
+      return {
+        needsClarification: true,
+        clarificationMessage: "Agar aku bisa mendiagnosis penyebab error-nya secara tepat, tolong kirimkan:\n1. **Potongan kode** yang sedang kamu jalankan.\n2. **Pesan error / log** yang muncul di terminal atau console."
+      };
+    }
+    if ((lower === "perbaiki yang kedua" || lower === "ubah warnanya" || lower === "hapus itu") && (!conversationHistory || conversationHistory.length === 0)) {
+      return {
+        needsClarification: true,
+        clarificationMessage: "Bagian mana yang ingin kamu perbaiki atau ubah? Silakan sebutkan objek atau kodenya."
+      };
+    }
+    return { needsClarification: false, clarificationMessage: null };
+  }
+  /**
+   * Build complete optimized multi-turn context with system instructions,
+   * active entities, project state, topic tracking, and conversation summary.
+   */
+  buildOptimizedContext({
+    history = [],
+    currentUserMessage,
+    relevantMemories = [],
+    projectState = null
+  }) {
+    const intent = this.classifyIntent(currentUserMessage, history);
+    const { contextHint, entityResolved } = this.resolveReferences(currentUserMessage, history);
+    const clarification = this.checkClarificationNeeded(currentUserMessage, history);
+    const topicResult = this.topicTracker.detectTopicSwitch(currentUserMessage);
+    if (topicResult.isSwitch) {
+      this.topicTracker.updateTopic(topicResult.newTopic);
+    } else if (topicResult.isRecall) {
+      this.topicTracker.recallPreviousTopic();
+    }
+    const entities = this.extractEntitiesFromHistory(history);
+    const recent = history.slice(-this.maxRecentMessages);
+    const older = history.slice(0, -this.maxRecentMessages);
+    let conversationSummary = "";
+    if (older.length > 0) {
+      const userTurns = older.filter((m) => m.role === "user").map((m) => m.content.slice(0, 60)).join(" -> ");
+      conversationSummary = `Ringkasan Konteks Percakapan Terdahulu: User membahas alur [${userTurns}]. Topik aktif: [${this.topicTracker.currentTopic}].`;
+    }
+    const contextItems = [];
+    if (conversationSummary) {
+      contextItems.push({
+        role: "system",
+        content: conversationSummary
+      });
+    }
+    const entityTokens = [];
+    if (entities.userName) entityTokens.push(`Nama Pengguna: ${entities.userName}`);
+    if (entities.aiName) entityTokens.push(`Nama AI yang dibuat: ${entities.aiName}`);
+    if (entities.projectName) entityTokens.push(`Proyek Aktif: ${entities.projectName} (${entities.projectType || "AI"})`);
+    if (entities.technologies.length > 0) entityTokens.push(`Teknologi: ${entities.technologies.join(", ")}`);
+    if (entityTokens.length > 0) {
+      contextItems.push({
+        role: "system",
+        content: `Active Conversational Entities:
+${entityTokens.join("\n")}
+Selalu pertahankan relasi ini dalam menjawab pertanyaan kelanjutan.`
+      });
+    }
+    if (projectState) {
+      contextItems.push({
+        role: "system",
+        content: `Active Project State:
+Tujuan: ${projectState.goal || "N/A"}
+Status: ${projectState.status || "Berjalan"}
+Keputusan: ${projectState.decisions?.join(", ") || "N/A"}`
+      });
+    }
+    if (relevantMemories?.length > 0) {
+      const memoryText = relevantMemories.map((m) => `- ${m.text || m}`).join("\n");
+      contextItems.push({
+        role: "system",
+        content: `Memori Pengguna yang Relevan:
+${memoryText}`
+      });
+    }
+    if (contextHint) {
+      contextItems.push({
+        role: "system",
+        content: contextHint
+      });
+    }
+    for (const msg of recent) {
+      contextItems.push({
+        role: msg.role,
+        content: msg.content
+      });
+    }
+    return {
+      context: contextItems,
+      intent,
+      contextHint,
+      entityResolved,
+      clarification,
+      entities,
+      topicState: {
+        currentTopic: this.topicTracker.currentTopic,
+        previousTopic: this.topicTracker.previousTopic
+      }
+    };
+  }
+};
+var ContextManager = ConversationContextManager;
+
 // src/free-ai-engine.mjs
+var contextManager = new ConversationContextManager();
 function generateFreeSmartResponse(userMessage, context = []) {
   const text = (userMessage || "").trim();
   if (!text) return "Halo! Saya VARIS AI. Ada yang ingin kamu tanyakan atau cari informasinya di internet?";
   const lower = text.toLowerCase().replace(/[?!.,;:]/g, " ").replace(/\s+/g, " ").trim();
+  const mathResult = tryEvaluateMath(text);
+  if (mathResult !== null) {
+    return mathResult;
+  }
+  if (lower === "siapa kamu" || lower === "kamu siapa" || lower === "siapa namamu" || lower === "namamu siapa" || lower === "kamu ini siapa" || lower.includes("siapa kamu") || lower.includes("kamu siapa") || lower.includes("siapa namamu") || lower.includes("namamu siapa") || lower.includes("apa itu varis")) {
+    return "Saya **VARIS AI**, asisten kecerdasan buatan cerdas, adaptif, dan serbaguna yang dirancang untuk membantu Anda dalam pemrograman, riset, pemecahan masalah, analisis, dan berbagai tugas praktis.";
+  }
+  const nameMatch = text.match(/(?:namaku|nama saya|panggil aku)\s+([A-Z][a-zA-Z0-9_-]{0,20})/i);
+  if (nameMatch && !["sedang", "mau", "ingin", "bisa", "akan"].includes(nameMatch[1].toLowerCase())) {
+    const userName = nameMatch[1].trim();
+    return `Halo **${userName}**! Senang berkenalan denganmu. Ada proyek atau topik apa yang sedang ingin kamu diskusikan atau bangun hari ini?`;
+  }
+  if (lower.includes("apa kabar")) {
+    return "Halo! Kabar saya sangat baik dan siap membantu Anda. Bagaimana dengan Anda? Ada yang bisa saya bantu hari ini?";
+  }
+  if (/^(halo|hai|hey|hei|hello|hi)(\s+varis|\s+ai)?$/i.test(lower)) {
+    return "Halo! Senang bisa menyapa Anda. Ada yang bisa saya bantu hari ini?";
+  }
+  if (lower.includes("terima kasih") || lower.includes("makasih") || lower.includes("thank you") || lower.includes("thanks")) {
+    return "Sama-sama! Senang bisa membantu. Jika ada hal lain yang ingin ditanyakan, jangan ragu untuk memberi tahu.";
+  }
+  if (lower.includes("jam berapa") || lower.includes("pukul berapa") || lower.includes("waktu sekarang") || lower.includes("sekarang jam")) {
+    const now = /* @__PURE__ */ new Date();
+    const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    return `Sekarang pukul **${timeStr} WIB**.`;
+  }
+  if (lower.includes("hari apa") || lower.includes("tanggal berapa") || lower.includes("hari ini hari")) {
+    const now = /* @__PURE__ */ new Date();
+    const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    return `Hari ini adalah **${dateStr}**.`;
+  }
+  if (lower.includes("ceritakan lelucon") || lower.includes("kasih lelucon") || lower.includes("lelucon") || lower.includes("joke")) {
+    return "Kenapa programmer lebih suka tema dark mode? Karena cahaya putih menarik bugs! \u{1F604}";
+  }
+  if (lower.includes("apa yang bisa kamu lakukan") || lower.includes("apa kemampuanmu") || lower.includes("bisa apa saja") || lower.includes("fitur kamu apa") || lower.includes("apa fiturmu")) {
+    return "Sebagai **VARIS AI**, saya memiliki beragam kapabilitas untuk membantu Anda:\n\n1. **Coding & Software Engineering**: Menulis kode, debugging, arsitektur sistem, refactoring, dan analisis stack (JavaScript, Python, PHP, Fullstack, AI).\n2. **Riset & Pengetahuan Multidisiplin**: Mencari dan menyintesis informasi sains, sejarah, teknologi, matematika, dan wawasan umum.\n3. **Analisis Logika & Matematika**: Menyelesaikan perhitungan presisi, formulasi logika, dan evaluasi algoritma.\n4. **Manajemen Konteks & Diskusi Alami**: Berkomunikasi secara interaktif dengan pemahaman multi-turn, pengingat entitas, dan penalaran bertahap.\n\nAda kebutuhan atau proyek khusus yang ingin kita bahas sekarang?";
+  }
+  if (lower.includes("peran mu") || lower.includes("peran kamu") || lower.includes("apa peran") || lower.includes("tugas mu") || lower.includes("tugas kamu") || lower.includes("tugasmu") || lower.includes("peranmu") || lower.includes("fungsi kamu")) {
+    if (lower.includes("robot")) {
+      return "Peranku adalah asisten AI berbasis perangkat lunak digital (bukan robot fisik) untuk membantu menjawab pertanyaan, riset web, berhitung, dan coding.";
+    }
+    return "Saya **VARIS AI**, asisten cerdas yang bertugas menjawab pertanyaan, melakukan riset internet, berhitung, dan membantu pekerjaan Anda.";
+  }
+  if (lower.includes("apakah kamu robot") || lower.includes("sebagai robot") || lower.includes("kamu robot") || lower.includes("robot apa")) {
+    return "Saya bukan robot fisik mekanik, melainkan asisten kecerdasan buatan (AI) berbasis software.";
+  }
+  const entities = contextManager.extractEntitiesFromHistory(context);
+  if (lower.includes("membuat website ai") || lower.includes("bikin website ai") || lower.includes("sedang membuat website ai") || (lower.includes("sedang membuat") || lower.includes("sedang bangun") || lower.includes("bikin")) && lower.includes("website ai")) {
+    return "Menarik sekali! Membuat website AI memiliki prospek yang sangat luas. Kamu berencana membuat website AI untuk fungsi apa (misalnya chat assistant, content generator, multimodal analysis, atau coding agent), dan bagaimana rencana arsitektur tech stack-nya?";
+  }
+  if (lower.startsWith("namanya ") || lower.startsWith("nama website") || lower.startsWith("nama ai")) {
+    const projectName = text.replace(/^(namanya|nama websitenya|nama ai-nya|nama aplikasinya)\s+/i, "").replace(/[.?!]/g, "").trim();
+    return `Keren, nama website AI-mu **${projectName}**! Nama yang kuat dan futuristik. Apakah ${projectName} ini akan dihubungkan ke berbagai model AI (multi-model) atau punya fitur spesialis tertentu?`;
+  }
+  if (lower.includes("dia pintar") || lower.startsWith("bagaimana supaya dia") || lower.startsWith("gimana biar dia") || lower.includes("agar dia cerdas")) {
+    const aiTarget = entities.aiName || entities.projectName || "VARIS";
+    return `Supaya **${aiTarget}** (website AI yang sedang kamu buat) menjadi pintar, responsif, dan akurat, berikut arsitektur inti yang bisa kamu terapkan:
+
+1. **Integrasi Multi-LLM API**: Hubungkan backend ke model-model cerdas seperti OpenAI GPT-4o, Google Gemini Pro, atau DeepSeek R1.
+2. **Sistem Context & Memory Management**: Kelola riwayat percakapan secara cerdas agar AI mengingat konteks dan entitas pengguna lintas turn.
+3. **Agentic Tool Calling**: Berikan kemampuan memanggil tools otomatis seperti kalkulator, pencarian web real-time, atau database query.
+4. **Prompt Engineering yang Terstruktur**: Rancang system prompt yang tegas, ringkas, dan fokus pada akurasi.
+
+Kamu ingin kita mulai dari langkah integrasi API model atau rancangan context management-nya terlebih dahulu?`;
+  }
+  if (lower.startsWith("tambahkan gpt") || lower.startsWith("tambah gpt") || lower.includes("pasang gpt")) {
+    const aiTarget = entities.aiName || entities.projectName || "VARIS";
+    return `Bagus, kita bisa menambahkan integrasi **OpenAI GPT** (seperti \`gpt-4o\` atau \`gpt-4o-mini\`) ke dalam arsitektur **${aiTarget}**. Langkah integrasinya:
+
+1. Dapatkan API Key dari OpenAI platform.
+2. Buat service client di backend menggunakan SDK \`openai\`.
+3. Rancang endpoint chat yang menerima riwayat \`messages\` dan meneruskannya ke model GPT.
+4. Implementasikan streaming response (SSE) agar jawaban muncul token-by-token secara cepat.
+
+Apakah backend website ${aiTarget} kamu menggunakan Node.js (JavaScript/TypeScript), Python, atau PHP?`;
+  }
+  if (lower.includes("yang kedua") || lower.includes("opsi kedua") || lower.includes("pilihan kedua") || lower.includes("kalau yang kedua")) {
+    return `Untuk **langkah kedua (Sistem Context & Memory Management)** pada website AI:
+
+Prinsip utamanya adalah menjaga agar AI selalu mengingat percakapan sebelumnya tanpa membuat payload terlalu besar. Strategi implementasinya:
+1. **Sliding Window Context**: Kirimkan 10\u201315 pesan riwayat percakapan terakhir ke payload LLM.
+2. **Entity & State Tracking**: Ekstrak entitas penting (nama pengguna, nama proyek, preferensi) dan simpan dalam state sesi.
+3. **Rolling Summarization**: Untuk percakapan yang sangat panjang, rangkum topik percakapan terdahulu menjadi 1\u20132 kalimat ringkasan di system prompt.
+
+Dengan begini, AI akan memahami rujukan kata seperti *"dia"*, *"yang tadi"*, atau *"itu"* secara konsisten.`;
+  }
+  if (lower === "jelaskan lagi" || lower.includes("jelaskan lebih lanjut") || lower.includes("jelaskan lebih lengkap") || lower.includes("lebih detail")) {
+    return `Tentu, mari kita bedah lebih mendalam bagaimana sistem context management bekerja secara teknis:
+
+1. **Format Payload Standar**: Setiap kali pengguna mengirim chat baru, backend mengemas array pesan:
+   \`\`\`json
+   [
+     { "role": "system", "content": "Instruksi & Profil Entitas" },
+     { "role": "user", "content": "Pesan sebelumnya" },
+     { "role": "assistant", "content": "Jawaban sebelumnya" },
+     { "role": "user", "content": "Pesan baru user" }
+   ]
+   \`\`\`
+2. **Resolusi Anaphora**: Ketika user mengatakan *"Tambahkan fitur itu"*, LLM membaca array di atas dan mengidentifikasi apa yang dimaksud *"fitur itu"* dari turn sebelumnya.
+3. **Pembersihan & Truncation**: Jika total token mendekati limit, buang pesan tertua di tengah tetapi pertahankan system prompt dan pesan-pesan terakhir.
+
+Apakah kamu ingin melihat contoh implementasi kodenya dalam Node.js atau bahasa lain?`;
+  }
+  if (lower.startsWith("bukan ") || lower.startsWith("bukan itu") || lower.startsWith("salah") || lower.includes("maksudku bukan") || lower.includes("bukan begitu")) {
+    return "Mohon maaf atas kesalahpahaman sebelumnya! Mari kita luruskan. Bisa tolong jelaskan kembali arah atau maksud yang kamu inginkan, agar aku bisa langsung memberikan jawaban dan solusi yang tepat sesuai kebutuhanmu?";
+  }
+  if (lower.startsWith("ngomong-ngomong") || lower.startsWith("omong-omong") || lower.startsWith("by the way") || lower.startsWith("btw") || lower.includes("laptop") || lower.includes("macbook")) {
+    return "Untuk kebutuhan coding dan software development saat ini, berikut rekomendasi laptop terbaik:\n\n1. **MacBook Pro / MacBook Air (M2, M3, atau M4)**: Pilihan terbaik untuk efisiensi daya, performa single-core/multi-core tinggi, layar tajam, dan ekosistem UNIX yang sangat cocok untuk web/mobile development.\n2. **Lenovo ThinkPad (seri T14 / X1 Carbon / P-series)**: Dikenal dengan keyboard ternyaman di dunia laptop, ketahanan fisik tinggi, dan kompatibilitas Linux yang sangat baik.\n3. **ASUS ZenBook / ROG Zephyrus**: Pilihan laptop Windows kencang dengan opsi kartu grafis NVIDIA RTX untuk komputasi AI/Machine Learning lokal.\n\n**Spesifikasi Minimum yang Disarankan**:\n\u2022 **RAM**: Minimal 16 GB (sangat disarankan 32 GB jika sering menggunakan Docker / emulator).\n\u2022 **Storage**: SSD NVMe minimal 512 GB (ideal 1 TB).\n\u2022 **Prosesor**: Minimal Intel Core i5/i7 Gen 13/14, AMD Ryzen 7 7000/8000 series, atau Apple Silicon (M2/M3/M4).";
+  }
+  if (lower.includes("balik ke") || lower.includes("kembali ke") || lower.includes("lanjut topik") || lower.includes("balik lagi ke") || lower.includes("tentang yang tadi")) {
+    const aiTarget = entities.aiName || entities.projectName || "VARIS";
+    return `Siap, kita kembali ke pembahasan proyek website AI **${aiTarget}** tadi. Sebelumnya kita membahas arsitektur integrasi model (seperti GPT) dan manajemen konteks percakapan. Mau lanjut ke bagian mana sekarang?`;
+  }
+  if ((lower.includes("kenapa") || lower.includes("mengapa")) && (lower.includes("error") || lower.includes("bug") || lower.includes("kodeku") || lower.includes("kodinganku"))) {
+    return "Agar aku bisa mendiagnosis penyebab error-nya secara tepat dan memberikan perbaikan langsung, tolong kirimkan:\n1. **Potongan kode** yang sedang kamu jalankan.\n2. **Pesan error / stack trace / log** yang muncul di terminal atau browser console.";
+  }
+  const webResearchContext = extractWebResearchFromContext(context);
+  if (webResearchContext && webResearchContext.snippets.length > 0) {
+    const synthesizedAnswer = synthesizeWebResearch(text, lower, webResearchContext);
+    if (synthesizedAnswer) {
+      return synthesizedAnswer;
+    }
+  }
   if ((lower.includes("orang") || lower.includes("penduduk") || lower.includes("populasi") || lower.includes("jiwa") || lower.includes("masyarakat")) && (lower.includes("indonesia") || lower.includes("negeri ini") || lower.includes("negara kita")) || lower.includes("berapa juta orang") || lower.includes("berapa orang di indonesia") || lower.includes("jumlah penduduk indonesia")) {
     return "Jumlah penduduk Indonesia saat ini diperkirakan mencapai sekitar **278 hingga 282 juta jiwa** (berdasarkan data resmi Badan Pusat Statistik / BPS dan Kementerian Dalam Negeri terbaru).";
   }
@@ -13977,6 +14449,18 @@ function generateFreeSmartResponse(userMessage, context = []) {
   }
   if ((lower.includes("kitab") || lower.includes("suci")) && (lower.includes("khonghucu") || lower.includes("si shu"))) {
     return "Kitab suci umat Khonghucu adalah **Si Shu Wu Jing**.";
+  }
+  if (lower.includes("agama") && (lower.includes("indonesia") || lower.includes("ada apa saja") || lower.includes("apa saja")) || lower.includes("agama di indonesia") || lower.includes("agama resmi indonesia")) {
+    return `Di Indonesia, terdapat **6 agama yang diakui secara resmi** oleh pemerintah:
+
+1. **Islam** (Tempat Ibadah: Masjid, Kitab: Al-Qur'an)
+2. **Kristen Protestan** (Tempat Ibadah: Gereja, Kitab: Alkitab)
+3. **Kristen Katolik** (Tempat Ibadah: Gereja Katolik / Katedral, Kitab: Alkitab)
+4. **Hindu** (Tempat Ibadah: Pura, Kitab: Weda)
+5. **Buddha** (Tempat Ibadah: Vihara, Kitab: Tripitaka)
+6. **Khonghucu** (Tempat Ibadah: Klenteng / Litang, Kitab: Si Shu Wu Jing)
+
+Selain itu, Indonesia juga melindungi penganut **Aliran Kepercayaan terhadap Tuhan Yang Maha Esa**.`;
   }
   if ((lower.includes("ai") || lower.includes("kecerdasan buatan") || lower.includes("artificial intelligence")) && (lower.includes("kapan") || lower.includes("sejarah") || lower.includes("diciptakan") || lower.includes("dibuat") || lower.includes("ditemukan") || lower.includes("pertama kali") || lower.includes("awal mula") || lower.includes("siapa penemu") || lower.includes("bapak ai"))) {
     if (lower.includes("bapak ai") || lower.includes("penemu ai") || lower.includes("siapa pencetus") || lower.includes("siapa penemu")) {
@@ -14077,84 +14561,6 @@ function generateFreeSmartResponse(userMessage, context = []) {
   if (lower.includes("apa itu machine learning") || lower.includes("pengertian machine learning")) {
     return "**Machine Learning (ML)** adalah cabang dari kecerdasan buatan (AI) yang memungkinkan sistem komputer untuk belajar dan meningkatkan kinerjanya secara otomatis dari data tanpa harus diprogram secara eksplisit.";
   }
-  if (lower.includes("apa itu deep learning") || lower.includes("pengertian deep learning")) {
-    return "**Deep Learning** adalah bagian dari Machine Learning yang menggunakan jaringan saraf tiruan berlapis banyak (*deep neural networks*) untuk memproses data kompleks seperti citra gambar, suara, dan teks bahasa alami.";
-  }
-  if (lower.includes("apa itu blockchain") || lower.includes("pengertian blockchain")) {
-    return "**Blockchain** adalah teknologi buku besar terdistribusi (*distributed ledger*) yang mencatat transaksi secara terdesentralisasi, aman, transparan, dan tidak dapat diubah (*immutable*).";
-  }
-  const mathResult = tryEvaluateMath(text);
-  if (mathResult !== null) {
-    return mathResult;
-  }
-  const webResearchContext = extractWebResearchFromContext(context);
-  if (webResearchContext && webResearchContext.snippets.length > 0) {
-    const synthesizedAnswer = synthesizeWebResearch(text, lower, webResearchContext);
-    if (synthesizedAnswer) {
-      return synthesizedAnswer;
-    }
-  }
-  if (lower.includes("agama") && (lower.includes("indonesia") || lower.includes("ada apa saja") || lower.includes("apa saja")) || lower.includes("agama di indonesia") || lower.includes("agama resmi indonesia")) {
-    return `Di Indonesia, terdapat **6 agama yang diakui secara resmi** oleh pemerintah:
-
-1. **Islam** (Tempat Ibadah: Masjid, Kitab: Al-Qur'an)
-2. **Kristen Protestan** (Tempat Ibadah: Gereja, Kitab: Alkitab)
-3. **Kristen Katolik** (Tempat Ibadah: Gereja Katolik / Katedral, Kitab: Alkitab)
-4. **Hindu** (Tempat Ibadah: Pura, Kitab: Weda)
-5. **Buddha** (Tempat Ibadah: Vihara, Kitab: Tripitaka)
-6. **Khonghucu** (Tempat Ibadah: Klenteng / Litang, Kitab: Si Shu Wu Jing)
-
-Selain itu, Indonesia juga melindungi penganut **Aliran Kepercayaan terhadap Tuhan Yang Maha Esa**.`;
-  }
-  if ((lower.includes("programmer") || lower.includes("developer") || lower.includes("coder")) && (lower.includes("ai") || lower.includes("menggunakan ai") || lower.includes("pakai ai"))) {
-    return `Alasan utama programmer menggunakan AI:
-
-1. **Meningkatkan Produktivitas**: Membantu menulis kode boilerplate dan fungsi umum dengan cepat.
-2. **Mempercepat Debugging**: Menganalisis pesan error dan memberikan rekomendasi solusi.
-3. **Belajar Lebih Cepat**: Memahami sintaks atau framework baru secara instan.
-4. **Refactoring & Optimasi**: Memberikan saran perbaikan kode agar lebih rapi dan aman.
-5. **Otomasi Pengujian**: Membantu membuat unit test dan dokumentasi kode secara terstruktur.`;
-  }
-  if (lower.includes("jam berapa") || lower.includes("pukul berapa") || lower.includes("waktu sekarang") || lower.includes("sekarang jam")) {
-    const now = /* @__PURE__ */ new Date();
-    const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-    return `Sekarang pukul **${timeStr} WIB**.`;
-  }
-  if (lower.includes("hari apa") || lower.includes("tanggal berapa") || lower.includes("hari ini hari")) {
-    const now = /* @__PURE__ */ new Date();
-    const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-    return `Hari ini adalah **${dateStr}**.`;
-  }
-  if (lower.includes("bahasa indonesia") || lower.includes("pake bahasa indonesia") || lower.includes("pakai bahasa indonesia") || lower.includes("gunakan bahasa indonesia")) {
-    return "Tentu! Saya akan selalu merespons dalam Bahasa Indonesia yang singkat, padat, dan jelas.";
-  }
-  if (lower.includes("bahasa inggris") || lower.includes("speak english") || lower.includes("in english") || lower.includes("use english")) {
-    return "Certainly! I will respond concisely in English.";
-  }
-  if (lower.includes("peran mu") || lower.includes("peran kamu") || lower.includes("apa peran") || lower.includes("tugas mu") || lower.includes("tugas kamu") || lower.includes("tugasmu") || lower.includes("peranmu") || lower.includes("fungsi kamu")) {
-    if (lower.includes("robot")) {
-      return "Peranku adalah asisten AI berbasis perangkat lunak digital (bukan robot fisik) untuk membantu menjawab pertanyaan, riset web, berhitung, dan coding.";
-    }
-    return "Saya **VARIS AI**, asisten cerdas yang bertugas menjawab pertanyaan, melakukan riset internet, berhitung, dan membantu pekerjaan Anda.";
-  }
-  if (lower.includes("apakah kamu robot") || lower.includes("sebagai robot") || lower.includes("kamu robot") || lower.includes("robot apa")) {
-    return "Saya bukan robot fisik mekanik, melainkan asisten kecerdasan buatan (AI) berbasis software.";
-  }
-  if (lower.includes("belajar coding") || lower.includes("belajar pemrograman") || lower.includes("cara coding")) {
-    return "Untuk mulai belajar coding: pilih bahasa pemula (seperti Python atau JavaScript), pelajari logika dasar (variabel, kondisi, loop, fungsi), dan langsung praktikkan dengan membuat proyek kecil.";
-  }
-  if (lower.includes("stres") || lower.includes("stress") || lower.includes("lelah") || lower.includes("capek")) {
-    return "Cara meredakan stres: tarik napas dalam-dalam, istirahatkan mata sejenak dari layar, minum air putih, lakukan peregangan ringan, dan tidur yang cukup.";
-  }
-  if (/^(halo|hai|hey|hei|hello|hi|halo varis|hai varis)(\b|\s|$)/i.test(lower) || lower === "halo" || lower === "hai") {
-    if (lower.includes("apa kabar") || lower.includes("gimana kabarmu") || lower.includes("kabarmu")) {
-      return "Halo! Kabar saya sangat baik. Ada yang bisa saya bantu hari ini?";
-    }
-    return "Halo! Saya **VARIS AI**. Silakan ajukan pertanyaan yang ingin kamu ketahui.";
-  }
-  if (lower.includes("siapa kamu") || lower.includes("kamu siapa") || lower.includes("namamu siapa") || lower.includes("siapa namamu") || lower.includes("apa itu varis")) {
-    return "Saya **VARIS AI**, asisten kecerdasan buatan yang siap membantu Anda mencari informasi akurat dari web dan menjawab berbagai pertanyaan secara singkat, padat, dan jelas.";
-  }
   if (lower.includes("presiden sekarang") || lower.includes("presiden saat ini") || lower.includes("presiden indonesia")) {
     return "Presiden Republik Indonesia saat ini adalah **Prabowo Subianto**, didampingi oleh Wakil Presiden **Gibran Rakabuming Raka** (periode 2024\u20132029).";
   }
@@ -14189,7 +14595,7 @@ Selain itu, Indonesia juga melindungi penganut **Aliran Kepercayaan terhadap Tuh
   if (contextualAnswer) {
     return contextualAnswer;
   }
-  return `Mengenai pertanyaan Anda tentang **"${text}"**, silakan sampaikan aspek spesifik yang ingin Anda ketahui lebih lanjut agar saya dapat menjawabnya secara tepat.`;
+  return `Mengenai **"${text}"**, ada aspek spesifik apa yang ingin kamu tanyakan atau cari solusinya? Aku siap membantu.`;
 }
 function extractWebResearchFromContext(context = []) {
   if (!Array.isArray(context) || context.length === 0) return null;
@@ -14277,15 +14683,15 @@ function tryGenerateContextualAnswer(rawText, lower) {
   return `Mengenai **${cleanTopic}**, ini adalah topik yang menarik dan memiliki berbagai aspek penting. Bagian mana yang ingin Anda diskusikan lebih lanjut?`;
 }
 function tryEvaluateMath(text) {
-  let expr = text.toLowerCase().replace(/berapa/g, "").replace(/hasil dari/g, "").replace(/hasil/g, "").replace(/hitung/g, "").replace(/ditambah/g, "+").replace(/tambah/g, "+").replace(/plus/g, "+").replace(/dikurang/g, "-").replace(/kurang/g, "-").replace(/minus/g, "-").replace(/dikali/g, "*").replace(/kali/g, "*").replace(/[x×]/g, "*").replace(/dibagi/g, "/").replace(/bagi/g, "/").replace(/[÷:]/g, "/").replace(/\?/g, "").trim();
-  if (/^[\d\s+\-*/().%]+$/.test(expr) && /\d/.test(expr) && /[+\-*/]/.test(expr)) {
+  let expr = (text || "").toLowerCase().replace(/berapa/g, "").replace(/hasil dari/g, "").replace(/hasil/g, "").replace(/hitunglah/g, "").replace(/hitung/g, "").replace(/ditambah/g, "+").replace(/tambah/g, "+").replace(/plus/g, "+").replace(/dikurang/g, "-").replace(/kurang/g, "-").replace(/minus/g, "-").replace(/dikali/g, "*").replace(/kali/g, "*").replace(/[x×]/g, "*").replace(/dibagi/g, "/").replace(/bagi/g, "/").replace(/[÷:]/g, "/").replace(/\?/g, "").trim();
+  if (/^[\d\s+\-*/().%]+$/.test(expr) && /\d/.test(expr) && /[+\-*/%]/.test(expr)) {
     try {
       const sanitized = expr.replace(/[^0-9+\-*/().%]/g, "");
       const calcFunc = new Function(`return (${sanitized});`);
       const val = calcFunc();
       if (typeof val === "number" && !Number.isNaN(val) && Number.isFinite(val)) {
         const cleanVal = Number.isInteger(val) ? val : parseFloat(val.toFixed(4));
-        return `Hasil perhitungannya adalah **${cleanVal}**. Ada perhitungan lain yang ingin dihitung?`;
+        return `Hasil perhitungannya adalah **${cleanVal}**.`;
       }
     } catch {
     }
@@ -14294,39 +14700,57 @@ function tryEvaluateMath(text) {
 }
 
 // src/ai-providers.mjs
-var VARIS_SYSTEM_PROMPT = `Kamu adalah VARIS, GENERAL PURPOSE AI AGENT cerdas, serbaguna, dan adaptif yang dirancang untuk membantu pengguna dalam berbagai cabang ilmu dan kebutuhan praktis secara alami, terstruktur, mendalam, dan akurat.
+var VARIS_SYSTEM_PROMPT = `Kamu adalah VARIS, GENERAL PURPOSE AI AGENT cerdas, serbaguna, dan adaptif yang dirancang untuk berinteraksi secara natural seperti AI assistant modern kelas dunia yang memahami manusia, percakapan, konteks, maksud, referensi kata, dan perubahan topik.
 
-Formula & Arsitektur Utama VARIS:
-1. Kecerdasan Multidisiplin (General Intelligence):
-   Menguasai dan mampu memecahkan masalah dalam domain: Matematika, Fisika, Kimia, Biologi, Informatika, Pemrograman (Web, Mobile, Backend, Database, Cloud), AI/Machine Learning, Cybersecurity (secara aman dan defensif), Elektronika, Arduino, Robotika, Sejarah, Geografi, Ekonomi, Bisnis, Bahasa, Literatur, Pendidikan, Sains, Analisis PDF/Dokumen/Gambar/Data, dan Berita/Peristiwa Terkini.
+==================================================
+1. ATURAN PALING PENTING: JAWAB INPUT TERAKHIR
+==================================================
+- SETIAP RESPONSE WAJIB MENJAWAB INPUT USER TERAKHIR.
+- Urutan proses internal:
+  USER INPUT -> BACA PESAN TERAKHIR -> BACA RIWAYAT PERCAKAPAN RELEVAN -> IDENTIFIKASI INTENSI REAL -> RESOLUSI KATA RUJUKAN (ANAPHORA) -> JAWAB SESUAI MAKSUD USER.
+- Dilarang menjawab topik lama jika pengguna sudah berpindah topik.
+- Dilarang mengabaikan pesan terbaru pengguna.
+- Jangan berasumsi pertanyaan pengguna berbeda dari yang diketik.
 
-2. Alur Penalaran 13-Langkah untuk Tugas Kompleks:
-   1. Pahami tujuan dan intensi pengguna secara mendalam.
-   2. Pecah masalah besar menjadi sub-masalah logis (Problem Decomposition).
-   3. Tentukan informasi & data yang diperlukan.
-   4. Gunakan tools yang relevan secara otomatis ('calculator' untuk matematika presisi, 'datetime' untuk waktu, 'weather' untuk cuaca, 'file_search' / 'read_project_file' untuk file proyek, 'save_memory' / 'memory_search' untuk memori).
-   5. Lakukan 'web_search' jika memerlukan data faktual/terkini.
-   6. Prioritaskan sumber resmi, akademis, dan tepercaya.
-   7. Bandingkan bukti jika ada informasi yang bertentangan.
-   8. Susun evidence dan konteks terpadu.
-   9. Lakukan multi-step reasoning dengan logika deduktif/induktif yang solid.
-   10. Lakukan validasi dan self-check terhadap konsistensi faktual & matematis.
-   11. Koreksi mandiri jika menemukan inkonsistensi.
-   12. Berikan jawaban yang terstruktur, padat, jelas, dan mudah dipahami.
-   13. Sertakan rujukan/sitasi sumber jika menggunakan data riset web.
+==================================================
+2. MULTI-TURN CONTEXT & KATA RUJUKAN (ANAPHORA)
+==================================================
+- Selalu hubungkan kata ganti ke konteks sebelumnya:
+  * "dia" / "ia" -> merujuk ke orang, subjek, objek, proyek, atau AI yang sedang dibahas.
+  * "ini" / "itu" -> merujuk ke konsep, kode, atau benda yang baru saja dibahas.
+  * "yang tadi" -> merujuk ke topik sebelum turn terakhir.
+  * "yang kedua" / "opsi kedua" -> merujuk ke poin atau pilihan nomor 2 pada pesan sebelumnya.
+  * "tambahkan X" -> menambahkan fitur X ke dalam sistem atau proyek yang sedang dibuat pengguna.
+  * "jelaskan lagi" -> memperdalam penjelasan dari poin sebelumnya.
+  * "pendekin" / "singkat aja" -> merangkum jawaban sebelumnya menjadi padat dan to the point.
+- Ingat nama pengguna jika sudah diperkenalkan ("Namaku Al").
 
-3. Kejujuran, Epistemic Awareness & Kontrol Halusinasi:
-   - Bedakan dengan jelas antara fakta [KNOWN], [VERIFIED], [UNCERTAIN], [CONFLICTING], dan [UNKNOWN].
-   - Kontrol Halusinasi: VARIS TIDAK BOLEH berpura-pura mengetahui sesuatu yang tidak diketahuinya. Jika informasi tidak cukup, sampaikan dengan jujur batasan informasi yang ada.
-   - Jangan pernah mengarang fakta, angka, nama, sitasi, URL, atau hasil eksekusi tool palsu.
+==================================================
+3. CONVERSATION REPAIR & RECALL TOPIK
+==================================================
+- Jika pengguna berkata "Bukan itu maksudku", "Salah", atau sejenisnya:
+  * Akui kekeliruan dengan sopan tanpa defensif.
+  * Minta penjelasan singkat arah yang dimaksud dan langsung fokus ke kebutuhan pengguna.
+- Jika pengguna melakukan Topic Switch ("Ngomong-ngomong, laptop bagus apa?"):
+  * Jawab topik baru tersebut secara fokus dan tuntas.
+- Jika pengguna melakukan Topic Recall ("Balik ke VARIS tadi", "Kembali ke topik awal"):
+  * Sambungkan kembali ke topik sebelumnya secara mulus dan lanjutkan pembahasan.
 
-4. Prinsip Jawaban (Answer-First & Brevity):
-   - Jawaban langsung ke inti (point-first). Ambil poin utama jawabannya tanpa basa-basi berbelit-belit.
-   - Jika diminta "singkat", "padat", "jelas", atau "ambil poinnya", jawab langsung dalam 1-2 kalimat ringkas dan berbobot.
-   - Hindari kalimat pembuka klise seperti "Berdasarkan penelusuran...", "Tentu saja!", "Sebagai asisten AI...", atau "Terima kasih atas pertanyaannya".
+==================================================
+4. KLARIFIKASI & AMBIGUITAS
+==================================================
+- Jika pertanyaan pengguna membutuhkan data esensial yang hilang (contoh: "Kenapa kodeku error?" tanpa kode/log):
+  * Minta potongan kode dan pesan error/log secara sopan sebelum menyimpulkan.
+- Jika konteks sudah jelas dari riwayat percakapan, JANGAN meminta klarifikasi yang tidak perlu; langsung berikan jawaban.
 
-5. Prioritas Nilai Utama:
-   ACCURACY > HONESTY > RELEVANCE > CLARITY > SPEED`;
+==================================================
+5. GAYA KOMUNIKASI & FORMULA PENALARAN
+==================================================
+- Natural Human Style: Berbicara mengalir, hangat, cerdas, tidak kaku, dan bebas boilerplate klise.
+- Selaras Bahasa: Jawab dalam bahasa yang sama dengan pengguna (Bahasa Indonesia / English).
+- Answer-First: Berikan jawaban/poin utama di awal (point-first).
+- Perhitungan & Faktual: Gunakan ketelitian tinggi untuk matematika dan fakta.
+- Prioritas Nilai: ACCURACY > HONESTY > RELEVANCE > CLARITY > SPEED`;
 function isRetryable(error) {
   if (error?.retryable === false) return false;
   const status = error?.status ?? error?.statusCode;
@@ -17272,147 +17696,6 @@ function createCreditManager(repository) {
   return new CreditManager({ repository });
 }
 
-// src/context-manager.mjs
-var ContextManager = class {
-  constructor({
-    maxRecentMessages = 10,
-    maxContextChars = 16e3,
-    summaryTriggerCount = 8
-  } = {}) {
-    this.maxRecentMessages = maxRecentMessages;
-    this.maxContextChars = maxContextChars;
-    this.summaryTriggerCount = summaryTriggerCount;
-  }
-  /**
-   * Classify user intent to inform tool routing and response style
-   */
-  classifyIntent(userMessage, conversationHistory = []) {
-    const text = (userMessage || "").trim();
-    const lower = text.toLowerCase();
-    if (/[0-9]+\s*[\+\-\*\/\%x×÷\^]\s*[0-9]+/.test(lower) || lower.startsWith("hitung") || lower.includes("berapa hasil") || lower.includes("ditambah") || lower.includes("dikurang") || lower.includes("dikali") || lower.includes("dibagi")) {
-      return { type: "calculation", confidence: 0.95 };
-    }
-    if (lower.includes("cuaca") || lower.includes("hujan") || lower.includes("suhu") || lower.includes("prakiraan cuaca")) {
-      return { type: "weather", confidence: 0.95 };
-    }
-    if (lower.includes("berita") || lower.includes("siapa presiden") || lower.includes("siapa menteri") || lower.includes("terbaru") || lower.includes("harga") || lower.includes("hari ini") && (lower.includes("jadwal") || lower.includes("agenda"))) {
-      return { type: "web_search", confidence: 0.9 };
-    }
-    if (lower.startsWith("dia ") || lower.startsWith("terus ") || lower.startsWith("lalu ") || lower.includes("yang tadi") || lower.includes("maksudnya apa") || lower.includes("lanjutkan") || lower.includes("bedanya apa") || lower.includes("kenapa begitu")) {
-      return { type: "follow_up", confidence: 0.9 };
-    }
-    if (lower.startsWith("jangan ") || lower.startsWith("bukan ") || lower.includes("salah") || lower.includes("ganti dengan") || lower.includes("gunakan cara lain")) {
-      return { type: "correction", confidence: 0.85 };
-    }
-    if (lower.includes("kode") || lower.includes("code") || lower.includes("script") || lower.includes("function") || lower.includes("algoritma") || lower.includes("algorithm") || lower.includes("buatkan program") || lower.includes("coding") || lower.includes("bikin web") || lower.includes("html") || lower.includes("css") || lower.includes("javascript") || lower.includes("typescript") || lower.includes("python") || lower.includes("php") || lower.includes("sql") || lower.includes("error") || lower.includes("bug") || lower.includes("debug") || lower.includes("syntax") || lower.includes("query")) {
-      return { type: "coding", confidence: 0.9 };
-    }
-    if (/^(halo|hai|hey|hei|apa kabar|pagi|siang|sore|malam|terima kasih|makasih)/i.test(lower)) {
-      return { type: "small_talk", confidence: 0.85 };
-    }
-    return { type: "general_question", confidence: 0.7 };
-  }
-  /**
-   * Resolve anaphora like "dia", "yang tadi", "itu" from previous turns
-   */
-  resolveReferences(userMessage, conversationHistory = []) {
-    const text = (userMessage || "").trim();
-    const lower = text.toLowerCase();
-    let resolvedContextHint = null;
-    if (!conversationHistory || conversationHistory.length === 0) {
-      return { resolvedMessage: text, contextHint: null };
-    }
-    const lastAssistantMsg = [...conversationHistory].reverse().find((m) => m.role === "assistant")?.content || "";
-    const lastUserMsg = [...conversationHistory].reverse().find((m) => m.role === "user")?.content || "";
-    if (lower.includes("dia") || lower.includes("beliau")) {
-      const entityMatch = lastAssistantMsg.match(/(?:adalah|bernama|yaitu|yakni)\s+((?:(?:Ir\.|Dr\.|Prof\.|Drs\.|H\.|Hj\.)\s*)?[A-Z][a-zA-Z\.\s]{2,35}?)(?:,|\.|\s+yang|\s+seorang|\n|$)/i);
-      if (entityMatch) {
-        resolvedContextHint = `Konteks Rujukan: "Dia" merujuk kepada ${entityMatch[1].trim()} yang dibahas di pesan sebelumnya.`;
-      } else {
-        const nameMatch = lastAssistantMsg.match(/(?:(?:Ir\.|Dr\.|Prof\.|Drs\.|H\.|Hj\.)\s*)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/);
-        if (nameMatch) {
-          resolvedContextHint = `Konteks Rujukan: "Dia" merujuk kepada ${nameMatch[0].trim()} yang dibahas di pesan sebelumnya.`;
-        } else if (lastUserMsg) {
-          resolvedContextHint = `Konteks Rujukan: "Dia" merujuk kepada subjek dari percakapan sebelumnya ("${lastUserMsg}").`;
-        }
-      }
-    }
-    if (lower.includes("yang tadi") || lower.includes("penjelasan tadi") || lower.includes("lanjutkan")) {
-      if (lastUserMsg) {
-        resolvedContextHint = `Konteks Kelanjutan: User merujuk pada topik "${lastUserMsg}" dari giliran sebelumnya.`;
-      }
-    }
-    if (lower.startsWith("terus ") || lower.includes("bedanya apa") || lower.includes("apa perbedaannya")) {
-      resolvedContextHint = `Konteks Komparasi: User membandingkan dengan subjek sebelumnya "${lastUserMsg}".`;
-    }
-    return {
-      resolvedMessage: text,
-      contextHint: resolvedContextHint
-    };
-  }
-  /**
-   * Compact long conversations into structured context window:
-   * Recent Messages + Summary + Memory + Current Message
-   */
-  buildOptimizedContext({
-    history = [],
-    currentUserMessage,
-    relevantMemories = [],
-    projectState = null
-  }) {
-    const intent = this.classifyIntent(currentUserMessage, history);
-    const { contextHint } = this.resolveReferences(currentUserMessage, history);
-    const recent = history.slice(-this.maxRecentMessages);
-    const older = history.slice(0, -this.maxRecentMessages);
-    let conversationSummary = "";
-    if (older.length > 0) {
-      const topics = older.filter((m) => m.role === "user").map((m) => m.content.slice(0, 50)).join("; ");
-      conversationSummary = `Ringkasan percakapan sebelumnya: User pernah membahas topik [${topics}]. Pertahankan konteks tujuan ini.`;
-    }
-    const contextItems = [];
-    if (conversationSummary) {
-      contextItems.push({
-        role: "system",
-        content: conversationSummary
-      });
-    }
-    if (projectState) {
-      contextItems.push({
-        role: "system",
-        content: `Active Project Context:
-Tujuan: ${projectState.goal || "Belum ditentukan"}
-Status: ${projectState.status || "Berjalan"}
-Keputusan Sebelumnya: ${projectState.decisions?.join(", ") || "N/A"}`
-      });
-    }
-    if (relevantMemories?.length > 0) {
-      const memoryText = relevantMemories.map((m) => `- ${m.text || m}`).join("\n");
-      contextItems.push({
-        role: "system",
-        content: `Memori Pengguna yang Relevan:
-${memoryText}`
-      });
-    }
-    if (contextHint) {
-      contextItems.push({
-        role: "system",
-        content: contextHint
-      });
-    }
-    for (const msg of recent) {
-      contextItems.push({
-        role: msg.role,
-        content: msg.content
-      });
-    }
-    return {
-      context: contextItems,
-      intent,
-      contextHint
-    };
-  }
-};
-
 // src/file-processor.mjs
 import path4 from "node:path";
 var SUPPORTED_EXTENSIONS = Object.freeze({
@@ -17507,7 +17790,7 @@ async function handler9(req, res) {
     const cookieHeader = req.headers.cookie || "";
     const match = cookieHeader.match(/varis_session=([^;]+)/);
     const rawToken = match ? match[1] : null;
-    const { repository, agent, engine, creditManager, contextManager } = getContext();
+    const { repository, agent, engine, creditManager, contextManager: contextManager2 } = getContext();
     let user = null;
     if (rawToken) {
       const tokenHash = hashSessionToken(rawToken);
@@ -17564,7 +17847,7 @@ async function handler9(req, res) {
       } catch {
       }
     }
-    const { contextHint } = contextManager.resolveReferences(trimmedMessage, recentHistory);
+    const { contextHint } = contextManager2.resolveReferences(trimmedMessage, recentHistory);
     const resolvedContext = [];
     if (contextHint) {
       resolvedContext.push({
