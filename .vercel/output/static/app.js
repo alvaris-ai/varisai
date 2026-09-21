@@ -1834,6 +1834,60 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     });
 
+    // Subchips (Below Composer) Click
+    document.querySelectorAll('.subchip-btn').forEach(btn => {
+        btn.onclick = () => {
+            const prompt = btn.dataset.prompt || btn.querySelector('span')?.textContent || '';
+            if (prompt) {
+                const input = document.getElementById('main-chat-input');
+                if (input) {
+                    input.value = prompt;
+                    handleSendMessage();
+                }
+            }
+        };
+    });
+
+    // Collapsed Rail Buttons
+    const railExpand = document.getElementById('rail-btn-expand');
+    if (railExpand) railExpand.onclick = () => toggleSidebar();
+
+    const railNewChat = document.getElementById('rail-btn-newchat');
+    if (railNewChat) railNewChat.onclick = () => startNewChat();
+
+    const railSearch = document.getElementById('rail-btn-search');
+    if (railSearch) {
+        railSearch.onclick = () => {
+            openModal('modal-search-chats');
+            const sIn = document.getElementById('input-search-chats');
+            if (sIn) {
+                sIn.value = '';
+                sIn.focus();
+                filterSearchModal('');
+            }
+        };
+    }
+
+    const railPinned = document.getElementById('rail-btn-pinned');
+    if (railPinned) {
+        railPinned.onclick = () => {
+            const sidebar = document.getElementById('desktop-sidebar');
+            if (sidebar && sidebar.classList.contains('collapsed')) {
+                toggleSidebar();
+            }
+        };
+    }
+
+    const railRecents = document.getElementById('rail-btn-recents');
+    if (railRecents) {
+        railRecents.onclick = () => {
+            const sidebar = document.getElementById('desktop-sidebar');
+            if (sidebar && sidebar.classList.contains('collapsed')) {
+                toggleSidebar();
+            }
+        };
+    }
+
     // Composer Additional Controls: Think & LiveVoice
     const btnComposerThink = document.getElementById('btn-composer-think');
     if (btnComposerThink) {

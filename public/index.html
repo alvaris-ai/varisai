@@ -420,6 +420,32 @@
                 </div>
             </div>
 
+            <!-- Mini Collapsed Rail (Visible when sidebar is collapsed) -->
+            <div class="sidebar-collapsed-rail" id="sidebar-collapsed-rail">
+                <button class="rail-icon-btn" id="rail-btn-expand" title="Expand Sidebar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </button>
+                <button class="rail-icon-btn" id="rail-btn-newchat" title="New Chat">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                </button>
+                <button class="rail-icon-btn" id="rail-btn-search" title="Search (Ctrl+K)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </button>
+                <button class="rail-icon-btn" id="rail-btn-pinned" title="Pinned Chats">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </button>
+                <button class="rail-icon-btn" id="rail-btn-recents" title="Recent History">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                </button>
+            </div>
+
             <!-- Prominent "New chat" Button -->
             <button class="sidebar-btn-newchat-pill" id="sidebar-newchat-btn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -837,10 +863,10 @@
                 </div>
 
                 <!-- ========================================================
-                     TAB 2: CHAT WORKSPACE (#tab-chat) - DARK MODERN AI INTERFACE
+                     TAB 2: CHAT WORKSPACE (#tab-chat) - LIGHT LUXURY AI WORKSPACE
                      ======================================================== -->
                 <div class="tab-page active" id="tab-chat">
-                    <div class="chat-subview-wrapper dark-theme-chat">
+                    <div class="chat-subview-wrapper">
                         
                         <!-- Chat Top Subtoolbar -->
                         <div class="chat-subtoolbar">
@@ -855,6 +881,12 @@
                                     <span class="search-mode-text" id="chat-active-search-mode-name">Web Research</span>
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
                                 </button>
+                            </div>
+
+                            <!-- Top Center Segmented Switcher (Matches reference screenshot) -->
+                            <div class="chat-top-segmented-toggle">
+                                <button class="segmented-pill-btn active" id="pill-mode-chat" onclick="switchTab('chat')">Chat</button>
+                                <button class="segmented-pill-btn" id="pill-mode-work" onclick="switchTab('projects')">✦ Work</button>
                             </div>
 
                             <div class="chat-subtoolbar-right">
@@ -926,14 +958,14 @@
                             <div class="chat-messages-container hidden" id="chat-messages-feed"></div>
                         </div>
 
-                        <!-- Sticky Chat Composer Container (Dark Rounded Floating Pill) -->
+                        <!-- Sticky Chat Composer Container (Floating Pill) -->
                         <div class="chat-composer-outer">
                             <div class="chat-composer-box">
                                 <div class="composer-input-row">
                                     <button class="btn-composer-attach" id="btn-composer-attach" title="Attach file, image, or PDF">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
-                                    <textarea class="chat-input-field" id="main-chat-input" placeholder="Ask VARIS anything..." rows="1"></textarea>
+                                    <textarea class="chat-input-field" id="main-chat-input" placeholder="Ask anything..." rows="1"></textarea>
                                 </div>
                                 
                                 <div class="composer-toolbar-row">
@@ -962,6 +994,18 @@
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- Quick Action Chips Below Composer (Matches Screenshot) -->
+                            <div class="composer-subchips-row" id="composer-subchips-row">
+                                <button class="subchip-btn" data-prompt="Bantu saya menulis atau mengedit teks secara jelas dan terstruktur">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                    <span>Write or edit</span>
+                                </button>
+                                <button class="subchip-btn" data-prompt="Cari informasi terbaru di web dan berikan ringkasan dengan sumber terpercaya">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                                    <span>Search the web</span>
+                                </button>
                             </div>
                         </div>
                     </div>
