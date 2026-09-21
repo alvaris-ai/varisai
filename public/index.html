@@ -395,58 +395,184 @@
          ======================================================== -->
     <div class="view-screen" id="view-app">
         
-        <!-- Desktop / Tablet Left Sidebar (Hidden on Mobile) -->
+        <!-- Desktop / Tablet Left Sidebar (Collapsible & Dark Modern UI) -->
         <aside class="desktop-sidebar" id="desktop-sidebar">
-            <div class="sidebar-header">
-                <a href="#home" class="sidebar-brand-link">
-                    <div class="brand-badge-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <!-- Top Header: Brand Logo, Search Icon, Close/Collapse Button -->
+            <div class="sidebar-top-bar">
+                <button class="sidebar-brand-btn" id="sidebar-brand-home-btn" title="VARIS AI Workspace">
+                    <div class="sidebar-brand-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
                     </div>
-                    <span class="brand-name-text">VARIS AI</span>
-                </a>
+                </button>
+                <div class="sidebar-top-actions">
+                    <button class="sidebar-icon-btn" id="sidebar-btn-search" title="Search chats (Ctrl+K)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                    </button>
+                    <button class="sidebar-icon-btn" id="sidebar-btn-collapse" title="Collapse sidebar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <button class="sidebar-btn-newchat" id="sidebar-newchat-btn">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                <span>New Chat</span>
+            <!-- Prominent "New chat" Button -->
+            <button class="sidebar-btn-newchat-pill" id="sidebar-newchat-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                <span>New chat</span>
             </button>
 
-            <nav class="sidebar-nav-menu">
-                <button class="sidebar-nav-item active" data-tab="home">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                    <span>Home</span>
+            <!-- Navigation Feature Menu Items -->
+            <div class="sidebar-feature-nav">
+                <button class="sidebar-feature-item" id="nav-feature-images" data-feature="images">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                    </svg>
+                    <span>Images</span>
                 </button>
-                <button class="sidebar-nav-item" data-tab="chat">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <span>Chat</span>
-                </button>
-                <button class="sidebar-nav-item" data-tab="voice">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                    <span>Voice Mode</span>
-                </button>
-                <button class="sidebar-nav-item" data-tab="projects">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
-                    <span>Workspaces</span>
-                </button>
-                <button class="sidebar-nav-item" data-tab="profile">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    <span>Profile & Settings</span>
-                </button>
-            </nav>
 
-            <!-- Sidebar User Profile Footer -->
-            <div class="sidebar-footer">
-                <div class="sidebar-user-card" id="sidebar-user-btn">
-                    <div class="user-avatar-circle" id="sidebar-user-avatar">
-                        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="default-avatar-svg"><rect width="48" height="48" fill="#E2E8F0"/><path d="M24 8C19.5817 8 16 11.5817 16 16C16 20.4183 19.5817 24 24 24C28.4183 24 32 20.4183 32 16C32 11.5817 28.4183 8 24 8Z" fill="#94A3B8"/><path d="M9 42C9 33.7157 15.7157 27 24 27C32.2843 27 39 33.7157 39 42V48H9V42Z" fill="#94A3B8"/></svg>
+                <button class="sidebar-feature-item" id="nav-feature-library" data-feature="library">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>
+                    </svg>
+                    <span>Library</span>
+                </button>
+
+                <button class="sidebar-feature-item" id="nav-feature-scheduled" data-feature="scheduled">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <span>Scheduled</span>
+                </button>
+
+                <button class="sidebar-feature-item" id="nav-feature-plugins" data-feature="plugins">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                    <span>Plugins</span>
+                </button>
+
+                <button class="sidebar-feature-item" id="nav-feature-projects" data-tab="projects">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>
+                    </svg>
+                    <span>Projects</span>
+                </button>
+
+                <button class="sidebar-feature-item" id="nav-feature-codex" data-feature="codex">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                    <span>Codex</span>
+                </button>
+
+                <button class="sidebar-feature-item" id="nav-feature-more" data-feature="more">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+                    </svg>
+                    <span>More</span>
+                </button>
+            </div>
+
+            <!-- Scrollable Conversations Sections: Pinned & Recents -->
+            <div class="sidebar-history-scroll" id="sidebar-history-scroll">
+                <!-- Pinned Section -->
+                <div class="sidebar-section-header">
+                    <span>Pinned</span>
+                </div>
+                <div class="sidebar-chat-list" id="sidebar-pinned-list">
+                    <!-- Pinned Item -->
+                    <div class="sidebar-chat-item pinned" data-chat-id="pin-1" data-title="Perbaiki Langkah Matriks">
+                        <svg class="chat-item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <span class="chat-item-title">Perbaiki Langkah Matriks</span>
+                        <div class="chat-item-actions">
+                            <button class="btn-chat-item-action pin-toggle active" title="Unpin chat">📌</button>
+                            <button class="btn-chat-item-action item-del" title="Hapus chat">✕</button>
+                        </div>
                     </div>
-                    <div class="user-info-text">
-                        <strong class="user-name" id="sidebar-user-name">VARIS User</strong>
-                        <span class="user-plan-badge" id="sidebar-user-plan">Free Tier</span>
+                </div>
+
+                <!-- Recents Section -->
+                <div class="sidebar-section-header">
+                    <span>Recents</span>
+                </div>
+                <div class="sidebar-chat-list" id="sidebar-recents-list">
+                    <div class="sidebar-chat-item" data-chat-id="recent-1" data-title="Cara Membuat AI">
+                        <span class="chat-item-title">Cara Membuat AI</span>
+                        <div class="chat-item-actions">
+                            <button class="btn-chat-item-action pin-toggle" title="Pin ke Atas">📌</button>
+                            <button class="btn-chat-item-action item-del" title="Hapus chat">✕</button>
+                        </div>
+                    </div>
+                    <div class="sidebar-chat-item" data-chat-id="recent-2" data-title="Desain Logo Varis AI">
+                        <span class="chat-item-title">Desain Logo Varis AI</span>
+                        <div class="chat-item-actions">
+                            <button class="btn-chat-item-action pin-toggle" title="Pin ke Atas">📌</button>
+                            <button class="btn-chat-item-action item-del" title="Hapus chat">✕</button>
+                        </div>
+                    </div>
+                    <div class="sidebar-chat-item" data-chat-id="recent-3" data-title="Ringkasan AI Agent MVC">
+                        <span class="chat-item-title">Ringkasan AI Agent MVC</span>
+                        <div class="chat-item-actions">
+                            <button class="btn-chat-item-action pin-toggle" title="Pin ke Atas">📌</button>
+                            <button class="btn-chat-item-action item-del" title="Hapus chat">✕</button>
+                        </div>
+                    </div>
+                    <div class="sidebar-chat-item" data-chat-id="recent-4" data-title="HTML Dan Database">
+                        <span class="chat-item-title">HTML Dan Database</span>
+                        <div class="chat-item-actions">
+                            <button class="btn-chat-item-action pin-toggle" title="Pin ke Atas">📌</button>
+                            <button class="btn-chat-item-action item-del" title="Hapus chat">✕</button>
+                        </div>
+                    </div>
+                    <div class="sidebar-chat-item" data-chat-id="recent-5" data-title="Perkiraan Tukar Tambah">
+                        <span class="chat-item-title">Perkiraan Tukar Tambah</span>
+                        <div class="chat-item-actions">
+                            <button class="btn-chat-item-action pin-toggle" title="Pin ke Atas">📌</button>
+                            <button class="btn-chat-item-action item-del" title="Hapus chat">✕</button>
+                        </div>
+                    </div>
+                    <div class="sidebar-chat-item" data-chat-id="recent-6" data-title="Alur Permainan Bolak Balok">
+                        <span class="chat-item-title">Alur Permainan Bolak Balok</span>
+                        <div class="chat-item-actions">
+                            <button class="btn-chat-item-action pin-toggle" title="Pin ke Atas">📌</button>
+                            <button class="btn-chat-item-action item-del" title="Hapus chat">✕</button>
+                        </div>
+                    </div>
+                    <div class="sidebar-chat-item" data-chat-id="recent-7" data-title="Ubah Tampilan Lebih Realistis">
+                        <span class="chat-item-title">Ubah Tampilan Lebih Realistis</span>
+                        <div class="chat-item-actions">
+                            <button class="btn-chat-item-action pin-toggle" title="Pin ke Atas">📌</button>
+                            <button class="btn-chat-item-action item-del" title="Hapus chat">✕</button>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Bottom User Profile Footer -->
+            <div class="sidebar-user-footer">
+                <div class="sidebar-user-profile" id="sidebar-user-btn" title="Profile & Settings">
+                    <div class="user-avatar-teal" id="sidebar-user-avatar">
+                        <span>AP</span>
+                    </div>
+                    <div class="user-profile-meta">
+                        <strong class="user-name" id="sidebar-user-name">al palis</strong>
+                        <span class="user-tier-label" id="sidebar-user-plan">Free</span>
+                    </div>
+                </div>
+                <button class="btn-sidebar-upgrade" id="sidebar-upgrade-btn">Upgrade</button>
+            </div>
         </aside>
+
+        <!-- Sidebar Mobile Overlay Backdrop -->
+        <div class="sidebar-backdrop hidden" id="sidebar-backdrop"></div>
 
         <!-- Main Workspace Area -->
         <main class="app-main-viewport">
@@ -454,6 +580,11 @@
             <!-- Top Header Bar (Mobile & Desktop) -->
             <header class="app-topbar">
                 <div class="topbar-left">
+                    <button class="btn-sidebar-toggle" id="btn-sidebar-toggle" title="Toggle Sidebar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
                     <div class="topbar-brand">
                         <span class="brand-title-bold">VARIS AI</span>
                     </div>
@@ -462,7 +593,7 @@
                 <div class="topbar-right">
                     <button class="topbar-avatar-btn" id="topbar-avatar-btn" title="Profile">
                         <div class="topbar-avatar-circle" id="topbar-avatar-badge">
-                            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="default-avatar-svg"><rect width="48" height="48" fill="#E2E8F0"/><path d="M24 8C19.5817 8 16 11.5817 16 16C16 20.4183 19.5817 24 24 24C28.4183 24 32 20.4183 32 16C32 11.5817 28.4183 8 24 8Z" fill="#94A3B8"/><path d="M9 42C9 33.7157 15.7157 27 24 27C32.2843 27 39 33.7157 39 42V48H9V42Z" fill="#94A3B8"/></svg>
+                            <div class="user-avatar-teal-sm">AP</div>
                         </div>
                     </button>
                 </div>
@@ -472,14 +603,14 @@
             <div class="tab-viewport-container">
 
                 <!-- ========================================================
-                     TAB 1: HOME / DASHBOARD (#tab-home) - MATCHES IMAGE 1
+                     TAB 1: HOME / DASHBOARD (#tab-home)
                      ======================================================== -->
-                <div class="tab-page active" id="tab-home">
+                <div class="tab-page" id="tab-home">
                     <div class="page-content-wrapper">
                         <!-- Greeting Row -->
                         <div class="home-greeting-row">
                             <div class="greeting-texts">
-                                <h1 class="greeting-title">Good evening, <span id="home-user-name">Alex</span></h1>
+                                <h1 class="greeting-title">Good evening, <span id="home-user-name">al palis</span></h1>
                                 <p class="greeting-subtitle">How can I help you today?</p>
                             </div>
                             <div class="plan-pill-badge" id="home-plan-badge">
@@ -618,7 +749,6 @@
                             </div>
 
                             <div class="home-projects-list" id="home-projects-list">
-                                <!-- Project 1 -->
                                 <div class="home-project-card">
                                     <div class="project-badge-avatar bg-indigo-light">VA</div>
                                     <div class="home-project-info">
@@ -630,7 +760,6 @@
                                     </button>
                                 </div>
 
-                                <!-- Project 2 -->
                                 <div class="home-project-card">
                                     <div class="project-badge-avatar bg-blue-light">DS</div>
                                     <div class="home-project-info">
@@ -647,96 +776,130 @@
                 </div>
 
                 <!-- ========================================================
-                     TAB 2: CHAT WORKSPACE (#tab-chat) - MATCHES IMAGE 2
+                     TAB 2: CHAT WORKSPACE (#tab-chat) - DARK MODERN AI INTERFACE
                      ======================================================== -->
-                <div class="tab-page" id="tab-chat">
-                    <div class="chat-subview-wrapper">
-                        <!-- Chat Subtoolbar -->
+                <div class="tab-page active" id="tab-chat">
+                    <div class="chat-subview-wrapper dark-theme-chat">
+                        
+                        <!-- Chat Top Subtoolbar -->
                         <div class="chat-subtoolbar">
                             <div class="chat-subtoolbar-left">
-                                <button class="pill-model-selector" id="chat-model-selector-btn">
+                                <button class="pill-model-selector" id="chat-model-selector-btn" title="Ganti Model AI">
                                     <span class="model-status-dot"></span>
                                     <span class="model-name-text" id="chat-active-model-name">VARIS Auto</span>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
                                 </button>
                                 <button class="pill-search-mode-selector" id="chat-search-mode-btn" title="Ganti Mode Pencarian Web">
                                     <span class="search-mode-icon">🌐</span>
-                                    <span class="search-mode-text" id="chat-active-search-mode-name">Always Search</span>
+                                    <span class="search-mode-text" id="chat-active-search-mode-name">Web Research</span>
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
                                 </button>
                             </div>
 
-                            <button class="pill-credits-indicator" id="chat-credits-pill-btn">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B3BE5" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                                <span id="chat-credits-display">Unlimited (∞)</span>
-                            </button>
-                        </div>
-
-                        <!-- Chat Messages Feed -->
-                        <div class="chat-messages-container" id="chat-messages-feed">
-                            <!-- Initial Welcome AI Message Card -->
-                            <div class="chat-message-row ai-row">
-                                <div class="chat-ai-header">
-                                    <div class="ai-avatar-badge">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                                    </div>
-                                    <strong class="ai-sender-name">VARIS AI</strong>
-                                    <span class="ai-message-time">Just now</span>
-                                </div>
-
-                                <div class="ai-message-card">
-                                    <p class="ai-text-para">
-                                        Hello! I'm your VARIS AI assistant. I'm ready to help you write code, analyze data, or brainstorm ideas. Here's a quick example of my Markdown & code generation capabilities:
-                                    </p>
-
-                                    <!-- Code Block Preview -->
-                                    <div class="code-block-wrapper">
-                                        <div class="code-block-header">
-                                            <span class="code-lang-tag">PYTHON</span>
-                                            <button class="btn-code-copy" onclick="navigator.clipboard.writeText(this.closest('.code-block-wrapper').querySelector('code').innerText); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy', 1500)">Copy</button>
-                                        </div>
-                                        <pre class="code-pre-box"><code>def calculate_delight_score(interactions):
-    """
-    Computes the user delight index for VARIS AI Workspace.
-    """
-    base_score = 100.0
-    delight_factor = sum(interactions) * 1.25
-    friction_penalty = len(friction_points) * 2.5
-    
-    final_score = max(0.0, base_score + delight_factor - friction_penalty)
-    return round(final_score, 2)
-
-print(f"Workspace Delight Index: {calculate_delight_score([4.5, 5.0, 4.8])}")</code></pre>
-                                    </div>
-
-                                    <p class="ai-text-para">
-                                        Feel free to type a prompt below, attach files, or use voice input to get started!
-                                    </p>
-                                </div>
+                            <div class="chat-subtoolbar-right">
+                                <button class="btn-topbar-upgrade" id="topbar-upgrade-btn" title="Upgrade Plan">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
+                                    <span>Upgrade</span>
+                                </button>
+                                <button class="btn-topbar-reset" id="chat-btn-reset-conversation" title="Mulai Percakapan Baru">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Sticky Chat Composer Container -->
+                        <!-- Chat Viewport Content Area -->
+                        <div class="chat-body-scroll-area" id="chat-scroll-container">
+                            
+                            <!-- Welcome / Empty Screen State -->
+                            <div class="chat-welcome-container" id="chat-welcome-state">
+                                <h1 class="chat-welcome-headline">What’s on your mind today?</h1>
+
+                                <!-- Experience Announcement Banner -->
+                                <div class="chat-experience-banner" id="chat-experience-banner">
+                                    <div class="banner-content">
+                                        <div class="banner-header-row">
+                                            <span class="banner-tag">Experience</span>
+                                            <button class="btn-close-banner" id="btn-close-banner" title="Tutup pemberitahuan">✕</button>
+                                        </div>
+                                        <p class="banner-desc">VARIS AI Workspace, with extra tools, live web research and settings to support learning and productivity.</p>
+                                        <div class="banner-actions">
+                                            <button class="btn-banner-action" id="btn-take-a-look">Take a look</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Starter Prompt Cards -->
+                                <div class="chat-starters-grid">
+                                    <button class="starter-card" data-prompt="Brainstorm ide proyek AI modern dan arsitekturnya">
+                                        <div class="starter-icon">💡</div>
+                                        <div class="starter-text">
+                                            <strong>Brainstorm ideas</strong>
+                                            <span>Explore creative concepts and workflows</span>
+                                        </div>
+                                    </button>
+                                    <button class="starter-card" data-prompt="Bantu buat kode function TypeScript dan berikan penjelasannya">
+                                        <div class="starter-icon">💻</div>
+                                        <div class="starter-text">
+                                            <strong>Write code & debug</strong>
+                                            <span>Generate clean, optimized code</span>
+                                        </div>
+                                    </button>
+                                    <button class="starter-card" data-prompt="Cari informasi terbaru dan berikan sumber yang valid">
+                                        <div class="starter-icon">🔍</div>
+                                        <div class="starter-text">
+                                            <strong>Research info</strong>
+                                            <span>Real-time web search with citations</span>
+                                        </div>
+                                    </button>
+                                    <button class="starter-card" data-prompt="Hitung dan analisis data statistik secara terperinci">
+                                        <div class="starter-icon">📊</div>
+                                        <div class="starter-text">
+                                            <strong>Data & calculation</strong>
+                                            <span>Multi-step reasoning and formulas</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Chat Messages Feed (Visible when conversation is active) -->
+                            <div class="chat-messages-container hidden" id="chat-messages-feed"></div>
+                        </div>
+
+                        <!-- Sticky Chat Composer Container (Dark Rounded Floating Pill) -->
                         <div class="chat-composer-outer">
                             <div class="chat-composer-box">
-                                <textarea class="chat-input-field" id="main-chat-input" placeholder="Ask VARIS anything or type '/' for..." rows="1"></textarea>
+                                <div class="composer-input-row">
+                                    <button class="btn-composer-attach" id="btn-composer-attach" title="Attach file, image, or PDF">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                    </button>
+                                    <textarea class="chat-input-field" id="main-chat-input" placeholder="Ask VARIS anything..." rows="1"></textarea>
+                                </div>
                                 
                                 <div class="composer-toolbar-row">
                                     <div class="composer-tools-left">
-                                        <button class="btn-composer-tool" id="btn-composer-attach" title="Attach file">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                        <button class="btn-composer-think" id="btn-composer-think" title="Toggle Reasoning / Deep Thinking">
+                                            <span class="think-icon">🧠</span>
+                                            <span>Think</span>
                                         </button>
-                                        <button class="btn-composer-tool" id="btn-composer-mic" title="Voice Input">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                                        </button>
-                                        <button class="btn-composer-tool" id="btn-composer-web" title="Web Search">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                                        <button class="btn-composer-web active" id="btn-composer-web" title="Toggle Real-time Web Search">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                                            <span>Search</span>
                                         </button>
                                     </div>
 
-                                    <button class="btn-composer-send" id="main-send-btn" title="Send message">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-                                    </button>
+                                    <div class="composer-tools-right">
+                                        <button class="btn-composer-mic" id="btn-composer-mic" title="Voice Dictation">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                                        </button>
+                                        <button class="btn-composer-livevoice" id="btn-composer-livevoice" title="Live Voice Mode">
+                                            <div class="livevoice-bars">
+                                                <span></span><span></span><span></span><span></span>
+                                            </div>
+                                        </button>
+                                        <button class="btn-composer-send" id="main-send-btn" title="Send message">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1364,6 +1527,264 @@ print(f"Workspace Delight Index: {calculate_delight_score([4.5, 5.0, 4.8])}")</c
                         Perbarui Password
                     </button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Chats Modal Overlay (Ctrl+K) -->
+    <div class="modal-backdrop hidden" id="modal-search-chats">
+        <div class="search-overlay-dialog">
+            <div class="search-overlay-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="input-search-chats" placeholder="Cari percakapan, topik, atau kata kunci..." autocomplete="off">
+                <button class="btn-sheet-close" id="btn-close-search-chats">✕</button>
+            </div>
+            <div class="search-overlay-results" id="search-overlay-results">
+                <!-- Search results injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Modal: Images -->
+    <div class="modal-backdrop hidden" id="modal-feature-images">
+        <div class="bottom-sheet-card dark-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <div class="sheet-title-group">
+                    <span class="sheet-feature-icon">🖼️</span>
+                    <h3 class="sheet-title">VARIS Image Studio</h3>
+                </div>
+                <button class="btn-sheet-close" id="btn-close-images-sheet">✕</button>
+            </div>
+            <div class="sheet-body-scroll">
+                <div class="image-studio-banner">
+                    <p>Hasilkan visual menakjubkan dan aset kreatif dengan AI model mutakhir.</p>
+                </div>
+                <div class="studio-input-box">
+                    <input type="text" id="image-prompt-input" placeholder="Deskripsikan gambar yang ingin Anda buat..." class="studio-input">
+                    <button class="btn-studio-generate" id="btn-generate-image">Generate ✨</button>
+                </div>
+                <div class="studio-gallery-grid" id="studio-gallery-grid">
+                    <div class="gallery-item-card">
+                        <img src="/assets/varis-robot-welcoming.png" alt="VARIS Robot">
+                        <span>Humanoid Assistant</span>
+                    </div>
+                    <div class="gallery-item-card">
+                        <img src="/assets/marble-gold-bg.jpg" alt="Marble Luxury">
+                        <span>Abstract Architecture</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Modal: Library -->
+    <div class="modal-backdrop hidden" id="modal-feature-library">
+        <div class="bottom-sheet-card dark-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <div class="sheet-title-group">
+                    <span class="sheet-feature-icon">📖</span>
+                    <h3 class="sheet-title">Prompt & Knowledge Library</h3>
+                </div>
+                <button class="btn-sheet-close" id="btn-close-library-sheet">✕</button>
+            </div>
+            <div class="sheet-body-scroll">
+                <p class="sheet-subdesc">Koleksi template prompt terbaik dan pustaka pengetahuan tersimpan.</p>
+                <div class="library-templates-list">
+                    <div class="library-card" onclick="applyLibraryPrompt('Jelaskan konsep arsitektur microservices dan perbandingannya dengan monolithic secara terperinci.')">
+                        <strong>Arsitektur Sistem</strong>
+                        <p>Jelaskan konsep microservices vs monolith</p>
+                    </div>
+                    <div class="library-card" onclick="applyLibraryPrompt('Bantu audit dan perbaiki keamanan pada endpoint API authentication berikut.')">
+                        <strong>Audit Keamanan Kode</strong>
+                        <p>Analisis vulnerability dan best practice security</p>
+                    </div>
+                    <div class="library-card" onclick="applyLibraryPrompt('Buatkan ringkasan eksekutif dan poin penting dari data berikut.')">
+                        <strong>Executive Summary</strong>
+                        <p>Ekstraksi kesimpulan dan analisis data strategis</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Modal: Scheduled -->
+    <div class="modal-backdrop hidden" id="modal-feature-scheduled">
+        <div class="bottom-sheet-card dark-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <div class="sheet-title-group">
+                    <span class="sheet-feature-icon">⏱️</span>
+                    <h3 class="sheet-title">Scheduled Tasks & Reminders</h3>
+                </div>
+                <button class="btn-sheet-close" id="btn-close-scheduled-sheet">✕</button>
+            </div>
+            <div class="sheet-body-scroll">
+                <p class="sheet-subdesc">Jadwalkan riset otomatis, ringkasan berkala, dan pengingat cerdas dengan VARIS AI.</p>
+                <div class="scheduled-items-list">
+                    <div class="scheduled-card">
+                        <div class="scheduled-header">
+                            <strong>Daily Tech Digest</strong>
+                            <span class="scheduled-badge active">Aktif</span>
+                        </div>
+                        <p>Rangkuman berita teknologi AI setiap hari pukul 08:00 WIB</p>
+                    </div>
+                    <div class="scheduled-card">
+                        <div class="scheduled-header">
+                            <strong>Weekly Codebase Review</strong>
+                            <span class="scheduled-badge">Mingguan</span>
+                        </div>
+                        <p>Pemeriksaan performa dan dependensi proyek setiap Senin</p>
+                    </div>
+                </div>
+                <button class="btn-create-schedule" onclick="showToast('Fitur penjadwalan kustom aktif!')">+ Buat Jadwal Baru</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Modal: Plugins -->
+    <div class="modal-backdrop hidden" id="modal-feature-plugins">
+        <div class="bottom-sheet-card dark-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <div class="sheet-title-group">
+                    <span class="sheet-feature-icon">🧩</span>
+                    <h3 class="sheet-title">AI Plugins & Tools</h3>
+                </div>
+                <button class="btn-sheet-close" id="btn-close-plugins-sheet">✕</button>
+            </div>
+            <div class="sheet-body-scroll">
+                <div class="plugins-grid">
+                    <div class="plugin-card active">
+                        <div class="plugin-icon">🌐</div>
+                        <div class="plugin-info">
+                            <strong>Real-time Web Search</strong>
+                            <span>Pencarian fakta dan sumber internet langsung</span>
+                        </div>
+                        <span class="plugin-status">Enabled</span>
+                    </div>
+                    <div class="plugin-card active">
+                        <div class="plugin-icon">🐍</div>
+                        <div class="plugin-info">
+                            <strong>Python Sandbox</strong>
+                            <span>Eksekusi kalkulasi dan algoritma komputasi</span>
+                        </div>
+                        <span class="plugin-status">Enabled</span>
+                    </div>
+                    <div class="plugin-card active">
+                        <div class="plugin-icon">📑</div>
+                        <div class="plugin-info">
+                            <strong>Document Analyzer</strong>
+                            <span>Ekstraksi dokumen PDF, Word, dan CSV</span>
+                        </div>
+                        <span class="plugin-status">Enabled</span>
+                    </div>
+                    <div class="plugin-card active">
+                        <div class="plugin-icon">🧠</div>
+                        <div class="plugin-info">
+                            <strong>Reasoning Core</strong>
+                            <span>Pemecahan masalah multi-langkah dan verifikasi</span>
+                        </div>
+                        <span class="plugin-status">Enabled</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Modal: Codex -->
+    <div class="modal-backdrop hidden" id="modal-feature-codex">
+        <div class="bottom-sheet-card dark-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <div class="sheet-title-group">
+                    <span class="sheet-feature-icon">☁️</span>
+                    <h3 class="sheet-title">VARIS Codex Workspace</h3>
+                </div>
+                <button class="btn-sheet-close" id="btn-close-codex-sheet">✕</button>
+            </div>
+            <div class="sheet-body-scroll">
+                <p class="sheet-subdesc">Lingkungan pemrograman cerdas untuk menulis, menjalankan, dan merefaktor kode secara instan.</p>
+                <div class="codex-editor-preview">
+                    <div class="codex-editor-bar">
+                        <span>solution.ts</span>
+                        <button class="btn-codex-run" onclick="showToast('Codex Sandbox running...')">▶ Run Code</button>
+                    </div>
+                    <pre class="codex-code-block"><code>// VARIS Codex High-Performance Agent
+export async function optimizeWorkflow(data: Array<any>) {
+  const processed = await Promise.all(data.map(item => transform(item)));
+  return { status: 'success', count: processed.length };
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Modal: More Menu -->
+    <div class="modal-backdrop hidden" id="modal-feature-more">
+        <div class="bottom-sheet-card dark-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <div class="sheet-title-group">
+                    <span class="sheet-feature-icon">•••</span>
+                    <h3 class="sheet-title">More Features & Tools</h3>
+                </div>
+                <button class="btn-sheet-close" id="btn-close-more-sheet">✕</button>
+            </div>
+            <div class="sheet-body-scroll">
+                <div class="more-menu-list">
+                    <button class="more-menu-item" onclick="switchTab('voice'); closeModal('modal-feature-more')">
+                        <span>🎙️ Mode Suara Real-time</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <button class="more-menu-item" onclick="switchTab('projects'); closeModal('modal-feature-more')">
+                        <span>📁 Kelola File & Workspace</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <button class="more-menu-item" onclick="switchTab('profile'); closeModal('modal-feature-more')">
+                        <span>⚙️ Pengaturan & Profil</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <button class="more-menu-item" onclick="openModal('modal-usage-sheet'); closeModal('modal-feature-more')">
+                        <span>⚡ Status Kuota & Kredit</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Modal: Experience Tour ("Take a look") -->
+    <div class="modal-backdrop hidden" id="modal-feature-tour">
+        <div class="bottom-sheet-card dark-sheet-card">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-header-row">
+                <div class="sheet-title-group">
+                    <span class="sheet-feature-icon">✨</span>
+                    <h3 class="sheet-title">New VARIS AI Experience</h3>
+                </div>
+                <button class="btn-sheet-close" id="btn-close-tour-sheet">✕</button>
+            </div>
+            <div class="sheet-body-scroll">
+                <div class="tour-highlights-grid">
+                    <div class="tour-card">
+                        <div class="tour-icon">🧠</div>
+                        <h4>Deep Reasoning Mode</h4>
+                        <p>Tekan tombol <strong>Think</strong> untuk mengaktifkan pemecahan masalah mendalam dengan verifikasi logika bertahap.</p>
+                    </div>
+                    <div class="tour-card">
+                        <div class="tour-icon">🌐</div>
+                        <h4>Real-Time Web Search</h4>
+                        <p>Dapatkan jawaban berbasis informasi terbaru lengkap dengan sumber nyata terverifikasi.</p>
+                    </div>
+                    <div class="tour-card">
+                        <div class="tour-icon">🎙️</div>
+                        <h4>Live Voice Mode</h4>
+                        <p>Interaksi suara interaktif secara langsung dengan visualisasi gelombang frekuensi audio dinamis.</p>
+                    </div>
+                </div>
+                <button class="btn-primary-pill w-full mt-4" id="btn-close-tour-confirm">Mulai Eksplorasi</button>
             </div>
         </div>
     </div>

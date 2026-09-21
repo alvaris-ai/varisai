@@ -11,16 +11,16 @@ let activeMainView = 'landing'; // 'landing', 'auth', 'app'
 let activeTab = 'home';         // 'home', 'chat', 'voice', 'projects', 'profile'
 let currentUser = {
     id: 'user-demo',
-    name: 'VARIS User',
+    name: 'al palis',
     email: '',
     picture: null,
     avatar_url: null,
-    plan: 'Unlimited Access',
+    plan: 'Free',
     credits: 999999,
     creditsMax: 999999
 };
 let currentModel = 'auto';
-let currentModelName = 'VARIS AI';
+let currentModelName = 'VARIS Auto';
 let currentSearchMode = 'always'; // 'always', 'smart', 'offline'
 let currentSearchModeName = 'Web Research';
 let currentSearchModeIcon = '🌐';
@@ -28,7 +28,36 @@ let currentConversationId = 'conv-' + Date.now();
 let isRegisterMode = false;
 let isVoiceMuted = false;
 let isWebSearchEnabled = true;
+let isThinkingMode = false;
 let lastUserMessageText = '';
+
+// Sidebar Chat History Store (Matches reference screenshot)
+let sidebarChats = [
+    { id: 'pin-1', title: 'Perbaiki Langkah Matriks', pinned: true, createdAt: Date.now() - 3600000 },
+    { id: 'recent-1', title: 'Cara Membuat AI', pinned: false, createdAt: Date.now() - 7200000 },
+    { id: 'recent-2', title: 'Desain Logo Varis AI', pinned: false, createdAt: Date.now() - 14400000 },
+    { id: 'recent-3', title: 'Ringkasan AI Agent MVC', pinned: false, createdAt: Date.now() - 28800000 },
+    { id: 'recent-4', title: 'HTML Dan Database', pinned: false, createdAt: Date.now() - 86400000 },
+    { id: 'recent-5', title: 'Perkiraan Tukar Tambah', pinned: false, createdAt: Date.now() - 172800000 },
+    { id: 'recent-6', title: 'Alur Permainan Bolak Balok', pinned: false, createdAt: Date.now() - 259200000 },
+    { id: 'recent-7', title: 'Ubah Tampilan Lebih Realistis', pinned: false, createdAt: Date.now() - 345600000 }
+];
+
+// Conversation Messages Store
+let conversationMessagesStore = {
+    'pin-1': [
+        { role: 'user', text: 'Perbaiki langkah matriks untuk optimasi algoritma invers' },
+        { role: 'assistant', text: 'Berikut adalah langkah-langkah optimal untuk melakukan inversi matriks:\n\n1. **Verifikasi Determinan**: Pastikan $\\det(A) \\neq 0$ agar matriks memiliki invers.\n2. **Metode Dekomposisi LU / Gauss-Jordan**: Gunakan eliminasi baris elementer terhadap matriks augmentasi $[A \\mid I]$.\n3. **Pivot Parsial**: Terapkan pertukaran baris untuk meminimalkan round-off error numerik.\n4. **Kompleksitas Komputasi**: Algoritma ini berjalan pada kompleksitas $\\mathcal{O}(n^3)$.' }
+    ],
+    'recent-1': [
+        { role: 'user', text: 'Cara Membuat AI' },
+        { role: 'assistant', text: 'Untuk membangun AI Agent modern dan tangguh seperti VARIS AI, terdapat 4 pilar arsitektur fundamental:\n\n1. **Model & Reasoning Core**: Integrasi Multi-LLM (Gemini 2.0, GPT-4o) dengan reasoning loop.\n2. **Real-time Knowledge Engine**: Web search live, grounding data, dan verifikasi fakta.\n3. **Autonomous Tools Execution**: Python sandbox, image generation, document parsing.\n4. **Multi-layer Memory**: Conversation context, long-term vector store, dan user preferences.' }
+    ],
+    'recent-2': [
+        { role: 'user', text: 'Desain Logo Varis AI' },
+        { role: 'assistant', text: 'Konsep desain logo VARIS AI menggabungkan elemen geometri modern (lapisan prisma heksagonal) dengan aksen cyan dan royal blue, mencerminkan kecerdasan komputasi multi-dimensi dan estetika premium minimalis.' }
+    ]
+};
 
 // Voice Mode Web Audio State
 let audioCtx = null;
@@ -65,6 +94,8 @@ function switchMainView(viewName) {
 
     if (viewName === 'app') {
         renderUserData();
+        loadSidebarChats();
+        renderSidebarChats();
         const hash = (window.location.hash || '').replace('#', '').toLowerCase();
         const savedTab = localStorage.getItem('varis_active_tab') || activeTab || 'home';
         const targetTab = ['home', 'chat', 'voice', 'projects', 'profile'].includes(hash) ? hash : (['home', 'chat', 'voice', 'projects', 'profile'].includes(savedTab) ? savedTab : 'home');
@@ -150,7 +181,9 @@ function switchTab(tabName) {
 function renderUserData() {
     if (!currentUser) return;
 
-    const firstName = currentUser.name ? currentUser.name.split(' ')[0] : 'User';
+    const displayName = currentUser.name || 'al palis';
+    const firstName = displayName.split(' ')[0] || 'al';
+    const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'AP';
     const photoUrl = currentUser.picture || currentUser.avatar_url || null;
 
     // 1. Home Tab Elements
@@ -174,7 +207,7 @@ function renderUserData() {
 
     // 3. Profile Tab Elements
     const profileName = document.getElementById('profile-display-name');
-    if (profileName) profileName.textContent = currentUser.name || 'VARIS User';
+    if (profileName) profileName.textContent = displayName;
 
     const profileEmail = document.getElementById('profile-display-email');
     if (profileEmail) profileEmail.textContent = currentUser.email || '';
@@ -194,7 +227,7 @@ function renderUserData() {
     } else {
         if (profilePhoto) profilePhoto.style.display = 'none';
         if (profileFallback) {
-            profileFallback.innerHTML = DEFAULT_AVATAR_SVG;
+            profileFallback.innerHTML = `<div class="user-avatar-teal" style="width:100%;height:100%;border-radius:50%;font-size:1.2rem;">${initials}</div>`;
             profileFallback.style.display = 'flex';
         }
     }
@@ -205,7 +238,7 @@ function renderUserData() {
         if (photoUrl) {
             topAvatar.innerHTML = `<img src="${photoUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
         } else {
-            topAvatar.innerHTML = DEFAULT_AVATAR_SVG;
+            topAvatar.innerHTML = `<div class="user-avatar-teal-sm">${initials}</div>`;
         }
     }
 
@@ -214,16 +247,238 @@ function renderUserData() {
         if (photoUrl) {
             sideAvatar.innerHTML = `<img src="${photoUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
         } else {
-            sideAvatar.innerHTML = DEFAULT_AVATAR_SVG;
+            sideAvatar.innerHTML = `<span>${initials}</span>`;
         }
     }
 
     const sideName = document.getElementById('sidebar-user-name');
-    if (sideName) sideName.textContent = currentUser.name || 'VARIS User';
+    if (sideName) sideName.textContent = displayName;
 
     const sidePlan = document.getElementById('sidebar-user-plan');
-    if (sidePlan) sidePlan.textContent = 'Unlimited Access';
+    if (sidePlan) sidePlan.textContent = currentUser.plan || 'Free';
 }
+
+// ==========================================================
+// 2.1 SIDEBAR CHAT HISTORY MANAGEMENT
+// ==========================================================
+
+function loadSidebarChats() {
+    try {
+        const raw = localStorage.getItem('varis_sidebar_chats');
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                sidebarChats = parsed;
+            }
+        }
+    } catch (e) {}
+}
+
+function saveSidebarChats() {
+    try {
+        localStorage.setItem('varis_sidebar_chats', JSON.stringify(sidebarChats));
+    } catch (e) {}
+}
+
+function renderSidebarChats() {
+    const pinnedContainer = document.getElementById('sidebar-pinned-list');
+    const recentsContainer = document.getElementById('sidebar-recents-list');
+    if (!pinnedContainer || !recentsContainer) return;
+
+    pinnedContainer.innerHTML = '';
+    recentsContainer.innerHTML = '';
+
+    const pinnedList = sidebarChats.filter(c => c.pinned);
+    const recentsList = sidebarChats.filter(c => !c.pinned);
+
+    pinnedList.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = `sidebar-chat-item pinned ${chat.id === currentConversationId ? 'active' : ''}`;
+        item.dataset.chatId = chat.id;
+        item.dataset.title = chat.title;
+        item.innerHTML = `
+            <svg class="chat-item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span class="chat-item-title">${escapeHtml(chat.title)}</span>
+            <div class="chat-item-actions">
+                <button class="btn-chat-item-action pin-toggle active" title="Unpin" onclick="event.stopPropagation(); togglePinChat('${chat.id}')">📌</button>
+                <button class="btn-chat-item-action item-del" title="Hapus" onclick="event.stopPropagation(); deleteChat('${chat.id}')">✕</button>
+            </div>
+        `;
+        item.onclick = () => switchConversation(chat.id, chat.title);
+        pinnedContainer.appendChild(item);
+    });
+
+    recentsList.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = `sidebar-chat-item ${chat.id === currentConversationId ? 'active' : ''}`;
+        item.dataset.chatId = chat.id;
+        item.dataset.title = chat.title;
+        item.innerHTML = `
+            <span class="chat-item-title">${escapeHtml(chat.title)}</span>
+            <div class="chat-item-actions">
+                <button class="btn-chat-item-action pin-toggle" title="Pin ke Atas" onclick="event.stopPropagation(); togglePinChat('${chat.id}')">📌</button>
+                <button class="btn-chat-item-action item-del" title="Hapus" onclick="event.stopPropagation(); deleteChat('${chat.id}')">✕</button>
+            </div>
+        `;
+        item.onclick = () => switchConversation(chat.id, chat.title);
+        recentsContainer.appendChild(item);
+    });
+}
+
+function escapeHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function switchConversation(chatId, title) {
+    currentConversationId = chatId;
+    switchTab('chat');
+    renderSidebarChats();
+
+    const welcomeEl = document.getElementById('chat-welcome-state');
+    const feed = document.getElementById('chat-messages-feed');
+
+    // Check if there are stored messages for this conversation
+    const messages = conversationMessagesStore[chatId] || [];
+    if (messages.length > 0) {
+        if (welcomeEl) { welcomeEl.classList.add('hidden'); welcomeEl.style.display = 'none'; }
+        if (feed) {
+            feed.classList.remove('hidden');
+            feed.style.display = 'flex';
+            feed.innerHTML = '';
+            messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    feed.appendChild(createUserMessageElement(msg.text));
+                } else {
+                    const aiRow = createAIMessageElement(msg.text);
+                    feed.appendChild(aiRow);
+                }
+            });
+            scrollChatToBottom();
+        }
+    } else {
+        // Show starter state or empty conversation
+        if (welcomeEl) { welcomeEl.classList.remove('hidden'); welcomeEl.style.display = 'flex'; }
+        if (feed) { feed.classList.add('hidden'); feed.style.display = 'none'; feed.innerHTML = ''; }
+    }
+
+    closeMobileSidebar();
+    showToast(`Percakapan: "${title}"`);
+}
+
+function startNewChat() {
+    currentConversationId = 'conv-' + Date.now();
+    switchTab('chat');
+    renderSidebarChats();
+
+    const welcomeEl = document.getElementById('chat-welcome-state');
+    const feed = document.getElementById('chat-messages-feed');
+    if (welcomeEl) { welcomeEl.classList.remove('hidden'); welcomeEl.style.display = 'flex'; }
+    if (feed) { feed.classList.add('hidden'); feed.style.display = 'none'; feed.innerHTML = ''; }
+
+    const input = document.getElementById('main-chat-input');
+    if (input) {
+        input.value = '';
+        input.style.height = 'auto';
+        input.focus();
+    }
+    closeMobileSidebar();
+}
+
+function togglePinChat(chatId) {
+    const chat = sidebarChats.find(c => c.id === chatId);
+    if (chat) {
+        chat.pinned = !chat.pinned;
+        saveSidebarChats();
+        renderSidebarChats();
+        showToast(chat.pinned ? `📌 Disematkan: "${chat.title}"` : `Dilepas dari pin: "${chat.title}"`);
+    }
+}
+
+function deleteChat(chatId) {
+    const idx = sidebarChats.findIndex(c => c.id === chatId);
+    if (idx !== -1) {
+        const title = sidebarChats[idx].title;
+        sidebarChats.splice(idx, 1);
+        delete conversationMessagesStore[chatId];
+        saveSidebarChats();
+        renderSidebarChats();
+        if (currentConversationId === chatId) {
+            startNewChat();
+        }
+        showToast(`Dihapus: "${title}"`);
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('desktop-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar) return;
+
+    if (window.innerWidth < 768) {
+        sidebar.classList.toggle('mobile-open');
+        if (backdrop) {
+            backdrop.classList.toggle('hidden', !sidebar.classList.contains('mobile-open'));
+        }
+    } else {
+        sidebar.classList.toggle('collapsed');
+    }
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('desktop-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.add('hidden');
+}
+
+window.applyLibraryPrompt = function(promptText) {
+    switchTab('chat');
+    closeModal('modal-feature-library');
+    const input = document.getElementById('main-chat-input');
+    if (input) {
+        input.value = promptText;
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+        input.focus();
+    }
+};
+
+function filterSearchModal(query) {
+    const resultsContainer = document.getElementById('search-overlay-results');
+    if (!resultsContainer) return;
+    resultsContainer.innerHTML = '';
+
+    const q = (query || '').toLowerCase().trim();
+    const matches = q ? sidebarChats.filter(c => c.title.toLowerCase().includes(q)) : sidebarChats;
+
+    if (matches.length === 0) {
+        resultsContainer.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: #8E8E8E; font-size: 0.9rem;">Tidak ada percakapan yang cocok dengan "${escapeHtml(query)}"</div>`;
+        return;
+    }
+
+    matches.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        item.innerHTML = `
+            <span style="font-size:1.1rem; flex-shrink:0;">${chat.pinned ? '📌' : '💬'}</span>
+            <span class="item-title" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(chat.title)}</span>
+            <span class="item-meta" style="flex-shrink:0; font-size:0.75rem; color:#8E8E8E;">${chat.pinned ? 'Pinned' : 'Recent'}</span>
+        `;
+        item.onclick = () => {
+            closeModal('modal-search-chats');
+            switchConversation(chat.id, chat.title);
+        };
+        resultsContainer.appendChild(item);
+    });
+}
+
+window.togglePinChat = togglePinChat;
+window.deleteChat = deleteChat;
+window.switchConversation = switchConversation;
+window.startNewChat = startNewChat;
+window.toggleSidebar = toggleSidebar;
+window.closeMobileSidebar = closeMobileSidebar;
+window.filterSearchModal = filterSearchModal;
 
 function initSessionAndRouting() {
     let savedUser = null;
@@ -625,15 +880,44 @@ async function handleSendMessage() {
     input.value = '';
     input.style.height = 'auto';
 
+    // 1. Hide Welcome Screen & Show Messages Feed
+    const welcomeEl = document.getElementById('chat-welcome-state');
+    if (welcomeEl) {
+        welcomeEl.classList.add('hidden');
+        welcomeEl.style.display = 'none';
+    }
+
     const feed = document.getElementById('chat-messages-feed');
     if (!feed) return;
+    feed.classList.remove('hidden');
+    feed.style.display = 'flex';
 
-    // 1. Append User Message
+    // 2. Append User Message
     const userRow = createUserMessageElement(text);
     feed.appendChild(userRow);
     scrollChatToBottom();
 
-    // 2. Append AI Message Placeholder with streaming cursor
+    // 3. Store conversation history
+    if (!conversationMessagesStore[currentConversationId]) {
+        conversationMessagesStore[currentConversationId] = [];
+    }
+    conversationMessagesStore[currentConversationId].push({ role: 'user', text });
+
+    // 4. Update or Add Chat Title in Sidebar
+    const existingChat = sidebarChats.find(c => c.id === currentConversationId);
+    if (!existingChat) {
+        const titleSnippet = text.length > 28 ? text.slice(0, 28) + '...' : text;
+        sidebarChats.unshift({
+            id: currentConversationId,
+            title: titleSnippet,
+            pinned: false,
+            createdAt: Date.now()
+        });
+        saveSidebarChats();
+        renderSidebarChats();
+    }
+
+    // 5. Append AI Message Placeholder with streaming cursor
     const aiRow = createAIMessageElement('');
     feed.appendChild(aiRow);
     scrollChatToBottom();
@@ -641,6 +925,16 @@ async function handleSendMessage() {
     const bodyEl = aiRow.querySelector('.ai-message-body');
     const sourcesContainer = aiRow.querySelector('.research-sources-container');
     bodyEl.innerHTML = '<span class="streaming-cursor"></span>';
+
+    if (isThinkingMode && statusWrapper) {
+        statusWrapper.style.display = 'block';
+        statusWrapper.innerHTML = `
+            <div class="research-status-pill">
+                <span class="pulse-dot"></span>
+                <span>🧠 Thinking: Melakukan penalaran mendalam dan verifikasi langkah...</span>
+            </div>
+        `;
+    }
 
     try {
         const res = await fetch('/api/ai/chat', {
@@ -657,6 +951,8 @@ async function handleSendMessage() {
                 mode: currentSearchMode,
                 search_mode: currentSearchMode,
                 web_search: currentSearchMode !== 'offline',
+                thinking: isThinkingMode,
+                reasoning: isThinkingMode,
                 stream: true
             })
         });
@@ -798,7 +1094,11 @@ async function handleSendMessage() {
                 }
             }
 
-            bodyEl.innerHTML = formatMarkdownText(streamAccumulator || 'I have completed analyzing your request.');
+            const finalAnswer = streamAccumulator || 'I have completed analyzing your request.';
+            bodyEl.innerHTML = formatMarkdownText(finalAnswer);
+            if (conversationMessagesStore[currentConversationId]) {
+                conversationMessagesStore[currentConversationId].push({ role: 'assistant', text: finalAnswer });
+            }
             if (collectedSources.length > 0 && sourcesContainer) {
                 sourcesContainer.innerHTML = renderSourcesCards(collectedSources);
                 sourcesContainer.style.display = 'block';
@@ -809,6 +1109,9 @@ async function handleSendMessage() {
             const data = await res.json();
             const responseText = data.reply || data.response || data.text || '';
             bodyEl.innerHTML = formatMarkdownText(responseText);
+            if (conversationMessagesStore[currentConversationId]) {
+                conversationMessagesStore[currentConversationId].push({ role: 'assistant', text: responseText });
+            }
             if (data.sources && data.sources.length > 0 && sourcesContainer) {
                 sourcesContainer.innerHTML = renderSourcesCards(data.sources);
                 sourcesContainer.style.display = 'block';
@@ -1414,10 +1717,166 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const sidebarNewChat = document.getElementById('sidebar-newchat-btn');
-    if (sidebarNewChat) {
-        sidebarNewChat.onclick = () => {
-            currentConversationId = 'conv-' + Date.now();
-            switchTab('chat');
+    if (sidebarNewChat) sidebarNewChat.onclick = () => startNewChat();
+
+    const chatResetBtn = document.getElementById('chat-btn-reset-conversation');
+    if (chatResetBtn) chatResetBtn.onclick = () => startNewChat();
+
+    const sidebarBrandBtn = document.getElementById('sidebar-brand-home-btn');
+    if (sidebarBrandBtn) sidebarBrandBtn.onclick = () => switchTab('home');
+
+    const sidebarCollapseBtn = document.getElementById('sidebar-btn-collapse');
+    if (sidebarCollapseBtn) sidebarCollapseBtn.onclick = () => toggleSidebar();
+
+    const sidebarToggleBtn = document.getElementById('btn-sidebar-toggle');
+    if (sidebarToggleBtn) sidebarToggleBtn.onclick = () => toggleSidebar();
+
+    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+    if (sidebarBackdrop) sidebarBackdrop.onclick = () => closeMobileSidebar();
+
+    const sidebarUpgradeBtn = document.getElementById('sidebar-upgrade-btn');
+    if (sidebarUpgradeBtn) sidebarUpgradeBtn.onclick = () => openModal('modal-usage-sheet');
+
+    const topbarUpgradeBtn = document.getElementById('topbar-upgrade-btn');
+    if (topbarUpgradeBtn) topbarUpgradeBtn.onclick = () => openModal('modal-usage-sheet');
+
+    const sidebarSearchBtn = document.getElementById('sidebar-btn-search');
+    if (sidebarSearchBtn) {
+        sidebarSearchBtn.onclick = () => {
+            openModal('modal-search-chats');
+            const sIn = document.getElementById('input-search-chats');
+            if (sIn) {
+                sIn.value = '';
+                sIn.focus();
+                filterSearchModal('');
+            }
+        };
+    }
+
+    const inputSearchChats = document.getElementById('input-search-chats');
+    if (inputSearchChats) {
+        inputSearchChats.addEventListener('input', (e) => {
+            filterSearchModal(e.target.value);
+        });
+    }
+
+    // Ctrl+K / Cmd+K Global Search Shortcut
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            openModal('modal-search-chats');
+            const sIn = document.getElementById('input-search-chats');
+            if (sIn) {
+                sIn.value = '';
+                sIn.focus();
+                filterSearchModal('');
+            }
+        }
+    });
+
+    // Feature Modal Openers
+    const navImages = document.getElementById('nav-feature-images');
+    if (navImages) navImages.onclick = () => openModal('modal-feature-images');
+
+    const navLibrary = document.getElementById('nav-feature-library');
+    if (navLibrary) navLibrary.onclick = () => openModal('modal-feature-library');
+
+    const navScheduled = document.getElementById('nav-feature-scheduled');
+    if (navScheduled) navScheduled.onclick = () => openModal('modal-feature-scheduled');
+
+    const navPlugins = document.getElementById('nav-feature-plugins');
+    if (navPlugins) navPlugins.onclick = () => openModal('modal-feature-plugins');
+
+    const navCodex = document.getElementById('nav-feature-codex');
+    if (navCodex) navCodex.onclick = () => openModal('modal-feature-codex');
+
+    const navMore = document.getElementById('nav-feature-more');
+    if (navMore) navMore.onclick = () => openModal('modal-feature-more');
+
+    const btnTakeALook = document.getElementById('btn-take-a-look');
+    if (btnTakeALook) btnTakeALook.onclick = () => openModal('modal-feature-tour');
+
+    const btnCloseBanner = document.getElementById('btn-close-banner');
+    if (btnCloseBanner) {
+        btnCloseBanner.onclick = () => {
+            const banner = document.getElementById('chat-experience-banner');
+            if (banner) banner.style.display = 'none';
+        };
+    }
+
+    // Starter Cards Click
+    document.querySelectorAll('.starter-card').forEach(card => {
+        card.onclick = () => {
+            const prompt = card.dataset.prompt || card.querySelector('strong')?.textContent || '';
+            if (prompt) {
+                const input = document.getElementById('main-chat-input');
+                if (input) {
+                    input.value = prompt;
+                    handleSendMessage();
+                }
+            }
+        };
+    });
+
+    // Composer Additional Controls: Think & LiveVoice
+    const btnComposerThink = document.getElementById('btn-composer-think');
+    if (btnComposerThink) {
+        btnComposerThink.onclick = () => {
+            isThinkingMode = !isThinkingMode;
+            btnComposerThink.classList.toggle('active', isThinkingMode);
+            showToast(isThinkingMode ? '🧠 Deep Reasoning Mode Enabled' : '🧠 Standard Reasoning Active');
+        };
+    }
+
+    const btnComposerLiveVoice = document.getElementById('btn-composer-livevoice');
+    if (btnComposerLiveVoice) {
+        btnComposerLiveVoice.onclick = () => switchTab('voice');
+    }
+
+    // Modal Close Buttons
+    const btnCloseSearchChats = document.getElementById('btn-close-search-chats');
+    if (btnCloseSearchChats) btnCloseSearchChats.onclick = () => closeModal('modal-search-chats');
+
+    const btnCloseImages = document.getElementById('btn-close-images-sheet');
+    if (btnCloseImages) btnCloseImages.onclick = () => closeModal('modal-feature-images');
+
+    const btnCloseLib = document.getElementById('btn-close-library-sheet');
+    if (btnCloseLib) btnCloseLib.onclick = () => closeModal('modal-feature-library');
+
+    const btnCloseSched = document.getElementById('btn-close-scheduled-sheet');
+    if (btnCloseSched) btnCloseSched.onclick = () => closeModal('modal-feature-scheduled');
+
+    const btnClosePlug = document.getElementById('btn-close-plugins-sheet');
+    if (btnClosePlug) btnClosePlug.onclick = () => closeModal('modal-feature-plugins');
+
+    const btnCloseCodex = document.getElementById('btn-close-codex-sheet');
+    if (btnCloseCodex) btnCloseCodex.onclick = () => closeModal('modal-feature-codex');
+
+    const btnCloseMore = document.getElementById('btn-close-more-sheet');
+    if (btnCloseMore) btnCloseMore.onclick = () => closeModal('modal-feature-more');
+
+    const btnCloseTour = document.getElementById('btn-close-tour-sheet');
+    if (btnCloseTour) btnCloseTour.onclick = () => closeModal('modal-feature-tour');
+
+    const btnConfirmTour = document.getElementById('btn-close-tour-confirm');
+    if (btnConfirmTour) btnConfirmTour.onclick = () => closeModal('modal-feature-tour');
+
+    const btnGenImage = document.getElementById('btn-generate-image');
+    if (btnGenImage) {
+        btnGenImage.onclick = () => {
+            const promptInput = document.getElementById('image-prompt-input');
+            const p = promptInput ? promptInput.value.trim() : '';
+            if (p) {
+                closeModal('modal-feature-images');
+                switchTab('chat');
+                const chatIn = document.getElementById('main-chat-input');
+                if (chatIn) {
+                    chatIn.value = `Generate image: ${p}`;
+                    handleSendMessage();
+                }
+            } else {
+                showToast('Masukkan deskripsi gambar terlebih dahulu!');
+            }
         };
     }
 
