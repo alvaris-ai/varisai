@@ -102,18 +102,41 @@ test('createAIProviderFromConfig: initializes providers based on environment con
   assert.equal(freeOrchestrator.providers.length, 1);
   assert.equal(freeOrchestrator.providers[0].name, 'smart_local');
 
-  // Multi-provider config with OpenAI, Gemini, Groq + SmartLocal safety net
+  // Multi-provider config with OpenAI, Gemini, Groq, DeepSeek, OpenRouter + SmartLocal safety net
   const multiOrchestrator = createAIProviderFromConfig({
     openaiApiKey: 'test-openai-key',
     geminiApiKey: 'test-gemini-key',
     groqApiKey: 'test-groq-key',
+    deepseekApiKey: 'test-deepseek-key',
+    openrouterApiKey: 'test-openrouter-key',
   });
 
   const providerNames = multiOrchestrator.providers.map(p => p.name);
   assert.ok(providerNames.includes('openai'));
   assert.ok(providerNames.includes('gemini'));
   assert.ok(providerNames.includes('groq'));
+  assert.ok(providerNames.includes('deepseek'));
+  assert.ok(providerNames.includes('openrouter'));
   assert.ok(providerNames.includes('smart_local'));
+});
+
+test('MultiProviderOrchestrator: routes deepseek model queries properly', async () => {
+  let deepseekCalled = 0;
+  const deepseek = {
+    name: 'deepseek',
+    isConfigured: () => true,
+    respond: async ({ model, userMessage }) => {
+      deepseekCalled++;
+      return { text: `DeepSeek response for ${userMessage} using ${model}`, toolCalls: [], model };
+    },
+  };
+
+  const orchestrator = createMultiProviderOrchestrator({ providers: [deepseek] });
+  const result = await orchestrator.respond({ model: 'deepseek-r1', userMessage: 'Bantu coding algoritma' });
+
+  assert.equal(deepseekCalled, 1);
+  assert.equal(result.activeProvider, 'deepseek');
+  assert.ok(result.text.includes('DeepSeek response'));
 });
 
 test('VARIS_SYSTEM_PROMPT includes essential guidelines', () => {
@@ -123,3 +146,4 @@ test('VARIS_SYSTEM_PROMPT includes essential guidelines', () => {
   assert.ok(VARIS_SYSTEM_PROMPT.includes('weather'));
   assert.ok(VARIS_SYSTEM_PROMPT.includes('Kontrol Halusinasi'));
 });
+

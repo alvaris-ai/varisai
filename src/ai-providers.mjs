@@ -251,13 +251,13 @@ export function createOpenAIProvider({
 
 export function normalizeGroqModel(model) {
   if (!model || model === 'auto') return 'llama-3.3-70b-versatile';
+  if (model.includes('deepseek') || model.includes('r1')) return 'deepseek-r1-distill-llama-70b';
   if (model === 'llama-3.3-70b' || model === 'llama-3.3-70b-versatile' || model === 'llama-70b') return 'llama-3.3-70b-versatile';
   if (model === 'llama-3.1-8b' || model === 'llama-3.1-8b-instant' || model === 'llama-8b') return 'llama-3.1-8b-instant';
   if (model === 'llama-3.2-3b' || model === 'llama-3.2-3b-preview') return 'llama-3.2-3b-preview';
   if (model === 'llama-3.2-1b' || model === 'llama-3.2-1b-preview') return 'llama-3.2-1b-preview';
   if (model === 'mixtral-8x7b' || model === 'mixtral-8x7b-32768') return 'mixtral-8x7b-32768';
   if (model === 'gemma2-9b' || model === 'gemma2-9b-it') return 'gemma2-9b-it';
-  if (model.includes('deepseek')) return 'deepseek-r1-distill-llama-70b';
   return model;
 }
 
@@ -622,7 +622,361 @@ export function createGroqProvider({
   };
 }
 
-// 4. Smart Local Provider (Fallback & Test Harness)
+// 4. DeepSeek Official Provider (deepseek-chat / deepseek-reasoner / R1)
+export function createDeepSeekProvider({
+  apiKey,
+  model: defaultModel = 'deepseek-chat',
+  baseURL = 'https://api.deepseek.com',
+  timeoutMs = 25_000,
+  client,
+} = {}) {
+  const deepseekClient = client ?? new OpenAI({
+    apiKey: apiKey || 'dummy-key',
+    baseURL: baseURL || 'https://api.deepseek.com',
+    maxRetries: 0,
+  });
+
+  return {
+    name: 'deepseek',
+    isConfigured: () => Boolean(apiKey || client),
+    countTokens: (text = '') => Math.ceil(text.length / 4),
+    validateModel: (modelId = '') => modelId.toLowerCase().includes('deepseek'),
+    async healthCheck() {
+      if (!apiKey && !client) return { status: 'not_configured', latencyMs: 0 };
+      const start = Date.now();
+      try {
+        await deepseekClient.models.list({ timeout: 5000 });
+        return { status: 'available', latencyMs: Date.now() - start };
+      } catch (err) {
+        return { status: 'unavailable', error: err.message, latencyMs: Date.now() - start };
+      }
+    },
+    async generate(params) {
+      return this.respond(params);
+    },
+    async respond(params) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error('DeepSeek API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'deepseek' });
+      }
+
+      const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
+      let targetModel = requestedModel || defaultModel;
+      if (targetModel.includes('reasoner') || targetModel.includes('r1')) {
+        targetModel = 'deepseek-reasoner';
+      } else if (targetModel.includes('chat') || targetModel.includes('v3') || targetModel.includes('flash') || targetModel.includes('4.1')) {
+        targetModel = 'deepseek-chat';
+      }
+
+      let messages;
+      if (continuation && toolResults?.length) {
+        const previousInput = continuation.previousInput ?? [];
+        const assistantToolCalls = continuation.toolCallItems ?? [];
+        const toolResultMessages = toolResults.map(r => ({
+          role: 'tool',
+          tool_call_id: r.callId,
+          content: typeof r.result === 'string' ? r.result : JSON.stringify(r.result),
+        }));
+        messages = [
+          ...previousInput,
+          { role: 'assistant', tool_calls: assistantToolCalls },
+          ...toolResultMessages,
+        ];
+      } else {
+        messages = [
+          { role: 'system', content: VARIS_SYSTEM_PROMPT },
+          ...context.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: userMessage },
+        ];
+      }
+
+      const formattedTools = tools?.length
+        ? tools.map(t => ({
+            type: 'function',
+            function: {
+              name: t.name,
+              description: t.description,
+              parameters: t.parameters || { type: 'object', properties: {} },
+            },
+          }))
+        : undefined;
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const completion = await deepseekClient.chat.completions.create(
+          {
+            model: targetModel,
+            messages,
+            ...(formattedTools && targetModel !== 'deepseek-reasoner' ? { tools: formattedTools } : {}),
+          },
+          { signal: controller.signal }
+        );
+
+        const choice = completion.choices?.[0];
+        const message = choice?.message;
+
+        if (message?.tool_calls?.length > 0) {
+          const parsedCalls = message.tool_calls.map(tc => {
+            let args = {};
+            try {
+              args = JSON.parse(tc.function.arguments);
+            } catch {}
+            return {
+              callId: tc.id || `call_${Date.now()}`,
+              name: tc.function.name,
+              arguments: args,
+            };
+          });
+
+          return {
+            toolCalls: parsedCalls,
+            continuation: {
+              previousInput: messages,
+              toolCallItems: message.tool_calls,
+            },
+            model: targetModel,
+            usage: completion.usage ?? null,
+          };
+        }
+
+        const text = message?.content?.trim() || '';
+        if (!text) {
+          const malformed = new Error('DeepSeek returned empty response');
+          malformed.code = 'AI_MALFORMED_RESPONSE';
+          throw malformed;
+        }
+
+        return { text, toolCalls: [], model: targetModel, usage: completion.usage ?? null };
+      } catch (err) {
+        if (err?.name === 'AbortError') throw timeoutError(timeoutMs, 'DeepSeek');
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    async stream(params, onToken) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error('DeepSeek API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'deepseek' });
+      }
+
+      const { context = [], userMessage, model: requestedModel } = params;
+      let targetModel = requestedModel || defaultModel;
+      if (targetModel.includes('reasoner') || targetModel.includes('r1')) {
+        targetModel = 'deepseek-reasoner';
+      } else if (targetModel.includes('chat') || targetModel.includes('v3') || targetModel.includes('flash') || targetModel.includes('4.1')) {
+        targetModel = 'deepseek-chat';
+      }
+
+      const messages = [
+        { role: 'system', content: VARIS_SYSTEM_PROMPT },
+        ...context.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: userMessage },
+      ];
+
+      const streamResponse = await deepseekClient.chat.completions.create({
+        model: targetModel,
+        messages,
+        stream: true,
+      });
+
+      let fullText = '';
+      for await (const chunk of streamResponse) {
+        const token = chunk.choices?.[0]?.delta?.content || '';
+        if (token) {
+          fullText += token;
+          if (onToken) onToken(token);
+        }
+      }
+
+      return {
+        text: fullText.trim(),
+        model: targetModel,
+        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) },
+      };
+    },
+  };
+}
+
+// 5. OpenRouter Provider (Free Tier & Multimodel Hub ala Cline)
+export function createOpenRouterProvider({
+  apiKey,
+  model: defaultModel = 'deepseek/deepseek-r1:free',
+  baseURL = 'https://openrouter.ai/api/v1',
+  timeoutMs = 25_000,
+  client,
+} = {}) {
+  const openrouterClient = client ?? new OpenAI({
+    apiKey: apiKey || 'dummy-key',
+    baseURL: baseURL || 'https://openrouter.ai/api/v1',
+    defaultHeaders: {
+      'HTTP-Referer': 'https://varis.ai',
+      'X-Title': 'VARIS AI',
+    },
+    maxRetries: 0,
+  });
+
+  return {
+    name: 'openrouter',
+    isConfigured: () => Boolean(apiKey || client),
+    countTokens: (text = '') => Math.ceil(text.length / 4),
+    validateModel: (modelId = '') => modelId.includes('/') || modelId.includes(':free') || modelId.startsWith('openrouter'),
+    async healthCheck() {
+      if (!apiKey && !client) return { status: 'not_configured', latencyMs: 0 };
+      const start = Date.now();
+      try {
+        await openrouterClient.models.list({ timeout: 5000 });
+        return { status: 'available', latencyMs: Date.now() - start };
+      } catch (err) {
+        return { status: 'unavailable', error: err.message, latencyMs: Date.now() - start };
+      }
+    },
+    async generate(params) {
+      return this.respond(params);
+    },
+    async respond(params) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error('OpenRouter API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'openrouter' });
+      }
+
+      const { context = [], userMessage, tools, continuation, toolResults, model: requestedModel } = params;
+      let targetModel = requestedModel || defaultModel;
+      if (targetModel === 'deepseek-r1' || targetModel === 'deepseek-r1-free') {
+        targetModel = 'deepseek/deepseek-r1:free';
+      } else if (targetModel === 'deepseek-chat' || targetModel === 'deepseek-chat-free' || targetModel === 'deepseek-flash' || targetModel === 'deepseek-4.1') {
+        targetModel = 'deepseek/deepseek-chat:free';
+      }
+
+      let messages;
+      if (continuation && toolResults?.length) {
+        const previousInput = continuation.previousInput ?? [];
+        const assistantToolCalls = continuation.toolCallItems ?? [];
+        const toolResultMessages = toolResults.map(r => ({
+          role: 'tool',
+          tool_call_id: r.callId,
+          content: typeof r.result === 'string' ? r.result : JSON.stringify(r.result),
+        }));
+        messages = [
+          ...previousInput,
+          { role: 'assistant', tool_calls: assistantToolCalls },
+          ...toolResultMessages,
+        ];
+      } else {
+        messages = [
+          { role: 'system', content: VARIS_SYSTEM_PROMPT },
+          ...context.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: userMessage },
+        ];
+      }
+
+      const formattedTools = tools?.length
+        ? tools.map(t => ({
+            type: 'function',
+            function: {
+              name: t.name,
+              description: t.description,
+              parameters: t.parameters || { type: 'object', properties: {} },
+            },
+          }))
+        : undefined;
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const completion = await openrouterClient.chat.completions.create(
+          {
+            model: targetModel,
+            messages,
+            ...(formattedTools ? { tools: formattedTools } : {}),
+          },
+          { signal: controller.signal }
+        );
+
+        const choice = completion.choices?.[0];
+        const message = choice?.message;
+
+        if (message?.tool_calls?.length > 0) {
+          const parsedCalls = message.tool_calls.map(tc => {
+            let args = {};
+            try {
+              args = JSON.parse(tc.function.arguments);
+            } catch {}
+            return {
+              callId: tc.id || `call_${Date.now()}`,
+              name: tc.function.name,
+              arguments: args,
+            };
+          });
+
+          return {
+            toolCalls: parsedCalls,
+            continuation: {
+              previousInput: messages,
+              toolCallItems: message.tool_calls,
+            },
+            model: targetModel,
+            usage: completion.usage ?? null,
+          };
+        }
+
+        const text = message?.content?.trim() || '';
+        if (!text) {
+          const malformed = new Error('OpenRouter returned empty response');
+          malformed.code = 'AI_MALFORMED_RESPONSE';
+          throw malformed;
+        }
+
+        return { text, toolCalls: [], model: targetModel, usage: completion.usage ?? null };
+      } catch (err) {
+        if (err?.name === 'AbortError') throw timeoutError(timeoutMs, 'OpenRouter');
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    async stream(params, onToken) {
+      if (!apiKey && !client) {
+        throw Object.assign(new Error('OpenRouter API Key is not configured'), { code: 'AI_NOT_CONFIGURED', provider: 'openrouter' });
+      }
+
+      const { context = [], userMessage, model: requestedModel } = params;
+      let targetModel = requestedModel || defaultModel;
+      if (targetModel === 'deepseek-r1' || targetModel === 'deepseek-r1-free') {
+        targetModel = 'deepseek/deepseek-r1:free';
+      } else if (targetModel === 'deepseek-chat' || targetModel === 'deepseek-chat-free' || targetModel === 'deepseek-flash' || targetModel === 'deepseek-4.1') {
+        targetModel = 'deepseek/deepseek-chat:free';
+      }
+
+      const messages = [
+        { role: 'system', content: VARIS_SYSTEM_PROMPT },
+        ...context.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: userMessage },
+      ];
+
+      const streamResponse = await openrouterClient.chat.completions.create({
+        model: targetModel,
+        messages,
+        stream: true,
+      });
+
+      let fullText = '';
+      for await (const chunk of streamResponse) {
+        const token = chunk.choices?.[0]?.delta?.content || '';
+        if (token) {
+          fullText += token;
+          if (onToken) onToken(token);
+        }
+      }
+
+      return {
+        text: fullText.trim(),
+        model: targetModel,
+        usage: { prompt_tokens: Math.ceil(userMessage.length / 4), completion_tokens: Math.ceil(fullText.length / 4) },
+      };
+    },
+  };
+}
+
+// 6. Smart Local Provider (Fallback & Test Harness)
 export function createSmartLocalProvider() {
   return {
     name: 'smart_local',
@@ -662,13 +1016,19 @@ export function createSmartLocalProvider() {
   };
 }
 
-// 5. Smart Model Router for Auto Mode
+// 7. Smart Model Router for Auto Mode
 export function selectAutoModel({ userMessage = '', intent = {}, userPlan = null, availableProviders = [] }) {
   const text = (userMessage || '').toLowerCase();
   const providerNames = availableProviders.filter(p => typeof p.isConfigured === 'function' ? p.isConfigured() : true).map(p => p.name);
 
-  // 1. Complex Coding / Architecture / Reasoning
-  if (intent.type === 'coding' || text.includes('arsitektur') || text.includes('algoritma kompleks')) {
+  // 1. Complex Coding / Architecture / Deep Reasoning (DeepSeek-R1 / GPT-4o / Gemini / Groq)
+  if (intent.type === 'coding' || text.includes('arsitektur') || text.includes('algoritma kompleks') || text.includes('penalaran') || text.includes('analisis mendalam')) {
+    if (providerNames.includes('deepseek')) {
+      return { providerName: 'deepseek', modelId: 'deepseek-reasoner' };
+    }
+    if (providerNames.includes('openrouter')) {
+      return { providerName: 'openrouter', modelId: 'deepseek/deepseek-r1:free' };
+    }
     if (providerNames.includes('openai') && userPlan?.allowed_tiers?.includes('pro')) {
       return { providerName: 'openai', modelId: 'gpt-4o' };
     }
@@ -676,7 +1036,7 @@ export function selectAutoModel({ userMessage = '', intent = {}, userPlan = null
       return { providerName: 'gemini', modelId: 'gemini-2.0-flash' };
     }
     if (providerNames.includes('groq')) {
-      return { providerName: 'groq', modelId: 'llama-3.3-70b-versatile' };
+      return { providerName: 'groq', modelId: 'deepseek-r1-distill-llama-70b' };
     }
     if (providerNames.includes('openai')) {
       return { providerName: 'openai', modelId: 'gpt-4o-mini' };
@@ -684,6 +1044,12 @@ export function selectAutoModel({ userMessage = '', intent = {}, userPlan = null
   }
 
   // 2. High Speed / General Talk / Math / Fact Search
+  if (providerNames.includes('deepseek')) {
+    return { providerName: 'deepseek', modelId: 'deepseek-chat' };
+  }
+  if (providerNames.includes('openrouter')) {
+    return { providerName: 'openrouter', modelId: 'deepseek/deepseek-chat:free' };
+  }
   if (providerNames.includes('google') || providerNames.includes('gemini')) {
     return { providerName: 'gemini', modelId: 'gemini-2.0-flash' };
   }
@@ -697,7 +1063,7 @@ export function selectAutoModel({ userMessage = '', intent = {}, userPlan = null
   return { providerName: 'smart_local', modelId: 'varis-smart-engine' };
 }
 
-// 6. Multi-Provider Orchestrator with Strict Routing & Real Availability
+// 8. Multi-Provider Orchestrator with Strict Routing & Real Availability
 export function createMultiProviderOrchestrator({
   providers = [],
   logger,
@@ -723,10 +1089,15 @@ export function createMultiProviderOrchestrator({
       const hasOpenAI = Boolean(providerMap.get('openai')?.isConfigured?.());
       const hasGemini = Boolean(providerMap.get('gemini')?.isConfigured?.() || providerMap.get('google')?.isConfigured?.());
       const hasGroq = Boolean(providerMap.get('groq')?.isConfigured?.());
-      const hasAny = hasOpenAI || hasGemini || hasGroq;
+      const hasDeepSeek = Boolean(providerMap.get('deepseek')?.isConfigured?.());
+      const hasOpenRouter = Boolean(providerMap.get('openrouter')?.isConfigured?.());
+      const hasAny = hasOpenAI || hasGemini || hasGroq || hasDeepSeek || hasOpenRouter;
 
       return {
         'auto': hasAny ? 'available' : 'available',
+        'deepseek-r1': (hasDeepSeek || hasOpenRouter || hasGroq) ? 'available' : 'available',
+        'deepseek-chat': (hasDeepSeek || hasOpenRouter || hasGroq) ? 'available' : 'available',
+        'deepseek-flash': (hasDeepSeek || hasOpenRouter || hasGroq) ? 'available' : 'available',
         'gemini-2.0-flash': hasGemini ? 'available' : 'not_configured',
         'gemini-1.5-pro': hasGemini ? 'available' : 'not_configured',
         'gpt-4o-mini': hasOpenAI ? 'available' : 'not_configured',
@@ -761,6 +1132,15 @@ export function createMultiProviderOrchestrator({
         targetProvider = providerMap.get('gemini') || providerMap.get('google');
       } else if (requestedModel.startsWith('gpt') || requestedModel.startsWith('o1') || requestedModel.startsWith('o3')) {
         targetProvider = providerMap.get('openai');
+      } else if (requestedModel.includes('openrouter') || requestedModel.includes(':free') || (requestedModel.includes('/') && !requestedModel.startsWith('gemini'))) {
+        targetProvider = providerMap.get('openrouter') || providerMap.get('deepseek') || providerMap.get('groq');
+      } else if (requestedModel.includes('deepseek') || requestedModel === 'deepseek-4.1' || requestedModel === 'deepseek-flash' || requestedModel === 'deepseek-r1' || requestedModel === 'deepseek-chat') {
+        targetProvider = providerMap.get('deepseek') || providerMap.get('openrouter') || providerMap.get('groq');
+        if (targetProvider?.name === 'groq') {
+          targetModelId = 'deepseek-r1-distill-llama-70b';
+        } else if (targetProvider?.name === 'openrouter') {
+          targetModelId = requestedModel.includes('r1') ? 'deepseek/deepseek-r1:free' : 'deepseek/deepseek-chat:free';
+        }
       } else if (requestedModel.startsWith('llama') || requestedModel.includes('groq')) {
         targetProvider = providerMap.get('groq');
         targetModelId = normalizeGroqModel(requestedModel);
@@ -769,7 +1149,7 @@ export function createMultiProviderOrchestrator({
       // Strict Model Fidelity: If user specifically asked for a provider and it's missing
       if (!targetProvider || (typeof targetProvider.isConfigured === 'function' && !targetProvider.isConfigured())) {
         if (!allowFallback && requestedModel !== 'auto') {
-          const providerDisplayName = requestedModel.startsWith('gemini') ? 'Google Gemini' : requestedModel.startsWith('gpt') ? 'OpenAI GPT' : requestedModel.startsWith('llama') ? 'Groq LLaMA' : 'Requested AI Provider';
+          const providerDisplayName = requestedModel.startsWith('gemini') ? 'Google Gemini' : requestedModel.startsWith('gpt') ? 'OpenAI GPT' : requestedModel.includes('deepseek') ? 'DeepSeek' : requestedModel.startsWith('llama') ? 'Groq LLaMA' : 'Requested AI Provider';
           throw Object.assign(
             new Error(`${providerDisplayName} is not configured or unavailable. Please select an available model.`),
             { code: 'AI_NOT_CONFIGURED', requestedModel }
@@ -848,6 +1228,15 @@ export function createMultiProviderOrchestrator({
         targetProvider = providerMap.get('gemini') || providerMap.get('google');
       } else if (requestedModel.startsWith('gpt') || requestedModel.startsWith('o1') || requestedModel.startsWith('o3')) {
         targetProvider = providerMap.get('openai');
+      } else if (requestedModel.includes('openrouter') || requestedModel.includes(':free') || (requestedModel.includes('/') && !requestedModel.startsWith('gemini'))) {
+        targetProvider = providerMap.get('openrouter') || providerMap.get('deepseek') || providerMap.get('groq');
+      } else if (requestedModel.includes('deepseek') || requestedModel === 'deepseek-4.1' || requestedModel === 'deepseek-flash' || requestedModel === 'deepseek-r1' || requestedModel === 'deepseek-chat') {
+        targetProvider = providerMap.get('deepseek') || providerMap.get('openrouter') || providerMap.get('groq');
+        if (targetProvider?.name === 'groq') {
+          targetModelId = 'deepseek-r1-distill-llama-70b';
+        } else if (targetProvider?.name === 'openrouter') {
+          targetModelId = requestedModel.includes('r1') ? 'deepseek/deepseek-r1:free' : 'deepseek/deepseek-chat:free';
+        }
       } else if (requestedModel.startsWith('llama') || requestedModel.includes('groq')) {
         targetProvider = providerMap.get('groq');
         targetModelId = normalizeGroqModel(requestedModel);
@@ -961,7 +1350,31 @@ export function createAIProviderFromConfig(config, { logger } = {}) {
     );
   }
 
-  // Groq
+  // DeepSeek Official
+  if (config.deepseekApiKey) {
+    providers.push(
+      createDeepSeekProvider({
+        apiKey: config.deepseekApiKey,
+        model: config.deepseekModel || 'deepseek-chat',
+        baseURL: config.deepseekBaseUrl,
+        timeoutMs: config.deepseekTimeoutMs || 25_000,
+      })
+    );
+  }
+
+  // OpenRouter (Free tier / Multimodel Hub ala Cline)
+  if (config.openrouterApiKey) {
+    providers.push(
+      createOpenRouterProvider({
+        apiKey: config.openrouterApiKey,
+        model: config.openrouterModel || 'deepseek/deepseek-r1:free',
+        baseURL: config.openrouterBaseUrl,
+        timeoutMs: config.openrouterTimeoutMs || 25_000,
+      })
+    );
+  }
+
+  // Groq (includes DeepSeek R1 Distill 70B ultra fast)
   if (config.groqApiKey) {
     providers.push(
       createGroqProvider({
@@ -977,7 +1390,7 @@ export function createAIProviderFromConfig(config, { logger } = {}) {
   return createMultiProviderOrchestrator({ providers, logger });
 }
 
-// 6. Provider Health Service
+// 9. Provider Health Service
 export class ProviderHealthService {
   constructor(providers = []) {
     this.providers = providers;
@@ -1002,7 +1415,7 @@ export class ProviderHealthService {
   }
 }
 
-// 7. Model Router
+// 10. Model Router
 export class ModelRouter {
   constructor(providers = []) {
     this.providers = providers;
@@ -1032,6 +1445,16 @@ export class ModelRouter {
       return { provider: target || this.providers[0], modelId: model };
     }
 
+    if (model.includes('deepseek') || model === 'deepseek-4.1' || model === 'deepseek-flash' || model === 'deepseek-r1' || model === 'deepseek-chat') {
+      const target = this.providers.find(p => p.name === 'deepseek' || p.name === 'openrouter' || p.name === 'groq');
+      return { provider: target || this.providers[0], modelId: model };
+    }
+
+    if (model.includes('openrouter') || model.includes(':free') || model.includes('/')) {
+      const target = this.providers.find(p => p.name === 'openrouter' || p.name === 'deepseek' || p.name === 'groq');
+      return { provider: target || this.providers[0], modelId: model };
+    }
+
     if (model.startsWith('llama') || model.includes('groq')) {
       const target = this.providers.find(p => p.name === 'groq');
       return { provider: target || this.providers[0], modelId: normalizeGroqModel(model) };
@@ -1041,7 +1464,7 @@ export class ModelRouter {
   }
 }
 
-// 8. Response Validator
+// 11. Response Validator
 export class ResponseValidator {
   static validate(response) {
     if (!response) {
