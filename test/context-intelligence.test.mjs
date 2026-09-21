@@ -6,6 +6,24 @@ import {
   ResponseRelevanceValidator,
 } from '../src/context-manager.mjs';
 import { generateFreeSmartResponse, tryEvaluateMath } from '../src/free-ai-engine.mjs';
+import { isConversationalOrNonSearch } from '../api/ai/chat.js';
+
+test('Context Intelligence: isConversationalOrNonSearch suppresses unnecessary web queries', () => {
+  assert.equal(isConversationalOrNonSearch('hallo'), true);
+  assert.equal(isConversationalOrNonSearch('Halo VARIS'), true);
+  assert.equal(isConversationalOrNonSearch('Siapa kamu?'), true);
+  assert.equal(isConversationalOrNonSearch('Namaku Al.'), true);
+  assert.equal(isConversationalOrNonSearch('Berapa 25 x 48?'), true);
+  assert.equal(isConversationalOrNonSearch('Bagaimana supaya dia pintar?'), true);
+  assert.equal(isConversationalOrNonSearch('Tambahkan GPT.'), true);
+  assert.equal(isConversationalOrNonSearch('Bukan itu maksudku.'), true);
+  assert.equal(isConversationalOrNonSearch('Kenapa kodeku error?'), true);
+
+  // Real search queries SHOULD trigger search
+  assert.equal(isConversationalOrNonSearch('Siapa presiden Indonesia saat ini?'), false);
+  assert.equal(isConversationalOrNonSearch('Berapa populasi penduduk Indonesia tahun 2026?'), false);
+  assert.equal(isConversationalOrNonSearch('Berita teknologi terkini hari ini'), false);
+});
 
 test('Context Intelligence: Entity Extraction from Multi-turn History', () => {
   const manager = new ConversationContextManager();
@@ -128,10 +146,15 @@ test('Context Intelligence: 15 Core Scenarios Sequential Simulation (Section 37)
     return reply;
   }
 
-  // TEST 1: "Halo"
+  // TEST 1: "Halo" and "hallo"
   const r1 = chat('Halo');
   assert.ok(r1.toLowerCase().includes('halo') || r1.toLowerCase().includes('senang'));
   assert.ok(r1.length < 250);
+
+  const rHallo = chat('hallo');
+  assert.ok(rHallo.toLowerCase().includes('halo') || rHallo.toLowerCase().includes('senang'));
+  assert.ok(!rHallo.includes('Hallo Bandoeng'));
+  assert.ok(!rHallo.includes('topik yang menarik'));
 
   // TEST 2: "Siapa kamu?"
   const r2 = chat('Siapa kamu?');

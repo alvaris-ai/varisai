@@ -21,9 +21,9 @@ let currentUser = {
 };
 let currentModel = 'auto';
 let currentModelName = 'VARIS Auto';
-let currentSearchMode = 'always'; // 'always', 'smart', 'offline'
-let currentSearchModeName = 'Web Research';
-let currentSearchModeIcon = '🌐';
+let currentSearchMode = 'smart'; // 'smart', 'always', 'offline'
+let currentSearchModeName = 'Smart Web';
+let currentSearchModeIcon = '⚡';
 let currentConversationId = 'conv-' + Date.now();
 let isRegisterMode = false;
 let isVoiceMuted = false;

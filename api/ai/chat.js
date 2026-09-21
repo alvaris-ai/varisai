@@ -54,12 +54,78 @@ async function parseBody(req) {
   return str ? JSON.parse(str) : {};
 }
 
+export function isConversationalOrNonSearch(message = '') {
+  if (!message || typeof message !== 'string') return true;
+  const lower = message.trim().toLowerCase().replace(/[?!.,;:]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // 1. Greetings & Small talk
+  if (/^(halo|hallo|hai|hey|hei|hello|hi|helo|holla|pagi|siang|sore|malam|apa kabar|gimana kabarnya|terima kasih|makasih|thanks|thank you|selamat pagi|selamat siang|selamat sore|selamat malam)(\b|\s|$)/i.test(lower)) {
+    return true;
+  }
+
+  // 2. Identity & Introduction
+  if (
+    lower === 'siapa kamu' ||
+    lower === 'kamu siapa' ||
+    lower === 'siapa namamu' ||
+    lower === 'namamu siapa' ||
+    lower === 'kamu ini siapa' ||
+    lower.startsWith('namaku ') ||
+    lower.startsWith('nama saya ') ||
+    lower.startsWith('panggil aku ')
+  ) {
+    return true;
+  }
+
+  // 3. Capabilities & Role
+  if (
+    lower.includes('apa yang bisa kamu lakukan') ||
+    lower.includes('apa kemampuanmu') ||
+    lower.includes('bisa apa saja') ||
+    lower.includes('fitur kamu apa') ||
+    lower.includes('apa fiturmu') ||
+    lower.includes('peran mu') ||
+    lower.includes('peran kamu') ||
+    lower.includes('kamu robot') ||
+    lower.includes('apakah kamu robot')
+  ) {
+    return true;
+  }
+
+  // 4. Arithmetic & Calculations
+  if (/^(\d+[\s\d+\-*/÷×%^()]+)$/.test(lower) || /^(\d+\s*[\+\-\*\/\%x×÷\^]\s*\d+|hitung\b|berapa hasil|berapa 25 x 48)/i.test(lower)) {
+    return true;
+  }
+
+  // 5. Conversational Continuation / Anaphora / Repair
+  if (
+    lower.includes('dia pintar') ||
+    lower.startsWith('bagaimana supaya dia') ||
+    lower.startsWith('tambahkan gpt') ||
+    lower.startsWith('tambah gpt') ||
+    lower.includes('yang kedua') ||
+    lower === 'jelaskan lagi' ||
+    lower.startsWith('bukan ') ||
+    lower.startsWith('bukan itu') ||
+    lower.startsWith('salah') ||
+    lower.includes('maksudku bukan') ||
+    lower === 'pendekin' ||
+    lower === 'singkat aja' ||
+    lower === 'buat lebih sederhana' ||
+    lower.includes('balik ke varis') ||
+    lower === 'kenapa kodeku error?' ||
+    lower === 'kenapa kodeku error'
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function shouldExecuteSearch(searchMode, message) {
   if (searchMode === 'offline') return false;
-  if (searchMode === 'always') return true;
-  const trimmed = message.trim().toLowerCase();
-  if (/^(halo|hai|hi|hello|selamat (pagi|siang|sore|malam)|terima kasih|thanks|makasih)$/i.test(trimmed)) return false;
-  if (/^(\d+[\s\d+\-*/÷×%^()]+)$/.test(trimmed)) return false;
+  // NEVER execute web research for conversational / small-talk / math / identity
+  if (isConversationalOrNonSearch(message)) return false;
   return true;
 }
 

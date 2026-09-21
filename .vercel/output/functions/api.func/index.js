@@ -14285,7 +14285,7 @@ function generateFreeSmartResponse(userMessage, context = []) {
   if (lower.includes("apa kabar")) {
     return "Halo! Kabar saya sangat baik dan siap membantu Anda. Bagaimana dengan Anda? Ada yang bisa saya bantu hari ini?";
   }
-  if (/^(halo|hai|hey|hei|hello|hi)(\s+varis|\s+ai)?$/i.test(lower)) {
+  if (/^(halo|hallo|hai|hey|hei|hello|hi|helo|holla|pagi|siang|sore|malam)(\s+varis|\s+ai)?$/i.test(lower)) {
     return "Halo! Senang bisa menyapa Anda. Ada yang bisa saya bantu hari ini?";
   }
   if (lower.includes("terima kasih") || lower.includes("makasih") || lower.includes("thank you") || lower.includes("thanks")) {
@@ -17336,9 +17336,15 @@ var DEFAULT_AGENT_PERMISSIONS = Object.freeze([
 function shouldTriggerWebResearch(userMessage = "", intent = null) {
   if (!userMessage || typeof userMessage !== "string") return false;
   const lower = userMessage.toLowerCase().replace(/[?!.,;:]/g, " ").replace(/\s+/g, " ").trim();
-  if (intent?.type === "calculation" || intent?.type === "small_talk") return false;
-  if (/^(\d+\s*[\+\-\*\/\%x×÷\^]\s*\d+|hitung\b|berapa hasil)/i.test(lower)) return false;
-  if (/^(halo|hai|hey|hei|hello|hi|apa kabar|pagi|siang|sore|malam)(\b|\s|$)/i.test(lower)) return false;
+  if (intent?.type === "calculation" || intent?.type === "small_talk" || intent?.type === "identity" || intent?.type === "user_name" || intent?.type === "correction_repair" || intent?.type === "referential_choice" || intent?.type === "explanation_request") {
+    return false;
+  }
+  if (/^(\d+[\s\d+\-*/÷×%^()]+)$/.test(lower) || /^(\d+\s*[\+\-\*\/\%x×÷\^]\s*\d+|hitung\b|berapa hasil|berapa 25 x 48)/i.test(lower)) return false;
+  if (/^(halo|hallo|hai|hey|hei|hello|hi|helo|holla|apa kabar|gimana kabarnya|pagi|siang|sore|malam|terima kasih|makasih|thanks|thank you|selamat pagi|selamat siang|selamat sore|selamat malam)(\b|\s|$)/i.test(lower)) return false;
+  if (/^(siapa kamu|kamu siapa|siapa namamu|namamu siapa|kamu ini siapa|apa kemampuanmu|apa yang bisa kamu lakukan|peran mu|peran kamu|apakah kamu robot)(\b|\s|$)/i.test(lower)) return false;
+  if (lower.startsWith("namaku ") || lower.startsWith("nama saya ") || lower.startsWith("panggil aku ")) return false;
+  if (lower.startsWith("bukan ") || lower.startsWith("salah") || lower === "jelaskan lagi" || lower === "pendekin" || lower === "singkat aja" || lower === "buat lebih sederhana") return false;
+  if (lower.includes("dia pintar") || lower.startsWith("tambahkan gpt") || lower.includes("yang kedua") || lower.includes("balik ke varis") || lower === "kenapa kodeku error?" || lower === "kenapa kodeku error") return false;
   const temporalKeywords = [
     "sekarang",
     "saat ini",
@@ -17771,12 +17777,29 @@ async function parseBody4(req) {
   const str2 = Buffer.concat(chunks).toString();
   return str2 ? JSON.parse(str2) : {};
 }
+function isConversationalOrNonSearch(message = "") {
+  if (!message || typeof message !== "string") return true;
+  const lower = message.trim().toLowerCase().replace(/[?!.,;:]/g, " ").replace(/\s+/g, " ").trim();
+  if (/^(halo|hallo|hai|hey|hei|hello|hi|helo|holla|pagi|siang|sore|malam|apa kabar|gimana kabarnya|terima kasih|makasih|thanks|thank you|selamat pagi|selamat siang|selamat sore|selamat malam)(\b|\s|$)/i.test(lower)) {
+    return true;
+  }
+  if (lower === "siapa kamu" || lower === "kamu siapa" || lower === "siapa namamu" || lower === "namamu siapa" || lower === "kamu ini siapa" || lower.startsWith("namaku ") || lower.startsWith("nama saya ") || lower.startsWith("panggil aku ")) {
+    return true;
+  }
+  if (lower.includes("apa yang bisa kamu lakukan") || lower.includes("apa kemampuanmu") || lower.includes("bisa apa saja") || lower.includes("fitur kamu apa") || lower.includes("apa fiturmu") || lower.includes("peran mu") || lower.includes("peran kamu") || lower.includes("kamu robot") || lower.includes("apakah kamu robot")) {
+    return true;
+  }
+  if (/^(\d+[\s\d+\-*/÷×%^()]+)$/.test(lower) || /^(\d+\s*[\+\-\*\/\%x×÷\^]\s*\d+|hitung\b|berapa hasil|berapa 25 x 48)/i.test(lower)) {
+    return true;
+  }
+  if (lower.includes("dia pintar") || lower.startsWith("bagaimana supaya dia") || lower.startsWith("tambahkan gpt") || lower.startsWith("tambah gpt") || lower.includes("yang kedua") || lower === "jelaskan lagi" || lower.startsWith("bukan ") || lower.startsWith("bukan itu") || lower.startsWith("salah") || lower.includes("maksudku bukan") || lower === "pendekin" || lower === "singkat aja" || lower === "buat lebih sederhana" || lower.includes("balik ke varis") || lower === "kenapa kodeku error?" || lower === "kenapa kodeku error") {
+    return true;
+  }
+  return false;
+}
 function shouldExecuteSearch(searchMode, message) {
   if (searchMode === "offline") return false;
-  if (searchMode === "always") return true;
-  const trimmed = message.trim().toLowerCase();
-  if (/^(halo|hai|hi|hello|selamat (pagi|siang|sore|malam)|terima kasih|thanks|makasih)$/i.test(trimmed)) return false;
-  if (/^(\d+[\s\d+\-*/÷×%^()]+)$/.test(trimmed)) return false;
+  if (isConversationalOrNonSearch(message)) return false;
   return true;
 }
 async function handler9(req, res) {

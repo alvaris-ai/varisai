@@ -55,7 +55,7 @@ export function generateFreeSmartResponse(userMessage, context = []) {
     return "Halo! Kabar saya sangat baik dan siap membantu Anda. Bagaimana dengan Anda? Ada yang bisa saya bantu hari ini?";
   }
 
-  if (/^(halo|hai|hey|hei|hello|hi)(\s+varis|\s+ai)?$/i.test(lower)) {
+  if (/^(halo|hallo|hai|hey|hei|hello|hi|helo|holla|pagi|siang|sore|malam)(\s+varis|\s+ai)?$/i.test(lower)) {
     return "Halo! Senang bisa menyapa Anda. Ada yang bisa saya bantu hari ini?";
   }
 

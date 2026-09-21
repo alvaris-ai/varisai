@@ -21,10 +21,24 @@ function shouldTriggerWebResearch(userMessage = '', intent = null) {
   if (!userMessage || typeof userMessage !== 'string') return false;
   const lower = userMessage.toLowerCase().replace(/[?!.,;:]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // Math calculations and small talk do not need web search
-  if (intent?.type === 'calculation' || intent?.type === 'small_talk') return false;
-  if (/^(\d+\s*[\+\-\*\/\%x×÷\^]\s*\d+|hitung\b|berapa hasil)/i.test(lower)) return false;
-  if (/^(halo|hai|hey|hei|hello|hi|apa kabar|pagi|siang|sore|malam)(\b|\s|$)/i.test(lower)) return false;
+  // Math calculations, small talk, identity, and conversational directives do not need web search
+  if (
+    intent?.type === 'calculation' ||
+    intent?.type === 'small_talk' ||
+    intent?.type === 'identity' ||
+    intent?.type === 'user_name' ||
+    intent?.type === 'correction_repair' ||
+    intent?.type === 'referential_choice' ||
+    intent?.type === 'explanation_request'
+  ) {
+    return false;
+  }
+  if (/^(\d+[\s\d+\-*/÷×%^()]+)$/.test(lower) || /^(\d+\s*[\+\-\*\/\%x×÷\^]\s*\d+|hitung\b|berapa hasil|berapa 25 x 48)/i.test(lower)) return false;
+  if (/^(halo|hallo|hai|hey|hei|hello|hi|helo|holla|apa kabar|gimana kabarnya|pagi|siang|sore|malam|terima kasih|makasih|thanks|thank you|selamat pagi|selamat siang|selamat sore|selamat malam)(\b|\s|$)/i.test(lower)) return false;
+  if (/^(siapa kamu|kamu siapa|siapa namamu|namamu siapa|kamu ini siapa|apa kemampuanmu|apa yang bisa kamu lakukan|peran mu|peran kamu|apakah kamu robot)(\b|\s|$)/i.test(lower)) return false;
+  if (lower.startsWith('namaku ') || lower.startsWith('nama saya ') || lower.startsWith('panggil aku ')) return false;
+  if (lower.startsWith('bukan ') || lower.startsWith('salah') || lower === 'jelaskan lagi' || lower === 'pendekin' || lower === 'singkat aja' || lower === 'buat lebih sederhana') return false;
+  if (lower.includes('dia pintar') || lower.startsWith('tambahkan gpt') || lower.includes('yang kedua') || lower.includes('balik ke varis') || lower === 'kenapa kodeku error?' || lower === 'kenapa kodeku error') return false;
 
   // Temporal & Fact Verification Trigger Words
   const temporalKeywords = [
