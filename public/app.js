@@ -790,7 +790,7 @@ function createAIMessageElement(initialText = '') {
     row.innerHTML = `
         <div class="chat-ai-header">
             <div class="ai-avatar-badge">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <img src="/assets/varis-logo.png" alt="VARIS AI" class="ai-avatar-img">
             </div>
             <strong class="ai-sender-name">VARIS AI</strong>
             <span class="ai-message-time">Just now</span>

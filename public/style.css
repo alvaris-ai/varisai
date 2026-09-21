@@ -196,19 +196,57 @@ html, body {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, #09122C 0%, #152654 60%, #2B3BE5 100%);
-  color: #FFFFFF;
+  background: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(212, 175, 55, 0.4);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border-default, #E2E8F0);
+  overflow: hidden;
 }
 
 .brand-badge-icon.sm {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sidebar-logo-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.topbar-logo-img {
   width: 26px;
   height: 26px;
-  border-radius: var(--radius-xs);
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.ai-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
 }
 
 .brand-name-text {
@@ -2869,11 +2907,13 @@ html, body {
   width: 26px;
   height: 26px;
   border-radius: 6px;
-  background: #2563EB;
+  background: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+  border: 1px solid var(--border-light, #E2E8F0);
+  overflow: hidden;
 }
 
 .ai-sender-name {
