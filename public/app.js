@@ -684,7 +684,7 @@ function renderModelsSheet(models) {
     if (otherModels.length > 0) {
         const tag = document.createElement('span');
         tag.className = 'sheet-section-tag';
-        tag.textContent = 'FRONTIER AI MODELS';
+        tag.textContent = 'VARIS AI';
         listEl.appendChild(tag);
 
         otherModels.forEach(m => {
@@ -1902,7 +1902,7 @@ document.addEventListener('DOMContentLoaded', () => {
             switchTab('chat');
             const input = document.getElementById('main-chat-input');
             if (input) {
-                input.value = 'Research and compare the leading frontier AI architectures in 2026.';
+                input.value = 'Riset dan jelaskan arsitektur serta kapabilitas VARIS AI.';
                 input.focus();
             }
         };
