@@ -2091,7 +2091,7 @@ html, body {
 .page-content-wrapper {
   max-width: 680px;
   margin: 0 auto;
-  padding: 1.25rem 1.25rem 6.5rem;
+  padding: 1.25rem 1.25rem 2.5rem;
 }
 
 /* ==========================================================
@@ -3768,7 +3768,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 2.5rem 1.5rem 6.5rem;
+  padding: 2.5rem 1.5rem 2.5rem;
   text-align: center;
 }
 
@@ -4510,59 +4510,8 @@ html, body {
 }
 
 /* ==========================================================
-   FIXED MOBILE BOTTOM NAVIGATION BAR (#bottom-nav-bar)
+   MODALS & BOTTOM SHEETS
    ========================================================== */
-.bottom-nav-bar {
-  display: flex;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 64px;
-  background: var(--bg-card-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border-default);
-  justify-content: space-around;
-  align-items: center;
-  z-index: 50;
-  padding-bottom: env(safe-area-inset-bottom, 0);
-  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.04);
-}
-
-.bottom-nav-tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.2rem;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  flex: 1;
-  height: 100%;
-  padding: 0;
-  transition: color var(--t-fast);
-}
-
-.bottom-nav-tab svg {
-  stroke: var(--text-muted);
-  transition: stroke var(--t-fast);
-}
-
-.bottom-nav-tab.active {
-  color: var(--brand-royal);
-}
-
-.bottom-nav-tab.active svg {
-  stroke: var(--brand-royal);
-}
-
-.nav-tab-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-}
 
 /* ==========================================================
    MODALS & BOTTOM SHEETS
@@ -5014,10 +4963,6 @@ html, body {
    RESPONSIVE LAYOUT & BREAKPOINTS
    ========================================================== */
 @media (min-width: 768px) {
-  .bottom-nav-bar {
-    display: none; /* Hide bottom nav on desktop/tablet */
-  }
-
   .desktop-sidebar {
     display: flex; /* Show left sidebar on desktop/tablet */
   }
@@ -5055,10 +5000,6 @@ html, body {
 
   .desktop-sidebar.collapsed {
     transform: translateX(-100%);
-  }
-
-  .bottom-nav-bar {
-    display: flex; /* Show bottom nav bar on mobile */
   }
 
   .landing-hero-grid {

@@ -142,14 +142,6 @@ function switchTab(tabName) {
         }
     });
 
-    // 2. Sync Mobile Bottom Navigation Tabs
-    document.querySelectorAll('.bottom-nav-tab').forEach(btn => {
-        if (btn.dataset.tab === tabName) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
 
     // 3. Sync Desktop Sidebar Navigation Items
     document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
@@ -1740,13 +1732,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 5. Mobile Bottom Navigation Tabs Click
-    document.querySelectorAll('.bottom-nav-tab').forEach(btn => {
-        btn.onclick = () => {
-            const target = btn.dataset.tab;
-            if (target) switchTab(target);
-        };
-    });
 
     // 6. Desktop Sidebar Navigation Items Click
     document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
