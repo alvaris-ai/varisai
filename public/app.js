@@ -425,26 +425,50 @@ function deleteChat(chatId) {
     }
 }
 
-function toggleSidebar() {
+function collapseSidebar() {
     const sidebar = document.getElementById('desktop-sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     if (!sidebar) return;
+    sidebar.classList.remove('mobile-open');
+    sidebar.classList.add('collapsed');
+    if (backdrop) backdrop.classList.add('hidden');
+}
+
+function expandSidebar() {
+    const sidebar = document.getElementById('desktop-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar) return;
+    sidebar.classList.remove('collapsed');
+    if (window.innerWidth < 768) {
+        sidebar.classList.add('mobile-open');
+        if (backdrop) backdrop.classList.remove('hidden');
+    } else {
+        sidebar.classList.remove('mobile-open');
+        if (backdrop) backdrop.classList.add('hidden');
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('desktop-sidebar');
+    if (!sidebar) return;
 
     if (window.innerWidth < 768) {
-        sidebar.classList.toggle('mobile-open');
-        if (backdrop) {
-            backdrop.classList.toggle('hidden', !sidebar.classList.contains('mobile-open'));
+        if (sidebar.classList.contains('mobile-open')) {
+            collapseSidebar();
+        } else {
+            expandSidebar();
         }
     } else {
-        sidebar.classList.toggle('collapsed');
+        if (sidebar.classList.contains('collapsed')) {
+            expandSidebar();
+        } else {
+            collapseSidebar();
+        }
     }
 }
 
 function closeMobileSidebar() {
-    const sidebar = document.getElementById('desktop-sidebar');
-    const backdrop = document.getElementById('sidebar-backdrop');
-    if (sidebar) sidebar.classList.remove('mobile-open');
-    if (backdrop) backdrop.classList.add('hidden');
+    collapseSidebar();
 }
 
 window.applyLibraryPrompt = function(promptText) {
@@ -1742,7 +1766,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebarBrandBtn) sidebarBrandBtn.onclick = () => switchTab('home');
 
     const sidebarCollapseBtn = document.getElementById('sidebar-btn-collapse');
-    if (sidebarCollapseBtn) sidebarCollapseBtn.onclick = () => toggleSidebar();
+    if (sidebarCollapseBtn) sidebarCollapseBtn.onclick = () => collapseSidebar();
 
     const sidebarToggleBtn = document.getElementById('btn-sidebar-toggle');
     if (sidebarToggleBtn) sidebarToggleBtn.onclick = () => toggleSidebar();
@@ -1850,7 +1874,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Collapsed Rail Buttons
     const railExpand = document.getElementById('rail-btn-expand');
-    if (railExpand) railExpand.onclick = () => toggleSidebar();
+    if (railExpand) railExpand.onclick = () => expandSidebar();
 
     const railNewChat = document.getElementById('rail-btn-newchat');
     if (railNewChat) railNewChat.onclick = () => startNewChat();
