@@ -1432,7 +1432,7 @@ function setupRobotEngine(stageId, rigId, canvasId, options = {}) {
     // 3. Interactive Reactions
     const greetings = [
         "\"Halo! Saya VARIS, asisten AI cerdas Anda. Siap membantu proyek dan riset Anda!\"",
-        "\"Satu workspace terintegrasi untuk mengakses model AI terbaik dunia (Gemini Pro, GPT-4o, Claude).\"",
+        "\"Workspace AI cerdas terintegrasi untuk riset real-time, coding, dan produktivitas kreatif.\"",
         "\"Pencarian web nyata dan mode suara real-time selalu aktif untuk Anda!\"",
         "\"Workspace Anda aman, privat, dan bebas batasan! ✨\""
     ];
