@@ -1719,6 +1719,7 @@ html, body {
 
 /* Sidebar User Footer */
 .sidebar-user-footer {
+  position: relative;
   padding-top: 0.65rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
@@ -1732,7 +1733,7 @@ html, body {
   align-items: center;
   gap: 0.65rem;
   padding: 0.35rem 0.45rem;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   flex: 1;
   overflow: hidden;
@@ -1774,40 +1775,173 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  text-align: left;
 }
 
 .user-profile-meta .user-name {
-  font-size: 0.85rem;
+  font-size: 0.86rem;
   font-weight: 600;
   color: #ECECEC;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .user-profile-meta .user-tier-label {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   color: #8E8E8E;
+  line-height: 1.25;
 }
 
 .btn-sidebar-upgrade {
-  background: #212121;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #242424;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 9999px;
   color: #ECECEC;
   font-family: var(--font-sans);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  padding: 0.35rem 0.75rem;
+  padding: 0.38rem 0.85rem;
   cursor: pointer;
   flex-shrink: 0;
   transition: all var(--t-fast);
 }
 
 .btn-sidebar-upgrade:hover {
-  background: #2A2A2A;
-  border-color: rgba(255, 255, 255, 0.24);
+  background: #303030;
+  border-color: rgba(255, 255, 255, 0.28);
   color: #FFFFFF;
+}
+
+/* Sidebar User Popover / Flyout Menu */
+.sidebar-user-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-width: 235px;
+  background: #212121;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  padding: 0.45rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  transform-origin: bottom center;
+  animation: userPopoverIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes userPopoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.sidebar-user-popover.hidden {
+  display: none !important;
+}
+
+.user-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background var(--t-fast);
+  color: #ECECEC;
+}
+
+.user-popover-header:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.user-popover-profile-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.user-popover-header .chevron-icon {
+  color: #8E8E8E;
+  flex-shrink: 0;
+}
+
+.user-popover-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.09);
+  margin: 0.3rem 0;
+  width: 100%;
+}
+
+.user-popover-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+}
+
+.user-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  background: transparent;
+  color: #ECECEC;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  text-align: left;
+}
+
+.user-popover-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.user-popover-item svg {
+  color: #ECECEC;
+  flex-shrink: 0;
+}
+
+.user-popover-item.item-has-chevron {
+  justify-content: space-between;
+}
+
+.user-popover-item .item-left-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-popover-item .chevron-icon {
+  color: #8E8E8E;
+  flex-shrink: 0;
+}
+
+.user-popover-item.item-logout:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+}
+
+.user-popover-item.item-logout:hover svg {
+  color: #F87171;
 }
 
 /* App Main Viewport */

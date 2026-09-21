@@ -256,6 +256,22 @@ function renderUserData() {
 
     const sidePlan = document.getElementById('sidebar-user-plan');
     if (sidePlan) sidePlan.textContent = currentUser.plan || 'Free';
+
+    // 5. Popover Menu Profile Data
+    const popAvatar = document.getElementById('popover-user-avatar');
+    if (popAvatar) {
+        if (photoUrl) {
+            popAvatar.innerHTML = `<img src="${photoUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+            popAvatar.innerHTML = `<span>${initials}</span>`;
+        }
+    }
+
+    const popName = document.getElementById('popover-user-name');
+    if (popName) popName.textContent = displayName;
+
+    const popPlan = document.getElementById('popover-user-plan');
+    if (popPlan) popPlan.textContent = currentUser.plan || 'Free';
 }
 
 // ==========================================================
@@ -1881,7 +1897,87 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const sidebarUser = document.getElementById('sidebar-user-btn');
-    if (sidebarUser) sidebarUser.onclick = () => switchTab('profile');
+    const userPopover = document.getElementById('sidebar-user-popover');
+    if (sidebarUser && userPopover) {
+        sidebarUser.onclick = (e) => {
+            e.stopPropagation();
+            userPopover.classList.toggle('hidden');
+        };
+    }
+
+    // Dismiss popover on outside click
+    document.addEventListener('click', (e) => {
+        if (userPopover && !userPopover.classList.contains('hidden')) {
+            const footerContainer = document.getElementById('sidebar-user-footer-container');
+            if (footerContainer && !footerContainer.contains(e.target)) {
+                userPopover.classList.add('hidden');
+            }
+        }
+    });
+
+    // Popover Menu Item Actions
+    const popProfileHeader = document.getElementById('popover-profile-header');
+    if (popProfileHeader) {
+        popProfileHeader.onclick = () => {
+            if (userPopover) userPopover.classList.add('hidden');
+            switchTab('profile');
+        };
+    }
+
+    const popUpgrade = document.getElementById('popover-item-upgrade');
+    if (popUpgrade) {
+        popUpgrade.onclick = () => {
+            if (userPopover) userPopover.classList.add('hidden');
+            openModal('modal-usage-sheet');
+        };
+    }
+
+    const popPersonalization = document.getElementById('popover-item-personalization');
+    if (popPersonalization) {
+        popPersonalization.onclick = () => {
+            if (userPopover) userPopover.classList.add('hidden');
+            switchTab('profile');
+            showToast('⚙️ Personalization: Setelan AI preferences aktif.');
+        };
+    }
+
+    const popProfile = document.getElementById('popover-item-profile');
+    if (popProfile) {
+        popProfile.onclick = () => {
+            if (userPopover) userPopover.classList.add('hidden');
+            switchTab('profile');
+        };
+    }
+
+    const popSettings = document.getElementById('popover-item-settings');
+    if (popSettings) {
+        popSettings.onclick = () => {
+            if (userPopover) userPopover.classList.add('hidden');
+            switchTab('profile');
+        };
+    }
+
+    const popHelp = document.getElementById('popover-item-help');
+    if (popHelp) {
+        popHelp.onclick = () => {
+            if (userPopover) userPopover.classList.add('hidden');
+            openModal('modal-feature-tour');
+        };
+    }
+
+    const popLogout = document.getElementById('popover-item-logout');
+    if (popLogout) {
+        popLogout.onclick = () => {
+            if (userPopover) userPopover.classList.add('hidden');
+            const signoutBtn = document.getElementById('btn-app-signout');
+            if (signoutBtn) {
+                signoutBtn.click();
+            } else {
+                showToast('Signed out of VARIS AI');
+                switchMainView('landing');
+            }
+        };
+    }
 
     const topbarAvatar = document.getElementById('topbar-avatar-btn');
     if (topbarAvatar) topbarAvatar.onclick = () => switchTab('profile');
